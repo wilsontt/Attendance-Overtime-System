@@ -3,7 +3,7 @@
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+**Note**: This template is filled in by the `/speckit.plan` command. See `.gemini/commands/speckit.plan.toml` for the execution workflow.
 
 ## Summary
 
@@ -31,7 +31,19 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- [ ] **P1: 規格驅動開發 (SDD)**: The feature is based on a clear specification (`spec.md`).
+- [ ] **P2: 設計即安全 (Security by Design)**: Security considerations (authentication, authorization, compliance, encryption) are addressed.
+- [ ] **P3: 清晰與可測試性 (Clarity and Testability)**: The feature's user stories have clear, testable acceptance criteria.
+- [ ] **P4: 漸進式價值交付 (Incremental Value Delivery)**: The feature is broken down into small, verifiable increments (user stories).
+- [ ] **P5: 主要語言（zh-TW） (Primary Language)**: All project artifacts are in Traditional Chinese.
+- [ ] **P6: 程式碼品質標準 (Code Quality Standards)**: Code will be reviewed and adhere to standards.
+- [ ] **P7: 嚴謹測試標準 (Rigorous Testing Standards)**: The feature will have corresponding tests.
+- [ ] **P8: 一致的使用者體驗 (User Experience Consistency)**: The feature's UI/UX is consistent with the design system.
+- [ ] **P9: 效能要求 (Performance Requirements)**: Performance requirements are defined in `spec.md`.
+- [ ] **P10: 架構設計 (Architectural Design)**: The feature's architecture aligns with DDD, Modular Monolith, and async communication principles.
+- [ ] **P11: 技術堆疊 (Technology Stack)**: The feature uses the approved technology stack.
+- [ ] **P12: 數據治理 (Data Governance)**: The feature respects data ownership and schema change management.
+- [ ] **P13: 可觀測性 (Observability)**: The feature includes support for logging, metrics, and tracing.
 
 ## Project Structure
 

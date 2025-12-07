@@ -1,0 +1,49 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.DS_Store
+dist/
+.env
+
+# testing
+/coverage
+
+# production
+/build
+/dist
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+
+# Gemini / Speckit generated files
+# 保留設定與模板，但忽略暫存與敏感資料
+
+# 如果 .specify 下有暫存輸出目錄 (例如 runs, output 等)，請忽略它
+.specify/runs/
+.specify/temp/
+
+# 如果 .gemini 下有個人設定或 log
+.gemini/sessions/
+.gemini/*.log
+.gemini/.env  # 絕對要忽略，如果有的話
