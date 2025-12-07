@@ -19,4 +19,6 @@ export interface OvertimeReport {
   clockOut: string;
   overtimeHours: number;
   mealAllowance: number;
+  overtimeRange: string;
+  overtimeReason: string;
 }

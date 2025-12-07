@@ -85,10 +85,24 @@ export const calculateOvertimeAndMealAllowance = (
   return records.map(record => {
     const overtimeHours = calculateOvertimeForRecord(record);
     const mealAllowance = calculateMealAllowanceForRecord(record);
+    
+    // Calculate overtime range
+    let overtimeRange = '';
+    const dayOfWeek = getDayOfWeek(record.date);
+    if (overtimeHours > 0 && dayOfWeek !== null) {
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        overtimeRange = `18:00 - ${record.clockOut}`;
+      } else if (dayOfWeek === 0 || dayOfWeek === 6) {
+        overtimeRange = `${record.clockIn} - ${record.clockOut}`;
+      }
+    }
+
     return {
       ...record,
       overtimeHours: parseFloat(overtimeHours.toFixed(2)), // Ensure two decimal places
       mealAllowance,
+      overtimeRange,
+      overtimeReason: '', // Initialize as empty
     };
   });
 };

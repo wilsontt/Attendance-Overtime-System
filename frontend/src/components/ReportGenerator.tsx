@@ -20,8 +20,10 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reports }) => {
       { header: '員工編號', key: 'employeeId', width: 15 },
       { header: '姓名', key: 'name', width: 15 },
       { header: '日期', key: 'date', width: 15 },
+      { header: '加班原因', key: 'overtimeReason', width: 20 },
       { header: '上班時間', key: 'clockIn', width: 15 },
       { header: '下班時間', key: 'clockOut', width: 15 },
+      { header: '加班時間', key: 'overtimeRange', width: 20 },
       { header: '加班時數', key: 'overtimeHours', width: 15 },
       { header: '誤餐費', key: 'mealAllowance', width: 15 },
     ];
@@ -32,8 +34,10 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reports }) => {
         employeeId: report.employeeId,
         name: report.name,
         date: report.date,
+        overtimeReason: report.overtimeReason,
         clockIn: report.clockIn,
         clockOut: report.clockOut,
+        overtimeRange: report.overtimeRange,
         overtimeHours: report.overtimeHours,
         mealAllowance: report.mealAllowance,
       });
@@ -54,11 +58,6 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reports }) => {
     if (!printRef.current) return;
 
     try {
-      // 為了截圖，必須確保元素是可見的
-      // 我們將其移入可視範圍但不影響佈局（或者它本來就在 off-screen）
-      // 這裡假設 printRef 已經設定為 position: fixed; left: -10000px;
-      // html2canvas 可以抓取它
-      
       const canvas = await html2canvas(printRef.current, {
         scale: 2, // 提高解析度
         useCORS: true,
@@ -89,8 +88,8 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reports }) => {
             <title>出勤加班報告</title>
             <style>
               body { font-family: "Microsoft JhengHei", "Heiti TC", sans-serif; margin: 20px; }
-              table { width: 100%; border-collapse: collapse; }
-              th, td { border: 1px solid black; padding: 8px; text-align: left; }
+              table { width: 100%; border-collapse: collapse; font-size: 12px; }
+              th, td { border: 1px solid black; padding: 4px 8px; text-align: left; }
               .header { font-size: 18px; font-weight: bold; margin-bottom: 20px; text-align: center; }
               @media print {
                 body { -webkit-print-color-adjust: exact; }
@@ -105,8 +104,10 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reports }) => {
                   <th>員工編號</th>
                   <th>姓名</th>
                   <th>日期</th>
+                  <th>加班原因</th>
                   <th>上班時間</th>
                   <th>下班時間</th>
+                  <th>加班時間</th>
                   <th>加班時數</th>
                   <th>誤餐費</th>
                 </tr>
@@ -117,8 +118,10 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reports }) => {
                     <td>${report.employeeId}</td>
                     <td>${report.name}</td>
                     <td>${report.date}</td>
+                    <td>${report.overtimeReason || ''}</td>
                     <td>${report.clockIn}</td>
                     <td>${report.clockOut}</td>
+                    <td>${report.overtimeRange}</td>
                     <td>${report.overtimeHours.toFixed(2)}</td>
                     <td>${report.mealAllowance}</td>
                   </tr>
@@ -132,15 +135,12 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reports }) => {
       printWindow.document.close();
       printWindow.focus();
       
-      // 使用 onload 確保資源載入後才列印，避免空白
       printWindow.onload = () => {
         setTimeout(() => {
           printWindow.print();
-          // printWindow.close(); // 選用：列印後自動關閉視窗
         }, 500);
       };
       
-      // 備援：若 onload 未觸發 (例如沒有外部資源時有些瀏覽器可能行為不同)
       if (printWindow.document.readyState === 'complete') {
          setTimeout(() => {
           printWindow.print();
@@ -155,15 +155,15 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reports }) => {
       <button onClick={generatePdf} style={{ marginRight: '10px', padding: '10px 15px' }}>下載 PDF</button>
       <button onClick={printReport} style={{ padding: '10px 15px' }}>列印報告</button>
 
-      {/* 隱藏的 PDF 生成專用表格：使用 fixed positioning 移出畫面但保持渲染 */}
+      {/* 隱藏的 PDF 生成專用表格 */}
       <div 
         ref={printRef} 
         style={{ 
           position: 'fixed', 
           top: 0, 
           left: -10000, 
-          width: '210mm', // A4 寬度
-          minHeight: '297mm', // A4 高度
+          width: '210mm',
+          minHeight: '297mm',
           padding: '20mm', 
           backgroundColor: 'white', 
           color: 'black',
@@ -171,14 +171,16 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reports }) => {
         }}
       >
         <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>出勤加班報告</h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
           <thead>
             <tr style={{ backgroundColor: '#f2f2f2' }}>
               <th style={{ border: '1px solid black', padding: '8px', textAlign: 'left' }}>員工編號</th>
               <th style={{ border: '1px solid black', padding: '8px', textAlign: 'left' }}>姓名</th>
               <th style={{ border: '1px solid black', padding: '8px', textAlign: 'left' }}>日期</th>
+              <th style={{ border: '1px solid black', padding: '8px', textAlign: 'left' }}>加班原因</th>
               <th style={{ border: '1px solid black', padding: '8px', textAlign: 'left' }}>上班時間</th>
               <th style={{ border: '1px solid black', padding: '8px', textAlign: 'left' }}>下班時間</th>
+              <th style={{ border: '1px solid black', padding: '8px', textAlign: 'left' }}>加班時間</th>
               <th style={{ border: '1px solid black', padding: '8px', textAlign: 'left' }}>加班時數</th>
               <th style={{ border: '1px solid black', padding: '8px', textAlign: 'left' }}>誤餐費</th>
             </tr>
@@ -189,8 +191,10 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reports }) => {
                 <td style={{ border: '1px solid black', padding: '8px' }}>{report.employeeId}</td>
                 <td style={{ border: '1px solid black', padding: '8px' }}>{report.name}</td>
                 <td style={{ border: '1px solid black', padding: '8px' }}>{report.date}</td>
+                <td style={{ border: '1px solid black', padding: '8px' }}>{report.overtimeReason}</td>
                 <td style={{ border: '1px solid black', padding: '8px' }}>{report.clockIn}</td>
                 <td style={{ border: '1px solid black', padding: '8px' }}>{report.clockOut}</td>
+                <td style={{ border: '1px solid black', padding: '8px' }}>{report.overtimeRange}</td>
                 <td style={{ border: '1px solid black', padding: '8px' }}>{report.overtimeHours.toFixed(2)}</td>
                 <td style={{ border: '1px solid black', padding: '8px' }}>{report.mealAllowance}</td>
               </tr>

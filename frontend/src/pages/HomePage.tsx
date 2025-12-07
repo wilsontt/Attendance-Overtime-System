@@ -37,6 +37,17 @@ const HomePage: React.FC = () => {
     });
   }, [overtimeReports, filterName, filterStartDate, filterEndDate]);
 
+  const handleReasonChange = (index: number, newReason: string) => {
+    const targetReport = filteredReports[index];
+    if (!targetReport) return;
+
+    setOvertimeReports(prev => prev.map(report => {
+      if (report.employeeId === targetReport.employeeId && report.date === targetReport.date) {
+        return { ...report, overtimeReason: newReason };
+      }
+      return report;
+    }));
+  };
 
   return (
     <div>
@@ -73,7 +84,7 @@ const HomePage: React.FC = () => {
               style={{ padding: '8px' }}
             />
           </div>
-          <AttendanceTable reports={filteredReports} />
+          <AttendanceTable reports={filteredReports} onReasonChange={handleReasonChange} />
           <ReportGenerator reports={filteredReports} />
         </>
       )}
