@@ -1,6 +1,31 @@
+/**
+ * 加班時數與誤餐費計算服務
+ * 
+ * 用途：根據出勤記錄計算加班時數與誤餐費
+ * 計算規則：
+ * - 平日（週一至週五，非國定假日）：
+ *   - 加班時數：18:00 起算至下班時間（向下對齊 30 分鐘單位）
+ *   - 誤餐費：下班時間 >= 19:30 給予 $50
+ * - 例假日（週六、週日或國定假日）：
+ *   - 加班時數：上班時間（向上對齊整點）至下班時間（向下對齊 30 分鐘單位）
+ *   - 誤餐費：不提供
+ * - 時數對齊：所有加班時數向下對齊至 0.5 小時單位
+ * 
+ * 流程：
+ * 1. 解析上下班時間為分鐘數
+ * 2. 判斷日期是平日或例假日
+ * 3. 根據規則計算加班時數
+ * 4. 計算誤餐費
+ * 5. 產生加班時間範圍字串
+ */
+
 import type { AttendanceRecord, OvertimeReport } from '../types';
 
-// Helper to parse time strings (HH:mm) into minutes from midnight
+/**
+ * 解析時間字串（HH:mm）為自午夜起算的分鐘數
+ * @param {string} timeStr - 時間字串（格式：HH:mm）
+ * @returns {number | null} 分鐘數，若格式錯誤則返回 null
+ */
 const parseTime = (timeStr: string): number | null => {
   if (!timeStr) return null;
   const [hours, minutes] = timeStr.split(':').map(Number);
@@ -10,14 +35,23 @@ const parseTime = (timeStr: string): number | null => {
   return hours * 60 + minutes;
 };
 
-// 將時間（分鐘）轉換回時間字串 (HH:mm)
+/**
+ * 將分鐘數轉換回時間字串（HH:mm）
+ * @param {number} minutes - 自午夜起算的分鐘數
+ * @returns {string} 時間字串（格式：HH:mm）
+ */
 const minutesToTime = (minutes: number): string => {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 };
 
-// 將開始時間向上對齊到整點（08:56 → 09:00）
+/**
+ * 將開始時間向上對齊到整點
+ * @example 08:56 → 09:00
+ * @param {number} timeMinutes - 原始時間（分鐘數）
+ * @returns {number} 對齊後的時間（分鐘數）
+ */
 const alignStartTime = (timeMinutes: number): number => {
   const minutes = timeMinutes % 60;
   if (minutes === 0) {
@@ -27,7 +61,12 @@ const alignStartTime = (timeMinutes: number): number => {
   return timeMinutes + (60 - minutes);
 };
 
-// 將結束時間向下對齊到 30 分鐘單位（19:45 → 19:30，17:04 → 17:00）
+/**
+ * 將結束時間向下對齊到 30 分鐘單位
+ * @example 19:45 → 19:30, 17:04 → 17:00
+ * @param {number} timeMinutes - 原始時間（分鐘數）
+ * @returns {number} 對齊後的時間（分鐘數）
+ */
 const alignEndTime = (timeMinutes: number): number => {
   const minutes = timeMinutes % 60;
   if (minutes === 0 || minutes === 30) {
@@ -42,14 +81,22 @@ const alignEndTime = (timeMinutes: number): number => {
   }
 };
 
-// 將時數對齊到 0.5 小時單位（向下對齊）
+/**
+ * 將時數向下對齊到 0.5 小時單位
+ * @param {number} hours - 原始時數
+ * @returns {number} 對齊後的時數
+ */
 const roundToHalfHour = (hours: number): number => {
   // 將時數轉換為 30 分鐘單位
   const halfHourUnits = Math.floor(hours / 0.5);
   return halfHourUnits * 0.5;
 };
 
-// Helper to get day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+/**
+ * 取得日期的星期幾
+ * @param {string} dateStr - 日期字串（民國年格式：1141001 或西元格式）
+ * @returns {number | null} 星期幾（0 = 週日, 1 = 週一, ..., 6 = 週六），若格式錯誤則返回 null
+ */
 const getDayOfWeek = (dateStr: string): number | null => {
   try {
     let date = new Date(dateStr);
@@ -72,6 +119,12 @@ const getDayOfWeek = (dateStr: string): number | null => {
   }
 };
 
+/**
+ * 計算單筆出勤記錄的加班時數
+ * @param {AttendanceRecord} record - 出勤記錄
+ * @param {boolean} [isHoliday=false] - 是否為國定假日
+ * @returns {number} 加班時數（對齊至 0.5 小時單位）
+ */
 const calculateOvertimeForRecord = (record: AttendanceRecord, isHoliday: boolean = false): number => {
   const clockInMinutes = parseTime(record.clockIn);
   const clockOutMinutes = parseTime(record.clockOut);
@@ -118,6 +171,12 @@ const calculateOvertimeForRecord = (record: AttendanceRecord, isHoliday: boolean
   return 0;
 };
 
+/**
+ * 計算單筆出勤記錄的誤餐費
+ * @param {AttendanceRecord} record - 出勤記錄
+ * @param {boolean} [isHoliday=false] - 是否為國定假日
+ * @returns {number} 誤餐費金額（平日下班 >= 19:30 給予 $50，其他情況為 $0）
+ */
 const calculateMealAllowanceForRecord = (record: AttendanceRecord, isHoliday: boolean = false): number => {
   const clockOutMinutes = parseTime(record.clockOut);
   const dayOfWeek = getDayOfWeek(record.date);
@@ -142,6 +201,11 @@ const calculateMealAllowanceForRecord = (record: AttendanceRecord, isHoliday: bo
   return 0;
 };
 
+/**
+ * 批次計算出勤記錄的加班時數與誤餐費
+ * @param {AttendanceRecord[]} records - 出勤記錄陣列
+ * @returns {OvertimeReport[]} 加班報表陣列
+ */
 export const calculateOvertimeAndMealAllowance = (
   records: AttendanceRecord[]
 ): OvertimeReport[] => {
@@ -192,7 +256,10 @@ export const calculateOvertimeAndMealAllowance = (
 };
 
 /**
- * 重新計算加班時數（用於 PreviewModal 中調整國定假日標記後重新計算）
+ * 重新計算加班報表（用於調整國定假日標記後重新計算）
+ * @param {OvertimeReport} report - 原始加班報表
+ * @param {boolean} isHoliday - 是否為國定假日
+ * @returns {OvertimeReport} 重新計算後的加班報表
  */
 export const recalculateOvertimeReport = (report: OvertimeReport, isHoliday: boolean): OvertimeReport => {
   const record: AttendanceRecord = {

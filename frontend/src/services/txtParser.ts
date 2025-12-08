@@ -1,25 +1,46 @@
-import type { AttendanceRecord } from '../types';
-
 /**
  * TXT 檔案解析服務
  * 
  * 用途：將固定寬度格式的出勤刷卡記錄 TXT 檔案內容解析為 AttendanceRecord[]
+ * 流程：
+ * 1. 讀取 TXT 檔案內容
+ * 2. 尋找標題列（員工姓名、歸屬日期）
+ * 3. 逐行解析員工記錄區塊
+ * 4. 提取員工編號、姓名、日期、考勤別、刷卡時間
+ * 5. 驗證格式並回傳 AttendanceRecord 陣列
+ * 
+ * 支援格式：
+ * - 固定寬度格式的文字檔
+ * - 包含員工編號、姓名、歸屬日期、考勤別、刷卡時間等欄位
+ * - 民國年日期格式（例如：1141001）
  */
 
+import type { AttendanceRecord } from '../types';
+
+/**
+ * 解析後的記錄介面（內部使用）
+ */
 interface ParsedRecord {
+  /** 員工編號 */
   employeeId: string;
+  /** 員工姓名 */
   name: string;
+  /** 歸屬日期（民國年格式） */
   date: string;
+  /** 考勤別（事假、病假、請年休假、公假或空白） */
   attendanceType: string;
+  /** 請假數量（天數） */
   leaveQuantity: number;
+  /** 上班打卡時間（格式：HH:mm） */
   clockIn: string;
+  /** 下班打卡時間（格式：HH:mm） */
   clockOut: string;
 }
 
 /**
  * 解析 TXT 檔案的單一記錄區塊
- * @param lines - 記錄區塊的行陣列
- * @returns 解析後的記錄物件
+ * @param {string[]} lines - 記錄區塊的行陣列
+ * @returns {ParsedRecord | null} 解析後的記錄物件，若解析失敗則返回 null
  */
 function parseRecord(lines: string[]): ParsedRecord | null {
   if (lines.length === 0) return null;
@@ -78,9 +99,9 @@ function parseRecord(lines: string[]): ParsedRecord | null {
 
 /**
  * 將 TXT 檔案內容解析為 AttendanceRecord 陣列
- * @param content - TXT 檔案內容（字串）
- * @returns AttendanceRecord 陣列
- * @throws Error 如果格式錯誤
+ * @param {string} content - TXT 檔案內容（字串）
+ * @returns {AttendanceRecord[]} 出勤記錄陣列
+ * @throws {Error} 若格式錯誤則拋出錯誤
  */
 export function parseTxtContent(content: string): AttendanceRecord[] {
   // 格式驗證：檢查內容是否為空
@@ -194,8 +215,9 @@ export function parseTxtContent(content: string): AttendanceRecord[] {
 
 /**
  * 從 File 物件讀取並解析 TXT 內容
- * @param file - File 物件
- * @returns Promise<AttendanceRecord[]>
+ * @param {File} file - File 物件
+ * @returns {Promise<AttendanceRecord[]>} 出勤記錄陣列的 Promise
+ * @throws {Error} 若讀取或解析失敗則 reject
  */
 export function parseTxtFile(file: File): Promise<AttendanceRecord[]> {
   return new Promise((resolve, reject) => {

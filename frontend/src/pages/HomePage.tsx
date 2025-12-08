@@ -1,3 +1,17 @@
+/**
+ * 首頁組件
+ * 
+ * 用途：出勤加班單系統的主要頁面，整合檔案上傳、資料顯示、篩選與報表產生功能
+ * 流程：
+ * 1. 使用者上傳 CSV/TXT 檔案
+ * 2. 解析檔案並自動計算加班時數與誤餐費
+ * 3. 顯示計算結果於表格中
+ * 4. 提供篩選功能（按姓名、日期範圍）
+ * 5. 使用者可編輯加班原因
+ * 6. 點擊下載按鈕開啟預覽 Modal
+ * 7. 在 Modal 中選擇記錄並下載 Excel/PDF 或列印
+ */
+
 import React, { useState, useEffect, useMemo } from 'react';
 import FileUploader from '../components/FileUploader';
 import AttendanceTable from '../components/AttendanceTable';
@@ -6,16 +20,32 @@ import type { AttendanceRecord, OvertimeReport } from '../types';
 import { calculateOvertimeAndMealAllowance } from '../services/calculationService';
 import { generateExcelReport, generatePdfReport, printReport } from '../services/reportService';
 
+/**
+ * HomePage 組件
+ * @returns {JSX.Element} 首頁組件
+ */
 const HomePage: React.FC = () => {
+  /** 原始出勤記錄（從檔案解析而來） */
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  
+  /** 加班報表（計算後的結果） */
   const [overtimeReports, setOvertimeReports] = useState<OvertimeReport[]>([]);
+  
+  /** 姓名篩選條件 */
   const [filterName, setFilterName] = useState<string>('');
+  
+  /** 開始日期篩選條件 */
   const [filterStartDate, setFilterStartDate] = useState<string>('');
+  
+  /** 結束日期篩選條件 */
   const [filterEndDate, setFilterEndDate] = useState<string>('');
   
-  // PreviewModal 相關狀態
+  /** 預覽 Modal 開關狀態 */
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState<boolean>(false);
 
+  /**
+   * 當出勤記錄變更時，自動計算加班時數與誤餐費
+   */
   useEffect(() => {
     if (attendanceRecords.length > 0) {
       const reports = calculateOvertimeAndMealAllowance(attendanceRecords);
@@ -25,10 +55,18 @@ const HomePage: React.FC = () => {
     }
   }, [attendanceRecords]);
 
+  /**
+   * 處理檔案上傳完成事件
+   * @param {AttendanceRecord[]} records - 解析後的出勤記錄陣列
+   */
   const handleFileProcessed = (records: AttendanceRecord[]) => {
     setAttendanceRecords(records);
   };
 
+  /**
+   * 根據篩選條件過濾加班報表
+   * @returns {OvertimeReport[]} 過濾後的報表陣列
+   */
   const filteredReports = useMemo(() => {
     return overtimeReports.filter(report => {
       const matchesName = filterName ? report.name.includes(filterName) : true;
@@ -41,6 +79,11 @@ const HomePage: React.FC = () => {
     });
   }, [overtimeReports, filterName, filterStartDate, filterEndDate]);
 
+  /**
+   * 處理加班原因編輯事件
+   * @param {number} index - 在過濾後報表中的索引
+   * @param {string} newReason - 新的加班原因
+   */
   const handleReasonChange = (index: number, newReason: string) => {
     const targetReport = filteredReports[index];
     if (!targetReport) return;
@@ -53,29 +96,48 @@ const HomePage: React.FC = () => {
     }));
   };
 
-  // 開啟預覽 Modal
+  /**
+   * 開啟預覽 Modal
+   */
   const handleOpenPreview = () => {
     setIsPreviewModalOpen(true);
   };
 
-  // 關閉預覽 Modal
+  /**
+   * 關閉預覽 Modal
+   */
   const handleClosePreview = () => {
     setIsPreviewModalOpen(false);
   };
 
-  // 下載 Excel
+  /**
+   * 處理下載 Excel 事件
+   * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
+   * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
+   * @param {string} workLocation - 工作地點
+   */
   const handleDownloadExcel = (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => {
     generateExcelReport(weekdayReports, holidayReports, workLocation);
     setIsPreviewModalOpen(false);
   };
 
-  // 下載 PDF
+  /**
+   * 處理下載 PDF 事件
+   * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
+   * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
+   * @param {string} workLocation - 工作地點
+   */
   const handleDownloadPdf = async (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => {
     await generatePdfReport(weekdayReports, holidayReports, workLocation);
     setIsPreviewModalOpen(false);
   };
 
-  // 列印
+  /**
+   * 處理列印事件
+   * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
+   * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
+   * @param {string} workLocation - 工作地點
+   */
   const handlePrint = (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => {
     printReport(weekdayReports, holidayReports, workLocation);
     setIsPreviewModalOpen(false);

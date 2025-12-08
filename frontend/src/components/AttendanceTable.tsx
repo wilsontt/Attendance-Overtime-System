@@ -1,11 +1,32 @@
+/**
+ * 出勤表格組件
+ * 
+ * 用途：顯示計算後的加班報表，並提供加班原因編輯功能
+ * 流程：
+ * 1. 以表格形式呈現所有加班記錄
+ * 2. 顯示員工資訊、上下班時間、加班時數、誤餐費等欄位
+ * 3. 提供可編輯的加班原因輸入欄位
+ * 4. 當加班時數 < 0.5 時，禁用編輯功能
+ */
+
 import React from 'react';
 import type { OvertimeReport } from '../../src/types';
 
+/**
+ * AttendanceTable 組件的 Props 介面
+ */
 interface AttendanceTableProps {
+  /** 加班報表陣列 */
   reports: OvertimeReport[];
+  /** 加班原因變更回呼函數 */
   onReasonChange: (index: number, newReason: string) => void;
 }
 
+/**
+ * AttendanceTable 組件
+ * @param {AttendanceTableProps} props - 組件屬性
+ * @returns {JSX.Element} 出勤表格組件
+ */
 const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChange }) => {
   return (
     <table className="attendance-table">

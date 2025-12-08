@@ -12,6 +12,8 @@ import type { OvertimeReport } from '../types';
 
 /**
  * 取得申請年月（民國年格式）
+ * @param {string} dateStr - 日期字串（民國年格式：1141001）
+ * @returns {string} 年月字串（格式：114年10月）
  */
 function getYearMonth(dateStr: string): string {
   if (/^\d{7}$/.test(dateStr)) {
@@ -24,6 +26,8 @@ function getYearMonth(dateStr: string): string {
 
 /**
  * 格式化日期為 MM/DD 格式
+ * @param {string} dateStr - 日期字串（民國年格式：1141001）
+ * @returns {string} 格式化後的日期（格式：10/01）
  */
 function formatDate(dateStr: string): string {
   if (/^\d{7}$/.test(dateStr)) {
@@ -36,6 +40,10 @@ function formatDate(dateStr: string): string {
 
 /**
  * 生成 Excel 報表（兩個工作表：平日加班、例假日加班）
+ * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
+ * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
+ * @param {string} workLocation - 工作地點
+ * @returns {Promise<void>}
  */
 export async function generateExcelReport(
   weekdayReports: OvertimeReport[],
@@ -76,7 +84,13 @@ export async function generateExcelReport(
 }
 
 /**
- * 建立單個工作表
+ * 建立單個 Excel 工作表
+ * @param {ExcelJS.Workbook} workbook - Excel 工作簿物件
+ * @param {string} sheetName - 工作表名稱
+ * @param {OvertimeReport[]} reports - 加班記錄陣列
+ * @param {string} employeeName - 員工姓名
+ * @param {string} yearMonth - 申請年月
+ * @param {string} workLocation - 工作地點
  */
 function createWorksheet(
   workbook: ExcelJS.Workbook,
@@ -85,7 +99,6 @@ function createWorksheet(
   employeeName: string,
   yearMonth: string,
   workLocation: string
-  // isHoliday 參數保留供未來使用
 ): void {
   const worksheet = workbook.addWorksheet(sheetName);
 
@@ -195,6 +208,10 @@ function createWorksheet(
 
 /**
  * 生成 PDF 報表（兩頁：平日加班、例假日加班）
+ * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
+ * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
+ * @param {string} workLocation - 工作地點
+ * @returns {Promise<void>}
  */
 export async function generatePdfReport(
   weekdayReports: OvertimeReport[],
@@ -258,6 +275,9 @@ export async function generatePdfReport(
 
 /**
  * 列印報表（兩頁：平日加班、例假日加班）
+ * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
+ * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
+ * @param {string} workLocation - 工作地點
  */
 export function printReport(
   weekdayReports: OvertimeReport[],
@@ -333,10 +353,17 @@ export function printReport(
 }
 
 /**
- * 生成單頁 HTML 內容
+ * 生成單頁 HTML 內容（供 PDF 與列印使用）
+ * @param {string} _title - 標題（保留參數供未來使用）
+ * @param {OvertimeReport[]} reports - 加班記錄陣列
+ * @param {string} employeeName - 員工姓名
+ * @param {string} yearMonth - 申請年月
+ * @param {string} workLocation - 工作地點
+ * @param {number} pageNumber - 頁碼
+ * @returns {string} HTML 字串
  */
 function generatePageHtml(
-  _title: string, // 參數保留供未來使用
+  _title: string,
   reports: OvertimeReport[],
   employeeName: string,
   yearMonth: string,

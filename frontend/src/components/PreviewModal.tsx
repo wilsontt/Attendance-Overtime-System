@@ -1,17 +1,44 @@
+/**
+ * 預覽 Modal 組件
+ * 
+ * 用途：提供加班申請表預覽、記錄選擇、國定假日標記與下載功能
+ * 流程：
+ * 1. 過濾加班時數 >= 0.5 的記錄
+ * 2. 分離平日加班與例假日加班記錄
+ * 3. 使用者可勾選要包含在申請表中的記錄
+ * 4. 使用者可標記國定假日（影響加班時數計算）
+ * 5. 使用者填寫工作地點與加班原因
+ * 6. 驗證必填欄位後下載 Excel/PDF 或列印
+ */
+
 import React, { useState, useEffect } from 'react';
 import type { OvertimeReport } from '../types';
 import { recalculateOvertimeReport } from '../services/calculationService';
 import './PreviewModal.css';
 
+/**
+ * PreviewModal 組件的 Props 介面
+ */
 interface PreviewModalProps {
+  /** 加班報表陣列 */
   reports: OvertimeReport[];
+  /** Modal 開關狀態 */
   isOpen: boolean;
+  /** 關閉 Modal 回呼函數 */
   onClose: () => void;
+  /** 下載 Excel 回呼函數 */
   onDownloadExcel: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => void;
+  /** 下載 PDF 回呼函數 */
   onDownloadPdf: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => void;
+  /** 列印回呼函數 */
   onPrint: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => void;
 }
 
+/**
+ * PreviewModal 組件
+ * @param {PreviewModalProps} props - 組件屬性
+ * @returns {JSX.Element | null} 預覽 Modal 組件
+ */
 const PreviewModal: React.FC<PreviewModalProps> = ({ 
   reports, 
   isOpen, 
@@ -20,21 +47,24 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   onDownloadPdf,
   onPrint
 }) => {
-  // 過濾出加班時數 >= 0.5 的記錄
+  /** 過濾出加班時數 >= 0.5 的記錄 */
   const [filteredReports, setFilteredReports] = useState<OvertimeReport[]>([]);
   
-  // 工作地點
+  /** 工作地點 */
   const [workLocation, setWorkLocation] = useState<string>('');
   
-  // 國定假日標記（key: date, value: isHoliday）
+  /** 國定假日標記（key: date, value: isHoliday） */
   const [holidayFlags, setHolidayFlags] = useState<{ [key: string]: boolean }>({});
   
-  // 記錄選擇（key: index, value: isSelected）
+  /** 記錄選擇狀態（key: index, value: isSelected） */
   const [recordSelection, setRecordSelection] = useState<{ [key: number]: boolean }>({});
 
-  // 加班原因編輯
+  /** 加班原因編輯狀態（key: index, value: reason） */
   const [editedReasons, setEditedReasons] = useState<{ [key: number]: string }>({});
 
+  /**
+   * 當 Modal 開啟時，初始化狀態
+   */
   useEffect(() => {
     if (isOpen) {
       // 過濾加班時數 >= 0.5 的記錄
@@ -72,6 +102,11 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
 
   if (!isOpen) return null;
 
+  /**
+   * 處理國定假日標記切換事件
+   * @param {number} index - 記錄索引
+   * @param {string} date - 日期字串
+   */
   const handleHolidayToggle = (index: number, date: string) => {
     const newIsHoliday = !holidayFlags[date];
     setHolidayFlags(prev => ({ ...prev, [date]: newIsHoliday }));
@@ -82,15 +117,27 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     setFilteredReports(updatedReports);
   };
 
+  /**
+   * 處理記錄選擇切換事件
+   * @param {number} index - 記錄索引
+   */
   const handleRecordSelection = (index: number) => {
     setRecordSelection(prev => ({ ...prev, [index]: !prev[index] }));
   };
 
+  /**
+   * 處理加班原因編輯事件
+   * @param {number} index - 記錄索引
+   * @param {string} newReason - 新的加班原因
+   */
   const handleReasonChange = (index: number, newReason: string) => {
     setEditedReasons(prev => ({ ...prev, [index]: newReason }));
   };
 
-  // 取得選中的記錄並更新
+  /**
+   * 取得選中的記錄並更新加班原因與國定假日標記
+   * @returns {OvertimeReport[]} 選中的加班報表陣列
+   */
   const getSelectedReports = () => {
     return filteredReports
       .map((report, index) => ({
@@ -101,7 +148,11 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
       .filter((_, index) => recordSelection[index] === true);
   };
 
-  // 判斷記錄是否為例假日（週六、週日或國定假日）
+  /**
+   * 判斷記錄是否為例假日（週六、週日或國定假日）
+   * @param {OvertimeReport} report - 加班報表
+   * @returns {boolean} 是否為例假日
+   */
   const isHolidayRecord = (report: OvertimeReport): boolean => {
     // 如果手動標記為國定假日
     if (holidayFlags[report.date]) return true;
@@ -121,7 +172,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     return false;
   };
 
-  // 分離平日與例假日記錄（附加 index 供後續使用）
+  /**
+   * 分離平日與例假日記錄（附加 reportIndex 供後續使用）
+   */
   const weekdayReports: Array<OvertimeReport & { reportIndex: number }> = [];
   const holidayReports: Array<OvertimeReport & { reportIndex: number }> = [];
   
@@ -133,7 +186,13 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     }
   });
 
-  // 渲染表格區塊
+  /**
+   * 渲染表格區塊
+   * @param {string} title - 表格標題
+   * @param {Array<OvertimeReport & { reportIndex: number }>} records - 加班記錄陣列（附加索引）
+   * @param {number} pageNumber - 頁碼
+   * @returns {JSX.Element | null} 表格組件或 null
+   */
   const renderTable = (title: string, records: Array<OvertimeReport & { reportIndex: number }>, pageNumber: number) => {
     if (records.length === 0) return null;
 
@@ -209,7 +268,10 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     );
   };
 
-  // 驗證加班原因是否都已填寫
+  /**
+   * 驗證選中記錄的加班原因是否都已填寫
+   * @returns {{ isValid: boolean; missingIndexes: number[] }} 驗證結果
+   */
   const validateOvertimeReasons = (): { isValid: boolean; missingIndexes: number[] } => {
     const selected = getSelectedReports();
     const missingIndexes: number[] = [];
@@ -232,6 +294,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     };
   };
 
+  /**
+   * 處理下載 Excel 事件（含驗證）
+   */
   const handleDownloadExcel = () => {
     const validation = validateOvertimeReasons();
     if (!validation.isValid) {
@@ -245,6 +310,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     onDownloadExcel(selectedWeekday, selectedHoliday, workLocation);
   };
 
+  /**
+   * 處理下載 PDF 事件（含驗證）
+   */
   const handleDownloadPdf = () => {
     const validation = validateOvertimeReasons();
     if (!validation.isValid) {
@@ -258,6 +326,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     onDownloadPdf(selectedWeekday, selectedHoliday, workLocation);
   };
 
+  /**
+   * 處理列印事件（含驗證）
+   */
   const handlePrint = () => {
     const validation = validateOvertimeReasons();
     if (!validation.isValid) {
