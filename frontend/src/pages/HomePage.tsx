@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import FileUploader from '../components/FileUploader';
 import AttendanceTable from '../components/AttendanceTable';
-import ReportGenerator from '../components/ReportGenerator';
+import PreviewModal from '../components/PreviewModal';
 import type { AttendanceRecord, OvertimeReport } from '../types';
 import { calculateOvertimeAndMealAllowance } from '../services/calculationService';
+import { generateExcelReport, generatePdfReport, printReport } from '../services/reportService';
 
 const HomePage: React.FC = () => {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
@@ -11,6 +12,9 @@ const HomePage: React.FC = () => {
   const [filterName, setFilterName] = useState<string>('');
   const [filterStartDate, setFilterStartDate] = useState<string>('');
   const [filterEndDate, setFilterEndDate] = useState<string>('');
+  
+  // PreviewModal 相關狀態
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (attendanceRecords.length > 0) {
@@ -49,6 +53,34 @@ const HomePage: React.FC = () => {
     }));
   };
 
+  // 開啟預覽 Modal
+  const handleOpenPreview = () => {
+    setIsPreviewModalOpen(true);
+  };
+
+  // 關閉預覽 Modal
+  const handleClosePreview = () => {
+    setIsPreviewModalOpen(false);
+  };
+
+  // 下載 Excel
+  const handleDownloadExcel = (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => {
+    generateExcelReport(weekdayReports, holidayReports, workLocation);
+    setIsPreviewModalOpen(false);
+  };
+
+  // 下載 PDF
+  const handleDownloadPdf = async (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => {
+    await generatePdfReport(weekdayReports, holidayReports, workLocation);
+    setIsPreviewModalOpen(false);
+  };
+
+  // 列印
+  const handlePrint = (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => {
+    printReport(weekdayReports, holidayReports, workLocation);
+    setIsPreviewModalOpen(false);
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
@@ -85,7 +117,25 @@ const HomePage: React.FC = () => {
             />
           </div>
           <AttendanceTable reports={filteredReports} onReasonChange={handleReasonChange} />
-          <ReportGenerator reports={filteredReports} />
+          
+          {/* 單一下載按鈕 */}
+          <div style={{ marginTop: '20px' }}>
+            <button 
+              onClick={handleOpenPreview} 
+              style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer' }}
+            >
+              下載
+            </button>
+          </div>
+
+          <PreviewModal
+            reports={filteredReports}
+            isOpen={isPreviewModalOpen}
+            onClose={handleClosePreview}
+            onDownloadExcel={handleDownloadExcel}
+            onDownloadPdf={handleDownloadPdf}
+            onPrint={handlePrint}
+          />
         </>
       )}
     </div>
