@@ -269,6 +269,14 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   };
 
   /**
+   * 驗證工作地點是否已填寫
+   * @returns {boolean} 驗證結果
+   */
+  const validateWorkLocation = (): boolean => {
+    return workLocation.trim() !== '';
+  };
+
+  /**
    * 驗證選中記錄的加班原因是否都已填寫
    * @returns {{ isValid: boolean; missingIndexes: number[] }} 驗證結果
    */
@@ -295,12 +303,40 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   };
 
   /**
+   * 完整驗證（工作地點 + 加班原因）
+   * @returns {{ isValid: boolean; errorMessage: string }} 驗證結果
+   */
+  const validateAll = (): { isValid: boolean; errorMessage: string } => {
+    // 驗證工作地點
+    if (!validateWorkLocation()) {
+      return {
+        isValid: false,
+        errorMessage: '請先填寫工作地點。'
+      };
+    }
+
+    // 驗證加班原因
+    const reasonValidation = validateOvertimeReasons();
+    if (!reasonValidation.isValid) {
+      return {
+        isValid: false,
+        errorMessage: `請先填寫所有記錄的加班原因。\n未填寫的記錄：第 ${reasonValidation.missingIndexes.join(', ')} 筆`
+      };
+    }
+
+    return {
+      isValid: true,
+      errorMessage: ''
+    };
+  };
+
+  /**
    * 處理下載 Excel 事件（含驗證）
    */
   const handleDownloadExcel = () => {
-    const validation = validateOvertimeReasons();
+    const validation = validateAll();
     if (!validation.isValid) {
-      alert(`請先填寫所有記錄的加班原因。\n未填寫的記錄：第 ${validation.missingIndexes.join(', ')} 筆`);
+      alert(validation.errorMessage);
       return;
     }
 
@@ -314,9 +350,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
    * 處理下載 PDF 事件（含驗證）
    */
   const handleDownloadPdf = () => {
-    const validation = validateOvertimeReasons();
+    const validation = validateAll();
     if (!validation.isValid) {
-      alert(`請先填寫所有記錄的加班原因。\n未填寫的記錄：第 ${validation.missingIndexes.join(', ')} 筆`);
+      alert(validation.errorMessage);
       return;
     }
 
@@ -330,9 +366,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
    * 處理列印事件（含驗證）
    */
   const handlePrint = () => {
-    const validation = validateOvertimeReasons();
+    const validation = validateAll();
     if (!validation.isValid) {
-      alert(`請先填寫所有記錄的加班原因。\n未填寫的記錄：第 ${validation.missingIndexes.join(', ')} 筆`);
+      alert(validation.errorMessage);
       return;
     }
 
@@ -353,14 +389,15 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
         <div className="modal-body">
           {/* 工作地點輸入 */}
           <div className="work-location-section">
-            <label htmlFor="workLocation">工作地點：</label>
+            <label htmlFor="workLocation">工作地點：<span style={{ color: 'red' }}>*</span></label>
             <input
               type="text"
               id="workLocation"
               value={workLocation}
               onChange={(e) => setWorkLocation(e.target.value)}
-              placeholder="請輸入工作地點"
+              placeholder="請輸入工作地點（必填）"
               className="work-location-input"
+              required
             />
           </div>
 

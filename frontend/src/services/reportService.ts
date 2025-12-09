@@ -380,11 +380,19 @@ function generatePageHtml(
 
   return `
     <div style="font-size: 12px;">
-      <h2 style="text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 10px;">
-        海灣國際股份有限公司員工加班申請表
-      </h2>
-      <div style="text-align: center; font-size: 14px; margin-bottom: 20px;">
-        ${yearMonth}
+      <!-- 第一行：公司名稱（置中） -->
+      <div style="text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 5px;">
+        海灣國際股份有限公司
+      </div>
+      <!-- 第二行：申請表標題（置中，加底線）+ 申請年月（靠右） -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div style="flex: 1;"></div>
+        <div style="text-align: center; font-size: 20px; font-weight: bold; text-decoration: underline; flex: 1;">
+          員工加班申請表
+        </div>
+        <div style="text-align: right; font-size: 14px; flex: 1;">
+          申請年月：${yearMonth}
+        </div>
       </div>
       <div style="margin-bottom: 15px; font-size: 14px;">
         <div style="margin-bottom: 5px;">員工姓名：${employeeName}</div>
