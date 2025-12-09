@@ -10,6 +10,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import type { OvertimeReport } from '../types';
 import { formatDate as formatDateWithDayOfWeek } from '../utils/dateFormatter';
+import { paginateReportsByHeight } from './paginationService';
 
 /**
  * 取得申請年月（民國年格式）
@@ -29,15 +30,19 @@ function getYearMonth(dateStr: string): string {
  * 生成 Excel 報表（兩個工作表：平日加班、例假日加班）
  * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
  * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
- * @param {string} workLocation - 工作地點
- * @param {string} remarks - 備註
+ * @param {string} weekdayWorkLocation - 平日加班工作地點
+ * @param {string} weekdayRemarks - 平日加班備註
+ * @param {string} holidayWorkLocation - 例假日加班工作地點
+ * @param {string} holidayRemarks - 例假日加班備註
  * @returns {Promise<void>}
  */
 export async function generateExcelReport(
   weekdayReports: OvertimeReport[],
   holidayReports: OvertimeReport[],
-  workLocation: string,
-  remarks: string
+  weekdayWorkLocation: string,
+  weekdayRemarks: string,
+  holidayWorkLocation: string,
+  holidayRemarks: string
 ): Promise<void> {
   const workbook = new ExcelJS.Workbook();
 
@@ -53,12 +58,12 @@ export async function generateExcelReport(
 
   // 生成平日加班工作表
   if (weekdayReports.length > 0) {
-    createWorksheet(workbook, '平日加班', weekdayReports, employeeName, yearMonth, workLocation, remarks);
+    createWorksheet(workbook, '平日加班', weekdayReports, employeeName, yearMonth, weekdayWorkLocation, weekdayRemarks);
   }
 
   // 生成例假日加班工作表
   if (holidayReports.length > 0) {
-    createWorksheet(workbook, '例假日加班', holidayReports, employeeName, yearMonth, workLocation, remarks);
+    createWorksheet(workbook, '例假日加班', holidayReports, employeeName, yearMonth, holidayWorkLocation, holidayRemarks);
   }
 
   // 下載檔案
@@ -208,8 +213,10 @@ function createWorksheet(
 export async function generatePdfReport(
   weekdayReports: OvertimeReport[],
   holidayReports: OvertimeReport[],
-  workLocation: string,
-  remarks: string
+  weekdayWorkLocation: string,
+  weekdayRemarks: string,
+  holidayWorkLocation: string,
+  holidayRemarks: string
 ): Promise<void> {
   const firstReport = weekdayReports[0] || holidayReports[0];
   if (!firstReport) {
@@ -232,31 +239,76 @@ export async function generatePdfReport(
   document.body.appendChild(container);
 
   const pdf = new jsPDF('p', 'mm', 'a4');
-  let isFirstPage = true;
+  let isFirstPdfPage = true;
 
-  // 生成平日加班頁面
+  // 生成平日加班頁面（動態高度分頁）
   if (weekdayReports.length > 0) {
-    container.innerHTML = generatePageHtml('平日加班', weekdayReports, employeeName, yearMonth, workLocation, remarks, 1);
-    const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
-    const imgData = canvas.toDataURL('image/png');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    
-    if (!isFirstPage) pdf.addPage();
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    isFirstPage = false;
+    const weekdayPages = paginateReportsByHeight(
+      '平日加班',
+      weekdayReports,
+      employeeName,
+      yearMonth,
+      weekdayWorkLocation,
+      weekdayRemarks,
+      generatePageHtml
+    );
+    for (const pageData of weekdayPages) {
+      container.innerHTML = generatePageHtml(
+        '平日加班',
+        pageData.reports,
+        employeeName,
+        yearMonth,
+        weekdayWorkLocation,
+        weekdayRemarks,
+        pageData.pageNumber,
+        pageData.totalPages,
+        pageData.isFirstPage,
+        pageData.isLastPage
+      );
+      const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
+      const imgData = canvas.toDataURL('image/png');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      if (!isFirstPdfPage) pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      isFirstPdfPage = false;
+    }
   }
 
-  // 生成例假日加班頁面
+  // 生成例假日加班頁面（動態高度分頁，獨立編號）
   if (holidayReports.length > 0) {
-    container.innerHTML = generatePageHtml('例假日加班', holidayReports, employeeName, yearMonth, workLocation, remarks, 2);
-    const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
-    const imgData = canvas.toDataURL('image/png');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    
-    if (!isFirstPage) pdf.addPage();
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    const holidayPages = paginateReportsByHeight(
+      '例假日加班',
+      holidayReports,
+      employeeName,
+      yearMonth,
+      holidayWorkLocation,
+      holidayRemarks,
+      generatePageHtml
+    );
+    for (const pageData of holidayPages) {
+      container.innerHTML = generatePageHtml(
+        '例假日加班',
+        pageData.reports,
+        employeeName,
+        yearMonth,
+        holidayWorkLocation,
+        holidayRemarks,
+        pageData.pageNumber,
+        pageData.totalPages,
+        pageData.isFirstPage,
+        pageData.isLastPage
+      );
+      const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
+      const imgData = canvas.toDataURL('image/png');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      if (!isFirstPdfPage) pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      isFirstPdfPage = false;
+    }
   }
 
   // 清理
@@ -276,8 +328,10 @@ export async function generatePdfReport(
 export function printReport(
   weekdayReports: OvertimeReport[],
   holidayReports: OvertimeReport[],
-  workLocation: string,
-  remarks: string
+  weekdayWorkLocation: string,
+  weekdayRemarks: string,
+  holidayWorkLocation: string,
+  holidayRemarks: string
 ): void {
   const firstReport = weekdayReports[0] || holidayReports[0];
   if (!firstReport) {
@@ -314,12 +368,58 @@ export function printReport(
       <body>
   `;
 
+  // 平日加班（動態高度分頁）
   if (weekdayReports.length > 0) {
-    htmlContent += `<div class="page">${generatePageHtml('平日加班', weekdayReports, employeeName, yearMonth, workLocation, remarks, 1)}</div>`;
+    const weekdayPages = paginateReportsByHeight(
+      '平日加班',
+      weekdayReports,
+      employeeName,
+      yearMonth,
+      weekdayWorkLocation,
+      weekdayRemarks,
+      generatePageHtml
+    );
+    weekdayPages.forEach(pageData => {
+      htmlContent += `<div class="page">${generatePageHtml(
+        '平日加班',
+        pageData.reports,
+        employeeName,
+        yearMonth,
+        weekdayWorkLocation,
+        weekdayRemarks,
+        pageData.pageNumber,
+        pageData.totalPages,
+        pageData.isFirstPage,
+        pageData.isLastPage
+      )}</div>`;
+    });
   }
 
+  // 例假日加班（動態高度分頁，獨立編號）
   if (holidayReports.length > 0) {
-    htmlContent += `<div class="page">${generatePageHtml('例假日加班', holidayReports, employeeName, yearMonth, workLocation, remarks, 2)}</div>`;
+    const holidayPages = paginateReportsByHeight(
+      '例假日加班',
+      holidayReports,
+      employeeName,
+      yearMonth,
+      holidayWorkLocation,
+      holidayRemarks,
+      generatePageHtml
+    );
+    holidayPages.forEach(pageData => {
+      htmlContent += `<div class="page">${generatePageHtml(
+        '例假日加班',
+        pageData.reports,
+        employeeName,
+        yearMonth,
+        holidayWorkLocation,
+        holidayRemarks,
+        pageData.pageNumber,
+        pageData.totalPages,
+        pageData.isFirstPage,
+        pageData.isLastPage
+      )}</div>`;
+    });
   }
 
   htmlContent += `
@@ -365,7 +465,10 @@ function generatePageHtml(
   yearMonth: string,
   workLocation: string,
   remarks: string,
-  pageNumber: number
+  pageNumber: number,
+  totalPages: number,
+  isFirstPage: boolean,
+  isLastPage: boolean
 ): string {
   let totalOvertimeHours = 0;
   let totalMealAllowance = 0;
@@ -391,11 +494,11 @@ function generatePageHtml(
           申請年月：${yearMonth}
         </div>
       </div>
-      <div style="margin-bottom: 15px; font-size: 14px;">
+      ${isFirstPage ? `<div style="margin-bottom: 15px; font-size: 14px;">
         <div style="margin-bottom: 5px;">員工姓名：${employeeName}</div>
         <div style="margin-bottom: 5px;">工作地點：${workLocation}</div>
         <div>備註：${remarks || ''}</div>
-      </div>
+      </div>` : ''}
       <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
         <thead>
           <tr style="background-color: #f0f0f0;">
@@ -420,12 +523,12 @@ function generatePageHtml(
           `).join('')}
         </tbody>
       </table>
-      <div style="margin-top: 20px; font-size: 14px; display: flex; justify-content: space-between;">
+      ${isLastPage ? `<div style="margin-top: 20px; font-size: 14px; display: flex; justify-content: space-between;">
         <div style="flex: 1;">部門主管：</div>
         <div style="flex: 1;">公司主管：</div>
-      </div>
+      </div>` : ''}
       <div style="text-align: right; margin-top: 10px; font-size: 12px; color: #666;">
-        頁碼：${pageNumber}
+        頁碼：${pageNumber}/${totalPages}
       </div>
     </div>
   `;

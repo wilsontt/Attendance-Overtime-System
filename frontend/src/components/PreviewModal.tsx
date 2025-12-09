@@ -28,11 +28,11 @@ interface PreviewModalProps {
   /** 關閉 Modal 回呼函數 */
   onClose: () => void;
   /** 下載 Excel 回呼函數 */
-  onDownloadExcel: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string, remarks: string) => void;
+  onDownloadExcel: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], weekdayWorkLocation: string, weekdayRemarks: string, holidayWorkLocation: string, holidayRemarks: string) => void;
   /** 下載 PDF 回呼函數 */
-  onDownloadPdf: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string, remarks: string) => void;
+  onDownloadPdf: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], weekdayWorkLocation: string, weekdayRemarks: string, holidayWorkLocation: string, holidayRemarks: string) => void;
   /** 列印回呼函數 */
-  onPrint: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string, remarks: string) => void;
+  onPrint: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], weekdayWorkLocation: string, weekdayRemarks: string, holidayWorkLocation: string, holidayRemarks: string) => void;
 }
 
 /**
@@ -51,11 +51,17 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   /** 過濾出加班時數 >= 0.5 的記錄 */
   const [filteredReports, setFilteredReports] = useState<OvertimeReport[]>([]);
   
-  /** 工作地點 */
+  /** 平日加班工作地點 */
   const [workLocation, setWorkLocation] = useState<string>('');
   
-  /** 備註（針對整份加班申請表） */
+  /** 平日加班備註 */
   const [remarks, setRemarks] = useState<string>('');
+  
+  /** 例假日加班工作地點 */
+  const [holidayWorkLocation, setHolidayWorkLocation] = useState<string>('');
+  
+  /** 例假日加班備註 */
+  const [holidayRemarks, setHolidayRemarks] = useState<string>('');
   
   /** 國定假日標記（key: date, value: isHoliday） */
   const [holidayFlags, setHolidayFlags] = useState<{ [key: string]: boolean }>({});
@@ -278,8 +284,27 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
    * 驗證工作地點是否已填寫
    * @returns {boolean} 驗證結果
    */
-  const validateWorkLocation = (): boolean => {
-    return workLocation.trim() !== '';
+  const validateWorkLocation = (): { isValid: boolean; errorMessage: string } => {
+    // 驗證平日加班工作地點
+    if (weekdayReports.length > 0 && !workLocation.trim()) {
+      return {
+        isValid: false,
+        errorMessage: '請輸入平日加班的工作地點'
+      };
+    }
+    
+    // 驗證例假日加班工作地點
+    if (holidayReports.length > 0 && !holidayWorkLocation.trim()) {
+      return {
+        isValid: false,
+        errorMessage: '請輸入例假日加班的工作地點'
+      };
+    }
+    
+    return {
+      isValid: true,
+      errorMessage: ''
+    };
   };
 
   /**
@@ -312,11 +337,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
    */
   const validateAll = (): { isValid: boolean; errorMessage: string } => {
     // 驗證工作地點
-    if (!validateWorkLocation()) {
-      return {
-        isValid: false,
-        errorMessage: '請先填寫工作地點。'
-      };
+    const locationValidation = validateWorkLocation();
+    if (!locationValidation.isValid) {
+      return locationValidation;
     }
 
     // 驗證加班原因
@@ -347,7 +370,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     const selected = getSelectedReports();
     const selectedWeekday = selected.filter(r => !isHolidayRecord(r));
     const selectedHoliday = selected.filter(r => isHolidayRecord(r));
-    onDownloadExcel(selectedWeekday, selectedHoliday, workLocation, remarks);
+    onDownloadExcel(selectedWeekday, selectedHoliday, workLocation, remarks, holidayWorkLocation, holidayRemarks);
   };
 
   /**
@@ -363,7 +386,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     const selected = getSelectedReports();
     const selectedWeekday = selected.filter(r => !isHolidayRecord(r));
     const selectedHoliday = selected.filter(r => isHolidayRecord(r));
-    onDownloadPdf(selectedWeekday, selectedHoliday, workLocation, remarks);
+    onDownloadPdf(selectedWeekday, selectedHoliday, workLocation, remarks, holidayWorkLocation, holidayRemarks);
   };
 
   /**
@@ -379,7 +402,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     const selected = getSelectedReports();
     const selectedWeekday = selected.filter(r => !isHolidayRecord(r));
     const selectedHoliday = selected.filter(r => isHolidayRecord(r));
-    onPrint(selectedWeekday, selectedHoliday, workLocation, remarks);
+    onPrint(selectedWeekday, selectedHoliday, workLocation, remarks, holidayWorkLocation, holidayRemarks);
   };
 
   return (
@@ -391,41 +414,6 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
         </div>
 
         <div className="modal-body">
-          {/* 工作地點輸入 */}
-          <div className="work-location-section">
-            <label htmlFor="workLocation">工作地點：<span style={{ color: 'red' }}>*</span></label>
-            <input
-              type="text"
-              id="workLocation"
-              value={workLocation}
-              onChange={(e) => setWorkLocation(e.target.value)}
-              placeholder="請輸入工作地點（必填）"
-              className="work-location-input"
-              required
-            />
-          </div>
-
-          {/* 備註輸入 */}
-          <div className="remarks-section" style={{ marginTop: '15px' }}>
-            <label htmlFor="remarks">備註：</label>
-            <textarea
-              id="remarks"
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              placeholder="選填（針對整份加班申請表的補充說明）"
-              className="remarks-input"
-              rows={3}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                fontSize: '14px',
-                resize: 'vertical'
-              }}
-            />
-          </div>
-
           {/* 說明文字 */}
           <div className="preview-instructions">
             <p>📌 以下顯示加班時數 ≥ 0.5 小時的記錄，已分為「平日加班」與「例假日加班」</p>
@@ -433,11 +421,97 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
             <p>🏖️ 勾選「國定假日」可將平日記錄移至例假日區塊（全時段計算）</p>
           </div>
 
-          {/* 預覽表格 */}
-          <div className="preview-table-container">
-            {renderTable('平日加班', weekdayReports, 1)}
-            {renderTable('例假日加班', holidayReports, 2)}
-          </div>
+          {/* 平日加班區塊 */}
+          {weekdayReports.length > 0 && (
+            <div className="overtime-section">
+              {/* 平日加班的工作地點和備註 */}
+              <div className="input-section">
+                <h3>平日加班資訊</h3>
+                <div className="input-group">
+                  <label className="label-left">
+                    工作地點：<span className="required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={workLocation}
+                    onChange={(e) => setWorkLocation(e.target.value)}
+                    placeholder="請輸入工作地點"
+                  />
+                </div>
+                <div className="input-group">
+                  <label className="label-left">
+                    備註：
+                  </label>
+                  <textarea
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    placeholder="請輸入備註（選填）"
+                    rows={2}
+                  />
+                </div>
+              </div>
+              {/* 平日加班表格 */}
+              {renderTable('平日加班', weekdayReports, 1)}
+            </div>
+          )}
+
+          {/* 例假日加班區塊 */}
+          {holidayReports.length > 0 && (
+            <div className="overtime-section">
+              {/* 例假日加班的工作地點和備註 */}
+              <div className="input-section">
+                <h3>例假日加班資訊</h3>
+                <div className="input-group">
+                  <label className="label-left">
+                    工作地點：<span className="required">*</span>
+                  </label>
+                  <div className="input-with-copy">
+                    <input
+                      type="text"
+                      value={holidayWorkLocation}
+                      onChange={(e) => setHolidayWorkLocation(e.target.value)}
+                      placeholder="請輸入工作地點"
+                    />
+                    {weekdayReports.length > 0 && (
+                      <button
+                        type="button"
+                        className="copy-icon-button"
+                        onClick={() => setHolidayWorkLocation(workLocation)}
+                        title="從平日加班複製工作地點"
+                      >
+                        📋 複製
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="input-group">
+                  <label className="label-left">
+                    備註：
+                  </label>
+                  <div className="input-with-copy">
+                    <textarea
+                      value={holidayRemarks}
+                      onChange={(e) => setHolidayRemarks(e.target.value)}
+                      placeholder="請輸入備註（選填）"
+                      rows={2}
+                    />
+                    {weekdayReports.length > 0 && (
+                      <button
+                        type="button"
+                        className="copy-icon-button"
+                        onClick={() => setHolidayRemarks(remarks)}
+                        title="從平日加班複製備註"
+                      >
+                        📋 複製
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {/* 例假日加班表格 */}
+              {renderTable('例假日加班', holidayReports, 1)}
+            </div>
+          )}
         </div>
 
         <div className="modal-footer">

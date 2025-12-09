@@ -114,11 +114,20 @@ const HomePage: React.FC = () => {
    * 處理下載 Excel 事件
    * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
    * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
-   * @param {string} workLocation - 工作地點
-   * @param {string} remarks - 備註
+   * @param {string} weekdayWorkLocation - 平日加班工作地點
+   * @param {string} weekdayRemarks - 平日加班備註
+   * @param {string} holidayWorkLocation - 例假日加班工作地點
+   * @param {string} holidayRemarks - 例假日加班備註
    */
-  const handleDownloadExcel = (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string, remarks: string) => {
-    generateExcelReport(weekdayReports, holidayReports, workLocation, remarks);
+  const handleDownloadExcel = (
+    weekdayReports: OvertimeReport[], 
+    holidayReports: OvertimeReport[], 
+    weekdayWorkLocation: string, 
+    weekdayRemarks: string,
+    holidayWorkLocation: string,
+    holidayRemarks: string
+  ) => {
+    generateExcelReport(weekdayReports, holidayReports, weekdayWorkLocation, weekdayRemarks, holidayWorkLocation, holidayRemarks);
     setIsPreviewModalOpen(false);
   };
 
@@ -126,11 +135,20 @@ const HomePage: React.FC = () => {
    * 處理下載 PDF 事件
    * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
    * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
-   * @param {string} workLocation - 工作地點
-   * @param {string} remarks - 備註
+   * @param {string} weekdayWorkLocation - 平日加班工作地點
+   * @param {string} weekdayRemarks - 平日加班備註
+   * @param {string} holidayWorkLocation - 例假日加班工作地點
+   * @param {string} holidayRemarks - 例假日加班備註
    */
-  const handleDownloadPdf = async (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string, remarks: string) => {
-    await generatePdfReport(weekdayReports, holidayReports, workLocation, remarks);
+  const handleDownloadPdf = async (
+    weekdayReports: OvertimeReport[], 
+    holidayReports: OvertimeReport[], 
+    weekdayWorkLocation: string, 
+    weekdayRemarks: string,
+    holidayWorkLocation: string,
+    holidayRemarks: string
+  ) => {
+    await generatePdfReport(weekdayReports, holidayReports, weekdayWorkLocation, weekdayRemarks, holidayWorkLocation, holidayRemarks);
     setIsPreviewModalOpen(false);
   };
 
@@ -138,11 +156,20 @@ const HomePage: React.FC = () => {
    * 處理列印事件
    * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
    * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
-   * @param {string} workLocation - 工作地點
-   * @param {string} remarks - 備註
+   * @param {string} weekdayWorkLocation - 平日加班工作地點
+   * @param {string} weekdayRemarks - 平日加班備註
+   * @param {string} holidayWorkLocation - 例假日加班工作地點
+   * @param {string} holidayRemarks - 例假日加班備註
    */
-  const handlePrint = (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string, remarks: string) => {
-    printReport(weekdayReports, holidayReports, workLocation, remarks);
+  const handlePrint = (
+    weekdayReports: OvertimeReport[], 
+    holidayReports: OvertimeReport[], 
+    weekdayWorkLocation: string, 
+    weekdayRemarks: string,
+    holidayWorkLocation: string,
+    holidayRemarks: string
+  ) => {
+    printReport(weekdayReports, holidayReports, weekdayWorkLocation, weekdayRemarks, holidayWorkLocation, holidayRemarks);
     setIsPreviewModalOpen(false);
   };
 
