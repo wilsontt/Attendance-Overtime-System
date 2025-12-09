@@ -260,3 +260,108 @@
   }
 }
 
+/* 加班區塊容器 */
+.overtime-section {
+  margin-bottom: 30px;
+}
+
+/* 輸入區塊樣式 */
+.input-section {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.input-section h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #2c3e50;
+  font-size: 16px;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 8px;
+}
+
+.input-group {
+  margin-bottom: 15px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 標籤靠左對齊 */
+.label-left {
+  display: block;
+  text-align: left;
+  margin-bottom: 5px;
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.input-group input,
+.input-group textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.input-group input:focus,
+.input-group textarea:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.input-group textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+/* 輸入框與複製按鈕容器 */
+.input-with-copy {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.input-with-copy input,
+.input-with-copy textarea {
+  flex: 1;
+}
+
+/* 複製按鈕樣式 */
+.copy-icon-button {
+  padding: 8px 12px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.copy-icon-button:hover {
+  background-color: #2980b9;
+}
+
+.copy-icon-button:active {
+  background-color: #21618c;
+}
+
+.required {
+  color: red;
+  margin-left: 2px;
+}

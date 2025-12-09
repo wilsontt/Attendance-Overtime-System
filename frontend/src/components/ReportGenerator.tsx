@@ -252,7 +252,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
       
       if (printWindow.document.readyState === 'complete') {
          setTimeout(() => {
-          printWindow.print();
+      printWindow.print();
         }, 500);
       }
     }
