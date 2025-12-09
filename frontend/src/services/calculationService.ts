@@ -9,7 +9,9 @@
  * - 例假日（週六、週日或國定假日）：
  *   - 加班時數：上班時間（向上對齊整點）至下班時間（向下對齊 30 分鐘單位）
  *   - 誤餐費：不提供
- * - 時數對齊：所有加班時數向下對齊至 0.5 小時單位
+ * - 時數對齊規則：
+ *   - 加班時數 < 30 分鐘：不計算（返回 0）
+ *   - 加班時數 ≥ 30 分鐘：向下對齊至 0.5 小時單位
  * 
  * 流程：
  * 1. 解析上下班時間為分鐘數
@@ -33,17 +35,6 @@ const parseTime = (timeStr: string): number | null => {
     return null;
   }
   return hours * 60 + minutes;
-};
-
-/**
- * 將分鐘數轉換回時間字串（HH:mm）
- * @param {number} minutes - 自午夜起算的分鐘數
- * @returns {string} 時間字串（格式：HH:mm）
- */
-const minutesToTime = (minutes: number): string => {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 };
 
 /**
@@ -83,11 +74,22 @@ const alignEndTime = (timeMinutes: number): number => {
 
 /**
  * 將時數向下對齊到 0.5 小時單位
+ * 規則：加班時數 < 30 分鐘不計算，≥ 30 分鐘則向下對齊至 0.5 小時單位
  * @param {number} hours - 原始時數
- * @returns {number} 對齊後的時數
+ * @returns {number} 對齊後的時數（< 0.5 小時返回 0）
+ * @example
+ * - 0.25 小時（15分鐘）→ 0 小時
+ * - 0.5 小時（30分鐘）→ 0.5 小時
+ * - 0.75 小時（45分鐘）→ 0.5 小時
+ * - 1.25 小時（1小時15分鐘）→ 1.0 小時
+ * - 1.75 小時（1小時45分鐘）→ 1.5 小時
  */
 const roundToHalfHour = (hours: number): number => {
-  // 將時數轉換為 30 分鐘單位
+  // 如果時數小於 0.5 小時（30分鐘），不計算加班
+  if (hours < 0.5) {
+    return 0;
+  }
+  // 將時數轉換為 30 分鐘單位並向下對齊
   const halfHourUnits = Math.floor(hours / 0.5);
   return halfHourUnits * 0.5;
 };
@@ -123,7 +125,7 @@ const getDayOfWeek = (dateStr: string): number | null => {
  * 計算單筆出勤記錄的加班時數
  * @param {AttendanceRecord} record - 出勤記錄
  * @param {boolean} [isHoliday=false] - 是否為國定假日
- * @returns {number} 加班時數（對齊至 0.5 小時單位）
+ * @returns {number} 加班時數（< 30 分鐘返回 0，≥ 30 分鐘對齊至 0.5 小時單位）
  */
 const calculateOvertimeForRecord = (record: AttendanceRecord, isHoliday: boolean = false): number => {
   const clockInMinutes = parseTime(record.clockIn);
@@ -216,25 +218,17 @@ export const calculateOvertimeAndMealAllowance = (
     const overtimeHours = calculateOvertimeForRecord(record, isHoliday);
     const mealAllowance = calculateMealAllowanceForRecord(record, isHoliday);
     
-    // Calculate overtime range（顯示對齊後的時間）
+    // Calculate overtime range（顯示原始打卡時間，不顯示對齊後的時間）
     let overtimeRange = '';
     const dayOfWeek = getDayOfWeek(record.date);
     if (overtimeHours > 0 && dayOfWeek !== null) {
-      const clockInMinutes = parseTime(record.clockIn);
-      const clockOutMinutes = parseTime(record.clockOut);
-      
-      if (clockInMinutes !== null && clockOutMinutes !== null) {
-        // 例假日/週末/國定假日：全時段（顯示對齊後的時間）
-        if (dayOfWeek === 0 || dayOfWeek === 6 || isHoliday) {
-          const alignedClockIn = alignStartTime(clockInMinutes);
-          const alignedClockOut = alignEndTime(clockOutMinutes);
-          overtimeRange = `${minutesToTime(alignedClockIn)} - ${minutesToTime(alignedClockOut)}`;
-        } 
-        // 平日：18:00 起算（顯示對齊後的結束時間）
-        else if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-          const alignedClockOut = alignEndTime(clockOutMinutes);
-          overtimeRange = `18:00 - ${minutesToTime(alignedClockOut)}`;
-        }
+      // 例假日/週末/國定假日：顯示原始上班打卡時間 ~ 原始下班打卡時間
+      if (dayOfWeek === 0 || dayOfWeek === 6 || isHoliday) {
+        overtimeRange = `${record.clockIn} - ${record.clockOut}`;
+      } 
+      // 平日：顯示 18:00 ~ 原始下班打卡時間
+      else if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        overtimeRange = `18:00 - ${record.clockOut}`;
       }
     }
 
@@ -275,22 +269,17 @@ export const recalculateOvertimeReport = (report: OvertimeReport, isHoliday: boo
   const overtimeHours = calculateOvertimeForRecord(record, isHoliday);
   const mealAllowance = calculateMealAllowanceForRecord(record, isHoliday);
   
-  // Recalculate overtime range（顯示對齊後的時間）
+  // Recalculate overtime range（顯示原始打卡時間，不顯示對齊後的時間）
   let overtimeRange = '';
   const dayOfWeek = getDayOfWeek(record.date);
   if (overtimeHours > 0 && dayOfWeek !== null) {
-    const clockInMinutes = parseTime(record.clockIn);
-    const clockOutMinutes = parseTime(record.clockOut);
-    
-    if (clockInMinutes !== null && clockOutMinutes !== null) {
-      if (dayOfWeek === 0 || dayOfWeek === 6 || isHoliday) {
-        const alignedClockIn = alignStartTime(clockInMinutes);
-        const alignedClockOut = alignEndTime(clockOutMinutes);
-        overtimeRange = `${minutesToTime(alignedClockIn)} - ${minutesToTime(alignedClockOut)}`;
-      } else if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-        const alignedClockOut = alignEndTime(clockOutMinutes);
-        overtimeRange = `18:00 - ${minutesToTime(alignedClockOut)}`;
-      }
+    // 例假日/週末/國定假日：顯示原始上班打卡時間 ~ 原始下班打卡時間
+    if (dayOfWeek === 0 || dayOfWeek === 6 || isHoliday) {
+      overtimeRange = `${record.clockIn} - ${record.clockOut}`;
+    } 
+    // 平日：顯示 18:00 ~ 原始下班打卡時間
+    else if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      overtimeRange = `18:00 - ${record.clockOut}`;
     }
   }
 

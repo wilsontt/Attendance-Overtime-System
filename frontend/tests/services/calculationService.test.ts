@@ -75,4 +75,56 @@ describe('calculateOvertimeAndMealAllowance', () => {
     expect(result[0].overtimeHours).toBe(0);
     expect(result[0].mealAllowance).toBe(0);
   });
+
+  // Test cases for new rule: overtime < 30 minutes should not be calculated
+  it('should not calculate overtime if less than 30 minutes', () => {
+    // Weekday: 18:00 to 18:25 (25 minutes) -> should return 0
+    let records = [createRecord('2025-10-06', '09:00', '18:25')]; // Monday
+    let result = calculateOvertimeAndMealAllowance(records);
+    expect(result[0].overtimeHours).toBe(0);
+    expect(result[0].mealAllowance).toBe(0);
+
+    // Weekday: 18:00 to 18:29 (29 minutes) -> should return 0
+    records = [createRecord('2025-10-07', '09:00', '18:29')]; // Tuesday
+    result = calculateOvertimeAndMealAllowance(records);
+    expect(result[0].overtimeHours).toBe(0);
+    expect(result[0].mealAllowance).toBe(0);
+  });
+
+  // Test cases for rounding to 0.5 hour units when >= 30 minutes
+  it('should round overtime to 0.5 hour units when >= 30 minutes', () => {
+    // Weekday: 18:00 to 18:45 (45 minutes) -> should round to 0.5 hours
+    let records = [createRecord('2025-10-06', '09:00', '18:45')]; // Monday
+    let result = calculateOvertimeAndMealAllowance(records);
+    expect(result[0].overtimeHours).toBe(0.5); // 45 minutes rounds down to 0.5 hours
+    expect(result[0].mealAllowance).toBe(0);
+
+    // Weekday: 18:00 to 19:15 (1 hour 15 minutes) -> should round to 1.0 hours
+    records = [createRecord('2025-10-07', '09:00', '19:15')]; // Tuesday
+    result = calculateOvertimeAndMealAllowance(records);
+    expect(result[0].overtimeHours).toBe(1.0); // 1 hour 15 minutes rounds down to 1.0 hours
+    expect(result[0].mealAllowance).toBe(0);
+
+    // Weekday: 18:00 to 19:45 (1 hour 45 minutes) -> should round to 1.5 hours
+    records = [createRecord('2025-10-08', '09:00', '19:45')]; // Wednesday
+    result = calculateOvertimeAndMealAllowance(records);
+    expect(result[0].overtimeHours).toBe(1.5); // 1 hour 45 minutes rounds down to 1.5 hours
+    expect(result[0].mealAllowance).toBe(50); // >= 19:30, so meal allowance
+  });
+
+  // Test cases for weekend/holiday: same rule applies
+  it('should apply same rule (< 30 minutes = 0) for weekend/holiday', () => {
+    // Saturday: 08:56 to 09:20 (24 minutes after alignment: 09:00 to 09:00) -> should return 0
+    // Actually, after alignment: 09:00 to 09:00 = 0 minutes -> should return 0
+    let records = [createRecord('2025-10-04', '08:56', '09:20')]; // Saturday
+    let result = calculateOvertimeAndMealAllowance(records);
+    expect(result[0].overtimeHours).toBe(0); // After alignment, less than 30 minutes
+    expect(result[0].mealAllowance).toBe(0);
+
+    // Saturday: 08:56 to 09:45 (after alignment: 09:00 to 09:30 = 30 minutes) -> should return 0.5
+    records = [createRecord('2025-10-04', '08:56', '09:45')]; // Saturday
+    result = calculateOvertimeAndMealAllowance(records);
+    expect(result[0].overtimeHours).toBe(0.5); // After alignment: 09:00 to 09:30 = 30 minutes = 0.5 hours
+    expect(result[0].mealAllowance).toBe(0);
+  });
 });
