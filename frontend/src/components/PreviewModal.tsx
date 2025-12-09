@@ -14,6 +14,7 @@
 import React, { useState, useEffect } from 'react';
 import type { OvertimeReport } from '../types';
 import { recalculateOvertimeReport } from '../services/calculationService';
+import { formatDate } from '../utils/dateFormatter';
 import './PreviewModal.css';
 
 /**
@@ -27,11 +28,11 @@ interface PreviewModalProps {
   /** 關閉 Modal 回呼函數 */
   onClose: () => void;
   /** 下載 Excel 回呼函數 */
-  onDownloadExcel: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => void;
+  onDownloadExcel: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string, remarks: string) => void;
   /** 下載 PDF 回呼函數 */
-  onDownloadPdf: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => void;
+  onDownloadPdf: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string, remarks: string) => void;
   /** 列印回呼函數 */
-  onPrint: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => void;
+  onPrint: (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string, remarks: string) => void;
 }
 
 /**
@@ -52,6 +53,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   
   /** 工作地點 */
   const [workLocation, setWorkLocation] = useState<string>('');
+  
+  /** 備註（針對整份加班申請表） */
+  const [remarks, setRemarks] = useState<string>('');
   
   /** 國定假日標記（key: date, value: isHoliday） */
   const [holidayFlags, setHolidayFlags] = useState<{ [key: string]: boolean }>({});
@@ -94,9 +98,10 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
       });
       setEditedReasons(initialReasons);
 
-      // 重置國定假日標記
+      // 重置國定假日標記、工作地點與備註
       setHolidayFlags({});
       setWorkLocation('');
+      setRemarks('');
     }
   }, [isOpen, reports]);
 
@@ -220,7 +225,8 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
               const isLeaveDay = report.attendanceType && report.attendanceType !== '空' && report.attendanceType !== '';
               const hasClockTime = report.clockIn && report.clockOut;
               const shouldHighlight = isLeaveDay && hasClockTime;
-              const isOvertimeEditable = report.overtimeHours >= 0.5 && (!isLeaveDay || !report.attendanceType);
+              // 新邏輯：選擇欄勾選 且 有打卡記錄 → 可編輯（無論是否請假）
+              const isOvertimeEditable = recordSelection[index] && hasClockTime;
 
               return (
                 <tr key={index} className={shouldHighlight ? 'highlight-leave-day' : ''}>
@@ -239,7 +245,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                       title="勾選表示此日為國定假日"
                     />
                   </td>
-                  <td>{report.date}</td>
+                  <td>{formatDate(report.date)}</td>
                   <td>{report.attendanceType || '-'}</td>
                   <td>{report.clockIn}</td>
                   <td>{report.clockOut}</td>
@@ -285,11 +291,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     const missingIndexes: number[] = [];
 
     selected.forEach((report, idx) => {
-      // 排除請假日記錄（考勤別不為空且不為「空」）
-      const isLeaveDay = report.attendanceType && report.attendanceType !== '空' && report.attendanceType !== '';
-      
-      // 需要填寫加班原因的條件：非請假日 且 加班時數 >= 0.5
-      const needsReason = !isLeaveDay && report.overtimeHours >= 0.5;
+      // 需要填寫加班原因的條件：有打卡記錄 且 加班時數 >= 0.5（無論是否請假）
+      const hasClockTime = report.clockIn && report.clockOut;
+      const needsReason = hasClockTime && report.overtimeHours >= 0.5;
       
       if (needsReason && (!report.overtimeReason || report.overtimeReason.trim() === '')) {
         missingIndexes.push(idx + 1); // 顯示為 1-based 索引
@@ -343,7 +347,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     const selected = getSelectedReports();
     const selectedWeekday = selected.filter(r => !isHolidayRecord(r));
     const selectedHoliday = selected.filter(r => isHolidayRecord(r));
-    onDownloadExcel(selectedWeekday, selectedHoliday, workLocation);
+    onDownloadExcel(selectedWeekday, selectedHoliday, workLocation, remarks);
   };
 
   /**
@@ -359,7 +363,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     const selected = getSelectedReports();
     const selectedWeekday = selected.filter(r => !isHolidayRecord(r));
     const selectedHoliday = selected.filter(r => isHolidayRecord(r));
-    onDownloadPdf(selectedWeekday, selectedHoliday, workLocation);
+    onDownloadPdf(selectedWeekday, selectedHoliday, workLocation, remarks);
   };
 
   /**
@@ -375,7 +379,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     const selected = getSelectedReports();
     const selectedWeekday = selected.filter(r => !isHolidayRecord(r));
     const selectedHoliday = selected.filter(r => isHolidayRecord(r));
-    onPrint(selectedWeekday, selectedHoliday, workLocation);
+    onPrint(selectedWeekday, selectedHoliday, workLocation, remarks);
   };
 
   return (
@@ -398,6 +402,27 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
               placeholder="請輸入工作地點（必填）"
               className="work-location-input"
               required
+            />
+          </div>
+
+          {/* 備註輸入 */}
+          <div className="remarks-section" style={{ marginTop: '15px' }}>
+            <label htmlFor="remarks">備註：</label>
+            <textarea
+              id="remarks"
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              placeholder="選填（針對整份加班申請表的補充說明）"
+              className="remarks-input"
+              rows={3}
+              style={{
+                width: '100%',
+                padding: '8px',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                fontSize: '14px',
+                resize: 'vertical'
+              }}
             />
           </div>
 

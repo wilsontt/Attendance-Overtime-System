@@ -115,9 +115,10 @@ const HomePage: React.FC = () => {
    * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
    * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
    * @param {string} workLocation - 工作地點
+   * @param {string} remarks - 備註
    */
-  const handleDownloadExcel = (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => {
-    generateExcelReport(weekdayReports, holidayReports, workLocation);
+  const handleDownloadExcel = (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string, remarks: string) => {
+    generateExcelReport(weekdayReports, holidayReports, workLocation, remarks);
     setIsPreviewModalOpen(false);
   };
 
@@ -126,9 +127,10 @@ const HomePage: React.FC = () => {
    * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
    * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
    * @param {string} workLocation - 工作地點
+   * @param {string} remarks - 備註
    */
-  const handleDownloadPdf = async (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => {
-    await generatePdfReport(weekdayReports, holidayReports, workLocation);
+  const handleDownloadPdf = async (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string, remarks: string) => {
+    await generatePdfReport(weekdayReports, holidayReports, workLocation, remarks);
     setIsPreviewModalOpen(false);
   };
 
@@ -137,9 +139,10 @@ const HomePage: React.FC = () => {
    * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
    * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
    * @param {string} workLocation - 工作地點
+   * @param {string} remarks - 備註
    */
-  const handlePrint = (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string) => {
-    printReport(weekdayReports, holidayReports, workLocation);
+  const handlePrint = (weekdayReports: OvertimeReport[], holidayReports: OvertimeReport[], workLocation: string, remarks: string) => {
+    printReport(weekdayReports, holidayReports, workLocation, remarks);
     setIsPreviewModalOpen(false);
   };
 
@@ -151,7 +154,7 @@ const HomePage: React.FC = () => {
           alt="Company Logo" 
           style={{ height: '60px', marginRight: '15px' }} 
         />
-        <h1 style={{ margin: 0 }}>出勤加班單系統 v1.2.0</h1>
+        <h1 style={{ margin: 0 }}>出勤加班單系統 v1.3.0</h1>
       </div>
       <FileUploader onFileProcessed={handleFileProcessed} />
 

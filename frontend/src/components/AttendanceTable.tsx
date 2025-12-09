@@ -11,6 +11,7 @@
 
 import React from 'react';
 import type { OvertimeReport } from '../../src/types';
+import { formatDate } from '../utils/dateFormatter';
 
 /**
  * AttendanceTable 組件的 Props 介面
@@ -51,7 +52,7 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
             <tr key={index}>
               <td>{report.employeeId}</td>
               <td>{report.name}</td>
-              <td>{report.date}</td>
+              <td>{formatDate(report.date)}</td>
               <td>
                 <input 
                   type="text" 

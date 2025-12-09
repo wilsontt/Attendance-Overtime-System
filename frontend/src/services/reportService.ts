@@ -9,6 +9,7 @@ import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import type { OvertimeReport } from '../types';
+import { formatDate as formatDateWithDayOfWeek } from '../utils/dateFormatter';
 
 /**
  * 取得申請年月（民國年格式）
@@ -25,30 +26,18 @@ function getYearMonth(dateStr: string): string {
 }
 
 /**
- * 格式化日期為 MM/DD 格式
- * @param {string} dateStr - 日期字串（民國年格式：1141001）
- * @returns {string} 格式化後的日期（格式：10/01）
- */
-function formatDate(dateStr: string): string {
-  if (/^\d{7}$/.test(dateStr)) {
-    const month = dateStr.substring(3, 5);
-    const day = dateStr.substring(5, 7);
-    return `${month}/${day}`;
-  }
-  return dateStr;
-}
-
-/**
  * 生成 Excel 報表（兩個工作表：平日加班、例假日加班）
  * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
  * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
  * @param {string} workLocation - 工作地點
+ * @param {string} remarks - 備註
  * @returns {Promise<void>}
  */
 export async function generateExcelReport(
   weekdayReports: OvertimeReport[],
   holidayReports: OvertimeReport[],
-  workLocation: string
+  workLocation: string,
+  remarks: string
 ): Promise<void> {
   const workbook = new ExcelJS.Workbook();
 
@@ -64,12 +53,12 @@ export async function generateExcelReport(
 
   // 生成平日加班工作表
   if (weekdayReports.length > 0) {
-    createWorksheet(workbook, '平日加班', weekdayReports, employeeName, yearMonth, workLocation);
+    createWorksheet(workbook, '平日加班', weekdayReports, employeeName, yearMonth, workLocation, remarks);
   }
 
   // 生成例假日加班工作表
   if (holidayReports.length > 0) {
-    createWorksheet(workbook, '例假日加班', holidayReports, employeeName, yearMonth, workLocation);
+    createWorksheet(workbook, '例假日加班', holidayReports, employeeName, yearMonth, workLocation, remarks);
   }
 
   // 下載檔案
@@ -91,6 +80,7 @@ export async function generateExcelReport(
  * @param {string} employeeName - 員工姓名
  * @param {string} yearMonth - 申請年月
  * @param {string} workLocation - 工作地點
+ * @param {string} remarks - 備註
  */
 function createWorksheet(
   workbook: ExcelJS.Workbook,
@@ -98,7 +88,8 @@ function createWorksheet(
   reports: OvertimeReport[],
   employeeName: string,
   yearMonth: string,
-  workLocation: string
+  workLocation: string,
+  remarks: string
 ): void {
   const worksheet = workbook.addWorksheet(sheetName);
 
@@ -133,7 +124,7 @@ function createWorksheet(
   // 備註（左對齊）
   worksheet.mergeCells('A4:F4');
   const remarkCell = worksheet.getCell('A4');
-  remarkCell.value = '備註：';
+  remarkCell.value = `備註：${remarks || ''}`;
   remarkCell.alignment = { horizontal: 'left', vertical: 'middle' };
 
   // 表格標題（粗體、灰底）
@@ -160,7 +151,7 @@ function createWorksheet(
 
   reports.forEach((report) => {
     const row = worksheet.addRow([
-      formatDate(report.date),
+      formatDateWithDayOfWeek(report.date),
       report.overtimeRange,
       report.overtimeReason || '',
       report.overtimeHours.toFixed(2),
@@ -211,12 +202,14 @@ function createWorksheet(
  * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
  * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
  * @param {string} workLocation - 工作地點
+ * @param {string} remarks - 備註
  * @returns {Promise<void>}
  */
 export async function generatePdfReport(
   weekdayReports: OvertimeReport[],
   holidayReports: OvertimeReport[],
-  workLocation: string
+  workLocation: string,
+  remarks: string
 ): Promise<void> {
   const firstReport = weekdayReports[0] || holidayReports[0];
   if (!firstReport) {
@@ -243,7 +236,7 @@ export async function generatePdfReport(
 
   // 生成平日加班頁面
   if (weekdayReports.length > 0) {
-    container.innerHTML = generatePageHtml('平日加班', weekdayReports, employeeName, yearMonth, workLocation, 1);
+    container.innerHTML = generatePageHtml('平日加班', weekdayReports, employeeName, yearMonth, workLocation, remarks, 1);
     const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
     const imgData = canvas.toDataURL('image/png');
     const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -256,7 +249,7 @@ export async function generatePdfReport(
 
   // 生成例假日加班頁面
   if (holidayReports.length > 0) {
-    container.innerHTML = generatePageHtml('例假日加班', holidayReports, employeeName, yearMonth, workLocation, 2);
+    container.innerHTML = generatePageHtml('例假日加班', holidayReports, employeeName, yearMonth, workLocation, remarks, 2);
     const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
     const imgData = canvas.toDataURL('image/png');
     const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -278,11 +271,13 @@ export async function generatePdfReport(
  * @param {OvertimeReport[]} weekdayReports - 平日加班記錄
  * @param {OvertimeReport[]} holidayReports - 例假日加班記錄
  * @param {string} workLocation - 工作地點
+ * @param {string} remarks - 備註
  */
 export function printReport(
   weekdayReports: OvertimeReport[],
   holidayReports: OvertimeReport[],
-  workLocation: string
+  workLocation: string,
+  remarks: string
 ): void {
   const firstReport = weekdayReports[0] || holidayReports[0];
   if (!firstReport) {
@@ -320,11 +315,11 @@ export function printReport(
   `;
 
   if (weekdayReports.length > 0) {
-    htmlContent += `<div class="page">${generatePageHtml('平日加班', weekdayReports, employeeName, yearMonth, workLocation, 1)}</div>`;
+    htmlContent += `<div class="page">${generatePageHtml('平日加班', weekdayReports, employeeName, yearMonth, workLocation, remarks, 1)}</div>`;
   }
 
   if (holidayReports.length > 0) {
-    htmlContent += `<div class="page">${generatePageHtml('例假日加班', holidayReports, employeeName, yearMonth, workLocation, 2)}</div>`;
+    htmlContent += `<div class="page">${generatePageHtml('例假日加班', holidayReports, employeeName, yearMonth, workLocation, remarks, 2)}</div>`;
   }
 
   htmlContent += `
@@ -359,6 +354,7 @@ export function printReport(
  * @param {string} employeeName - 員工姓名
  * @param {string} yearMonth - 申請年月
  * @param {string} workLocation - 工作地點
+ * @param {string} remarks - 備註
  * @param {number} pageNumber - 頁碼
  * @returns {string} HTML 字串
  */
@@ -368,6 +364,7 @@ function generatePageHtml(
   employeeName: string,
   yearMonth: string,
   workLocation: string,
+  remarks: string,
   pageNumber: number
 ): string {
   let totalOvertimeHours = 0;
@@ -397,7 +394,7 @@ function generatePageHtml(
       <div style="margin-bottom: 15px; font-size: 14px;">
         <div style="margin-bottom: 5px;">員工姓名：${employeeName}</div>
         <div style="margin-bottom: 5px;">工作地點：${workLocation}</div>
-        <div>備註：</div>
+        <div>備註：${remarks || ''}</div>
       </div>
       <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
         <thead>
@@ -413,7 +410,7 @@ function generatePageHtml(
         <tbody>
           ${reports.map(report => `
             <tr>
-              <td style="border: 1px solid black; padding: 6px 8px;">${formatDate(report.date)}</td>
+              <td style="border: 1px solid black; padding: 6px 8px;">${formatDateWithDayOfWeek(report.date)}</td>
               <td style="border: 1px solid black; padding: 6px 8px;">${report.overtimeRange}</td>
               <td style="border: 1px solid black; padding: 6px 8px;">${report.overtimeReason || ''}</td>
               <td style="border: 1px solid black; padding: 6px 8px;">${report.overtimeHours.toFixed(2)}</td>
