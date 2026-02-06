@@ -17,6 +17,15 @@ import { recalculateOvertimeReport } from '../services/calculationService';
 import { formatDate } from '../utils/dateFormatter';
 import './PreviewModal.css';
 
+const MAX_REMARKS_LENGTH = 100;
+const MAX_REASON_LENGTH = 50;
+
+const clampTextWithWarning = (value: string, limit: number, label: string): string => {
+  if (value.length <= limit) return value;
+  alert(`${label} 最多 ${limit} 個字，已自動截斷。`);
+  return value.slice(0, limit);
+};
+
 /**
  * PreviewModal 組件的 Props 介面
  */
@@ -142,7 +151,8 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
    * @param {string} newReason - 新的加班原因
    */
   const handleReasonChange = (index: number, newReason: string) => {
-    setEditedReasons(prev => ({ ...prev, [index]: newReason }));
+    const limited = clampTextWithWarning(newReason, MAX_REASON_LENGTH, '加班原因');
+    setEditedReasons(prev => ({ ...prev, [index]: limited }));
   };
 
   /**
@@ -370,7 +380,17 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     const selected = getSelectedReports();
     const selectedWeekday = selected.filter(r => !isHolidayRecord(r));
     const selectedHoliday = selected.filter(r => isHolidayRecord(r));
-    onDownloadExcel(selectedWeekday, selectedHoliday, workLocation, remarks, holidayWorkLocation, holidayRemarks);
+    const trimmedRemarks = clampTextWithWarning(remarks, MAX_REMARKS_LENGTH, '備註');
+    const trimmedHolidayRemarks = clampTextWithWarning(holidayRemarks, MAX_REMARKS_LENGTH, '備註');
+    const trimmedWeekday = selectedWeekday.map(r => ({
+      ...r,
+      overtimeReason: clampTextWithWarning(r.overtimeReason || '', MAX_REASON_LENGTH, '加班原因')
+    }));
+    const trimmedHoliday = selectedHoliday.map(r => ({
+      ...r,
+      overtimeReason: clampTextWithWarning(r.overtimeReason || '', MAX_REASON_LENGTH, '加班原因')
+    }));
+    onDownloadExcel(trimmedWeekday, trimmedHoliday, workLocation, trimmedRemarks, holidayWorkLocation, trimmedHolidayRemarks);
   };
 
   /**
@@ -386,7 +406,17 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     const selected = getSelectedReports();
     const selectedWeekday = selected.filter(r => !isHolidayRecord(r));
     const selectedHoliday = selected.filter(r => isHolidayRecord(r));
-    onDownloadPdf(selectedWeekday, selectedHoliday, workLocation, remarks, holidayWorkLocation, holidayRemarks);
+    const trimmedRemarks = clampTextWithWarning(remarks, MAX_REMARKS_LENGTH, '備註');
+    const trimmedHolidayRemarks = clampTextWithWarning(holidayRemarks, MAX_REMARKS_LENGTH, '備註');
+    const trimmedWeekday = selectedWeekday.map(r => ({
+      ...r,
+      overtimeReason: clampTextWithWarning(r.overtimeReason || '', MAX_REASON_LENGTH, '加班原因')
+    }));
+    const trimmedHoliday = selectedHoliday.map(r => ({
+      ...r,
+      overtimeReason: clampTextWithWarning(r.overtimeReason || '', MAX_REASON_LENGTH, '加班原因')
+    }));
+    onDownloadPdf(trimmedWeekday, trimmedHoliday, workLocation, trimmedRemarks, holidayWorkLocation, trimmedHolidayRemarks);
   };
 
   /**
@@ -402,7 +432,17 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     const selected = getSelectedReports();
     const selectedWeekday = selected.filter(r => !isHolidayRecord(r));
     const selectedHoliday = selected.filter(r => isHolidayRecord(r));
-    onPrint(selectedWeekday, selectedHoliday, workLocation, remarks, holidayWorkLocation, holidayRemarks);
+    const trimmedRemarks = clampTextWithWarning(remarks, MAX_REMARKS_LENGTH, '備註');
+    const trimmedHolidayRemarks = clampTextWithWarning(holidayRemarks, MAX_REMARKS_LENGTH, '備註');
+    const trimmedWeekday = selectedWeekday.map(r => ({
+      ...r,
+      overtimeReason: clampTextWithWarning(r.overtimeReason || '', MAX_REASON_LENGTH, '加班原因')
+    }));
+    const trimmedHoliday = selectedHoliday.map(r => ({
+      ...r,
+      overtimeReason: clampTextWithWarning(r.overtimeReason || '', MAX_REASON_LENGTH, '加班原因')
+    }));
+    onPrint(trimmedWeekday, trimmedHoliday, workLocation, trimmedRemarks, holidayWorkLocation, trimmedHolidayRemarks);
   };
 
   return (
@@ -444,8 +484,8 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                   </label>
                   <textarea
                     value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    placeholder="請輸入備註（選填）"
+                    onChange={(e) => setRemarks(clampTextWithWarning(e.target.value, MAX_REMARKS_LENGTH, '備註'))}
+                    placeholder={`請輸入備註（選填，最多 ${MAX_REMARKS_LENGTH} 字）`}
                     rows={2}
                   />
                 </div>
@@ -491,8 +531,8 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                   <div className="input-with-copy">
                     <textarea
                       value={holidayRemarks}
-                      onChange={(e) => setHolidayRemarks(e.target.value)}
-                      placeholder="請輸入備註（選填）"
+                      onChange={(e) => setHolidayRemarks(clampTextWithWarning(e.target.value, MAX_REMARKS_LENGTH, '備註'))}
+                      placeholder={`請輸入備註（選填，最多 ${MAX_REMARKS_LENGTH} 字）`}
                       rows={2}
                     />
                     {weekdayReports.length > 0 && (

@@ -9,8 +9,8 @@ import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import type { OvertimeReport } from '../types';
-import { formatDate as formatDateWithDayOfWeek } from '../utils/dateFormatter';
-import { paginateReportsByHeight } from './paginationService';
+import { formatDate as formatDateWithDayOfWeek, formatDateWithTwoLines, formatTimeRangeWithTwoLines } from '../utils/dateFormatter';
+import { paginateReports } from './paginationService';
 
 /**
  * 取得申請年月（民國年格式）
@@ -151,9 +151,6 @@ function createWorksheet(
   });
 
   // 資料列
-  let totalOvertimeHours = 0;
-  let totalMealAllowance = 0;
-
   reports.forEach((report) => {
     const row = worksheet.addRow([
       formatDateWithDayOfWeek(report.date),
@@ -173,9 +170,6 @@ function createWorksheet(
       };
       cell.alignment = { horizontal: 'left', vertical: 'middle' };
     });
-
-    totalOvertimeHours += report.overtimeHours;
-    totalMealAllowance += report.mealAllowance;
   });
 
   // 合計列
@@ -241,17 +235,9 @@ export async function generatePdfReport(
   const pdf = new jsPDF('p', 'mm', 'a4');
   let isFirstPdfPage = true;
 
-  // 生成平日加班頁面（動態高度分頁）
+  // 生成平日加班頁面（固定行數分頁：首 15 筆，後續 18 筆）
   if (weekdayReports.length > 0) {
-    const weekdayPages = paginateReportsByHeight(
-      '平日加班',
-      weekdayReports,
-      employeeName,
-      yearMonth,
-      weekdayWorkLocation,
-      weekdayRemarks,
-      generatePageHtml
-    );
+    const weekdayPages = paginateReports(weekdayReports);
     for (const pageData of weekdayPages) {
       container.innerHTML = generatePageHtml(
         '平日加班',
@@ -265,28 +251,21 @@ export async function generatePdfReport(
         pageData.isFirstPage,
         pageData.isLastPage
       );
-      const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
-      const imgData = canvas.toDataURL('image/png');
+      // 使用較低的 scale 和 JPEG 格式以減少檔案大小，同時保持中文正常顯示
+      const canvas = await html2canvas(container, { scale: 1.5, useCORS: true, logging: false });
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       
       if (!isFirstPdfPage) pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       isFirstPdfPage = false;
     }
   }
 
-  // 生成例假日加班頁面（動態高度分頁，獨立編號）
+  // 生成例假日加班頁面（固定行數分頁：首 15 筆，後續 18 筆）
   if (holidayReports.length > 0) {
-    const holidayPages = paginateReportsByHeight(
-      '例假日加班',
-      holidayReports,
-      employeeName,
-      yearMonth,
-      holidayWorkLocation,
-      holidayRemarks,
-      generatePageHtml
-    );
+    const holidayPages = paginateReports(holidayReports);
     for (const pageData of holidayPages) {
       container.innerHTML = generatePageHtml(
         '例假日加班',
@@ -300,13 +279,14 @@ export async function generatePdfReport(
         pageData.isFirstPage,
         pageData.isLastPage
       );
-      const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false });
-      const imgData = canvas.toDataURL('image/png');
+      // 使用較低的 scale 和 JPEG 格式以減少檔案大小，同時保持中文正常顯示
+      const canvas = await html2canvas(container, { scale: 1.5, useCORS: true, logging: false });
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       
       if (!isFirstPdfPage) pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       isFirstPdfPage = false;
     }
   }
@@ -368,17 +348,9 @@ export function printReport(
       <body>
   `;
 
-  // 平日加班（動態高度分頁）
+  // 平日加班（固定行數分頁：首 15 筆，後續 18 筆）
   if (weekdayReports.length > 0) {
-    const weekdayPages = paginateReportsByHeight(
-      '平日加班',
-      weekdayReports,
-      employeeName,
-      yearMonth,
-      weekdayWorkLocation,
-      weekdayRemarks,
-      generatePageHtml
-    );
+    const weekdayPages = paginateReports(weekdayReports);
     weekdayPages.forEach(pageData => {
       htmlContent += `<div class="page">${generatePageHtml(
         '平日加班',
@@ -395,17 +367,9 @@ export function printReport(
     });
   }
 
-  // 例假日加班（動態高度分頁，獨立編號）
+  // 例假日加班（固定行數分頁：首 15 筆，後續 18 筆）
   if (holidayReports.length > 0) {
-    const holidayPages = paginateReportsByHeight(
-      '例假日加班',
-      holidayReports,
-      employeeName,
-      yearMonth,
-      holidayWorkLocation,
-      holidayRemarks,
-      generatePageHtml
-    );
+    const holidayPages = paginateReports(holidayReports);
     holidayPages.forEach(pageData => {
       htmlContent += `<div class="page">${generatePageHtml(
         '例假日加班',
@@ -470,16 +434,8 @@ function generatePageHtml(
   isFirstPage: boolean,
   isLastPage: boolean
 ): string {
-  let totalOvertimeHours = 0;
-  let totalMealAllowance = 0;
-
-  reports.forEach(report => {
-    totalOvertimeHours += report.overtimeHours;
-    totalMealAllowance += report.mealAllowance;
-  });
-
   return `
-    <div style="font-size: 12px;">
+    <div style="font-size: 14px;">
       <!-- 第一行：公司名稱（置中） -->
       <div style="text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 5px;">
         海灣國際股份有限公司
@@ -499,22 +455,33 @@ function generatePageHtml(
         <div style="margin-bottom: 5px;">工作地點：${workLocation}</div>
         <div>備註：${remarks || ''}</div>
       </div>` : ''}
-      <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed;">
+        <colgroup>
+          <col style="width: 90px;">
+          <col style="width: 75px;">
+          <col style="width: auto;">
+          <col style="width: 65px;">
+          <col style="width: 60px;">
+          <col style="width: 60px;">
+        </colgroup>
         <thead>
           <tr style="background-color: #f0f0f0;">
-            <th style="border: 1px solid black; padding: 6px 8px; text-align: left; font-weight: bold;">日期</th>
-            <th style="border: 1px solid black; padding: 6px 8px; text-align: left; font-weight: bold;">時間</th>
-            <th style="border: 1px solid black; padding: 6px 8px; text-align: left; font-weight: bold;">加班理由</th>
-            <th style="border: 1px solid black; padding: 6px 8px; text-align: left; font-weight: bold;">加班時數</th>
-            <th style="border: 1px solid black; padding: 6px 8px; text-align: left; font-weight: bold;">誤餐費</th>
-            <th style="border: 1px solid black; padding: 6px 8px; text-align: left; font-weight: bold;">合計</th>
+            <th style="border: 1px solid black; padding: 6px 8px; text-align: text-center; font-weight: bold;">日期</th>
+            <th style="border: 1px solid black; padding: 6px 8px; text-align: text-center; font-weight: bold;">時間</th>
+            <th style="border: 1px solid black; padding: 6px 8px; text-align: text-center; font-weight: bold;">加班理由</th>
+            <th style="border: 1px solid black; padding: 6px 8px; text-align: text-center; font-weight: bold; vertical-align: top;">
+              <div>加班</div>
+              <div>時數</div>
+            </th>
+            <th style="border: 1px solid black; padding: 6px 8px; text-align: text-center; font-weight: bold;">誤餐費</th>
+            <th style="border: 1px solid black; padding: 6px 8px; text-align: text-center; font-weight: bold;">合計</th>
           </tr>
         </thead>
         <tbody>
           ${reports.map(report => `
             <tr>
-              <td style="border: 1px solid black; padding: 6px 8px;">${formatDateWithDayOfWeek(report.date)}</td>
-              <td style="border: 1px solid black; padding: 6px 8px;">${report.overtimeRange}</td>
+              <td style="border: 1px solid black; padding: 6px 8px; vertical-align: top;">${formatDateWithTwoLines(report.date)}</td>
+              <td style="border: 1px solid black; padding: 6px 8px; vertical-align: top;">${formatTimeRangeWithTwoLines(report.overtimeRange)}</td>
               <td style="border: 1px solid black; padding: 6px 8px;">${report.overtimeReason || ''}</td>
               <td style="border: 1px solid black; padding: 6px 8px;">${report.overtimeHours.toFixed(2)}</td>
               <td style="border: 1px solid black; padding: 6px 8px;">${report.mealAllowance}</td>

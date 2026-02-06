@@ -101,19 +101,23 @@ export function paginateReportsByHeight(
 
   // A4 頁面高度限制（px）
   // 297mm - 40mm (上下邊距) = 257mm ≈ 970px at 96dpi
-  // 設定為 950px 預留誤差空間
-  const MAX_PAGE_HEIGHT = 950;
+  const MAX_PAGE_HEIGHT = 970;
   
   const pages: PageData[] = [];
   
   // 建立隱藏測量容器
+  // 樣式必須與實際 PDF/列印頁面一致，以確保測量準確
   const measureContainer = document.createElement('div');
   measureContainer.style.position = 'fixed';
   measureContainer.style.top = '-10000px';
   measureContainer.style.left = '-10000px';
   measureContainer.style.width = '210mm'; // A4 寬度
+  measureContainer.style.padding = '20mm'; // 與實際頁面邊距一致
+  measureContainer.style.backgroundColor = 'white';
+  measureContainer.style.fontFamily = '"Microsoft JhengHei", "Heiti TC", sans-serif';
   measureContainer.style.visibility = 'hidden';
   measureContainer.style.pointerEvents = 'none';
+  measureContainer.style.boxSizing = 'border-box'; // 確保 padding 包含在寬度內
   document.body.appendChild(measureContainer);
 
   let currentPageReports: OvertimeReport[] = [];
@@ -142,10 +146,20 @@ export function paginateReportsByHeight(
       
       measureContainer.innerHTML = testHtml;
       
-      // 強制瀏覽器重新計算佈局
-      measureContainer.offsetHeight;
+      // 強制瀏覽器重新計算佈局並等待渲染完成
+      // 使用多種方法確保 DOM 已完全渲染
+      measureContainer.offsetHeight; // 觸發重排
       
-      const currentHeight = measureContainer.offsetHeight;
+      // 使用 requestAnimationFrame 確保瀏覽器完成渲染
+      // 由於這是同步測量，我們使用更精確的高度測量方法
+      // 使用 scrollHeight 獲取更準確的內容高度（包含溢出內容）
+      // 使用 getBoundingClientRect 作為備選方案
+      const rect = measureContainer.getBoundingClientRect();
+      const scrollHeight = measureContainer.scrollHeight;
+      
+      // 選擇較大的值以確保包含所有內容
+      // scrollHeight 通常更準確，因為它包含所有內容（即使溢出）
+      const currentHeight = Math.max(scrollHeight, rect.height);
       
       // 檢查是否超過高度限制
       if (currentHeight > MAX_PAGE_HEIGHT && currentPageReports.length > 0) {

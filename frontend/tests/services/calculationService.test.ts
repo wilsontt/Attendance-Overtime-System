@@ -55,8 +55,8 @@ describe('calculateOvertimeAndMealAllowance', () => {
   // Test cases for no overtime
   it('should handle records with no overtime', () => {
     // Weekday, leaves before 18:00
-    let records = [createRecord('2025-10-09', '09:00', '17:00')]; // Thursday
-    let result = calculateOvertimeAndMealAllowance(records);
+    const records = [createRecord('2025-10-09', '09:00', '17:00')]; // Thursday
+    const result = calculateOvertimeAndMealAllowance(records);
     expect(result[0].overtimeHours).toBe(0);
     expect(result[0].mealAllowance).toBe(0);
   });
