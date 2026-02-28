@@ -14,6 +14,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import FileUploader from '../components/FileUploader';
+import logoUrl from '../assets/CROWN_logo.png';
 import AttendanceTable from '../components/AttendanceTable';
 import PreviewModal from '../components/PreviewModal';
 import type { AttendanceRecord, OvertimeReport } from '../types';
@@ -177,7 +178,7 @@ const HomePage: React.FC = () => {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
         <img 
-          src="/logo.png" 
+          src={logoUrl}
           alt="Company Logo" 
           style={{ height: '60px', marginRight: '15px' }} 
         />

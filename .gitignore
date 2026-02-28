@@ -36,6 +36,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
+# 參考文件
+1.docs/
+
 # Gemini / Speckit generated files
 # 保留設定與模板，但忽略暫存與敏感資料
 
