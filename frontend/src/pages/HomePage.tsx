@@ -182,7 +182,7 @@ const HomePage: React.FC = () => {
           alt="Company Logo" 
           style={{ height: '60px', marginRight: '15px' }} 
         />
-        <h1 style={{ margin: 0 }}>出勤加班單系統 v1.3.0</h1>
+        <h1 style={{ margin: 0 }}>出勤加班單系統 v1.4.1</h1>
       </div>
       <FileUploader onFileProcessed={handleFileProcessed} />
 

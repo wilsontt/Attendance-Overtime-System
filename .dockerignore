@@ -1,0 +1,30 @@
+# docs / specs
+0.docs/
+docs/
+*.md
+
+# IDE / AI tools
+.cursor/
+.gemini/
+.vscode/
+.idea/
+
+# VCS / temp
+.git/
+*.log
+.DS_Store
+
+# frontend dev artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# generic build artifacts
+node_modules/
+dist/
+build/
+coverage/
+
+# secrets
+.env
+.env.*
