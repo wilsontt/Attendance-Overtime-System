@@ -12,6 +12,9 @@ import type { OvertimeReport } from '../types';
 import { formatDate as formatDateWithDayOfWeek } from '../utils/dateFormatter';
 import { paginateReportsByHeight } from './paginationService';
 
+const PDF_REASON_MAX_LENGTH = 25;
+const PDF_DATA_ROWS_PER_PAGE = 15;
+
 /**
  * 取得申請年月（民國年格式）
  * @param {string} dateStr - 日期字串（民國年格式：1141001）
@@ -235,7 +238,7 @@ export async function generatePdfReport(
   container.style.width = '210mm';
   container.style.backgroundColor = 'white';
   container.style.fontFamily = '"Microsoft JhengHei", "Heiti TC", sans-serif';
-  container.style.padding = '20mm';
+  container.style.padding = '10mm';
   document.body.appendChild(container);
 
   const pdf = new jsPDF('p', 'mm', 'a4');
@@ -470,64 +473,100 @@ function generatePageHtml(
   isFirstPage: boolean,
   isLastPage: boolean
 ): string {
-  let totalOvertimeHours = 0;
-  let totalMealAllowance = 0;
+  void isFirstPage;
+  void isLastPage;
+  const remarkLines = remarks
+    .split(/\r?\n/)
+    .slice(0, 3)
+    .map(line => line.trim());
+  const normalizedReports = [...reports];
+  const blankRowsCount = Math.max(PDF_DATA_ROWS_PER_PAGE - normalizedReports.length, 0);
 
-  reports.forEach(report => {
-    totalOvertimeHours += report.overtimeHours;
-    totalMealAllowance += report.mealAllowance;
-  });
+  while (remarkLines.length < 3) {
+    remarkLines.push('');
+  }
 
   return `
-    <div style="font-size: 12px;">
+    <div style="font-size: 13px;">
       <!-- 第一行：公司名稱（置中） -->
-      <div style="text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 5px;">
+      <div style="text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 6px;">
         海灣國際股份有限公司
       </div>
       <!-- 第二行：申請表標題（置中，加底線）+ 申請年月（靠右） -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <div style="flex: 1;"></div>
-        <div style="text-align: center; font-size: 20px; font-weight: bold; text-decoration: underline; flex: 1;">
+        <div style="text-align: center; font-size: 24px; font-weight: bold; text-decoration: underline; flex: 1;">
           員工加班申請表
         </div>
-        <div style="text-align: right; font-size: 14px; flex: 1;">
+        <div style="text-align: right; font-size: 16px; flex: 1;">
           申請年月：${yearMonth}
         </div>
       </div>
-      ${isFirstPage ? `<div style="margin-bottom: 15px; font-size: 14px;">
+      <div style="margin-bottom: 16px; font-size: 16px;">
         <div style="margin-bottom: 5px;">員工姓名：${employeeName}</div>
         <div style="margin-bottom: 5px;">工作地點：${workLocation}</div>
-        <div>備註：${remarks || ''}</div>
-      </div>` : ''}
-      <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+        <div style="margin-top: 4px;">
+          <div style="display: flex; align-items: center; min-height: 24px;">
+            <span style="display: inline-block; width: 52px;">備註：</span>
+            <span style="flex: 1; border-bottom: 1px solid #000; min-height: 24px; line-height: 24px;">${remarkLines[0]}</span>
+          </div>
+          <div style="display: flex; align-items: center; min-height: 24px;">
+            <span style="display: inline-block; width: 52px;"></span>
+            <span style="flex: 1; border-bottom: 1px solid #000; min-height: 24px; line-height: 24px;">${remarkLines[1]}</span>
+          </div>
+          <div style="display: flex; align-items: center; min-height: 24px;">
+            <span style="display: inline-block; width: 52px;"></span>
+            <span style="flex: 1; border-bottom: 1px solid #000; min-height: 24px; line-height: 24px;">${remarkLines[2]}</span>
+          </div>
+        </div>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed;">
+        <colgroup>
+          <col style="width: 17%;">
+          <col style="width: 14%;">
+          <col style="width: 45%;">
+          <col style="width: 10%;">
+          <col style="width: 8%;">
+          <col style="width: 6%;">
+        </colgroup>
         <thead>
           <tr style="background-color: #f0f0f0;">
-            <th style="border: 1px solid black; padding: 6px 8px; text-align: left; font-weight: bold;">日期</th>
-            <th style="border: 1px solid black; padding: 6px 8px; text-align: left; font-weight: bold;">時間</th>
-            <th style="border: 1px solid black; padding: 6px 8px; text-align: left; font-weight: bold;">加班理由</th>
-            <th style="border: 1px solid black; padding: 6px 8px; text-align: left; font-weight: bold;">加班時數</th>
-            <th style="border: 1px solid black; padding: 6px 8px; text-align: left; font-weight: bold;">誤餐費</th>
-            <th style="border: 1px solid black; padding: 6px 8px; text-align: left; font-weight: bold;">合計</th>
+            <th style="border: 1px solid black; padding: 8px 10px; text-align: left; font-weight: bold; height: 32px; line-height: 16px;">日期</th>
+            <th style="border: 1px solid black; padding: 8px 10px; text-align: left; font-weight: bold; height: 32px; line-height: 16px;">時間</th>
+            <th style="border: 1px solid black; padding: 8px 10px; text-align: left; font-weight: bold; height: 32px; line-height: 16px;">加班理由</th>
+            <th style="border: 1px solid black; padding: 8px 10px; text-align: left; font-weight: bold; height: 32px; line-height: 16px;">加班時數</th>
+            <th style="border: 1px solid black; padding: 8px 10px; text-align: left; font-weight: bold; height: 32px; line-height: 16px;">誤餐費</th>
+            <th style="border: 1px solid black; padding: 8px 10px; text-align: left; font-weight: bold; height: 32px; line-height: 16px;">合計</th>
           </tr>
         </thead>
         <tbody>
-          ${reports.map(report => `
+          ${normalizedReports.map(report => `
             <tr>
-              <td style="border: 1px solid black; padding: 6px 8px;">${formatDateWithDayOfWeek(report.date)}</td>
-              <td style="border: 1px solid black; padding: 6px 8px;">${report.overtimeRange}</td>
-              <td style="border: 1px solid black; padding: 6px 8px;">${report.overtimeReason || ''}</td>
-              <td style="border: 1px solid black; padding: 6px 8px;">${report.overtimeHours.toFixed(2)}</td>
-              <td style="border: 1px solid black; padding: 6px 8px;">${report.mealAllowance}</td>
-              <td style="border: 1px solid black; padding: 6px 8px;"></td>
+              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${formatDateWithDayOfWeek(report.date)}</td>
+              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${report.overtimeRange}</td>
+              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${(report.overtimeReason || '').trim().slice(0, PDF_REASON_MAX_LENGTH)}</td>
+              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${report.overtimeHours.toFixed(2)}</td>
+              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${report.mealAllowance}</td>
+              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px;"></td>
+            </tr>
+          `).join('')}
+          ${Array.from({ length: blankRowsCount }).map(() => `
+            <tr>
+              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px;"></td>
+              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px;"></td>
+              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px;"></td>
+              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px;"></td>
+              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px;"></td>
+              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px;"></td>
             </tr>
           `).join('')}
         </tbody>
       </table>
-      ${isLastPage ? `<div style="margin-top: 20px; font-size: 14px; display: flex; justify-content: space-between;">
+      <div style="margin-top: 20px; font-size: 16px; display: flex; justify-content: space-between;">
         <div style="flex: 1;">部門主管：</div>
         <div style="flex: 1;">公司主管：</div>
-      </div>` : ''}
-      <div style="text-align: right; margin-top: 10px; font-size: 12px; color: #666;">
+      </div>
+      <div style="text-align: right; margin-top: 12px; font-size: 13px; color: #666;">
         頁碼：${pageNumber}/${totalPages}
       </div>
     </div>

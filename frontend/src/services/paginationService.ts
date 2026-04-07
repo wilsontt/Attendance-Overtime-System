@@ -98,90 +98,23 @@ export function paginateReportsByHeight(
   ) => string
 ): PageData[] {
   if (reports.length === 0) return [];
+  void reportType;
+  void employeeName;
+  void yearMonth;
+  void workLocation;
+  void remarks;
+  void generateHtmlFunc;
 
-  // A4 頁面高度限制（px）
-  // 297mm - 40mm (上下邊距) = 257mm ≈ 970px at 96dpi
-  // 設定為 950px 預留誤差空間
-  const MAX_PAGE_HEIGHT = 950;
-  
+  const DATA_ROWS_PER_PAGE = 15;
   const pages: PageData[] = [];
-  
-  // 建立隱藏測量容器
-  const measureContainer = document.createElement('div');
-  measureContainer.style.position = 'fixed';
-  measureContainer.style.top = '-10000px';
-  measureContainer.style.left = '-10000px';
-  measureContainer.style.width = '210mm'; // A4 寬度
-  measureContainer.style.visibility = 'hidden';
-  measureContainer.style.pointerEvents = 'none';
-  document.body.appendChild(measureContainer);
-
-  let currentPageReports: OvertimeReport[] = [];
-  let pageIndex = 0;
-
-  try {
-    for (let i = 0; i < reports.length; i++) {
-      // 嘗試加入這筆記錄
-      const testReports = [...currentPageReports, reports[i]];
-      
-      // 生成測試 HTML
-      const isFirstPage = pageIndex === 0;
-      const isLastPage = i === reports.length - 1;
-      const testHtml = generateHtmlFunc(
-        reportType,
-        testReports,
-        employeeName,
-        yearMonth,
-        workLocation,
-        remarks,
-        pageIndex + 1,
-        999, // 暫時的總頁數
-        isFirstPage,
-        isLastPage
-      );
-      
-      measureContainer.innerHTML = testHtml;
-      
-      // 強制瀏覽器重新計算佈局
-      measureContainer.offsetHeight;
-      
-      const currentHeight = measureContainer.offsetHeight;
-      
-      // 檢查是否超過高度限制
-      if (currentHeight > MAX_PAGE_HEIGHT && currentPageReports.length > 0) {
-        // 超過了，將目前頁面儲存
-        pages.push({
-          pageNumber: pageIndex + 1,
-          totalPages: 0,
-          reports: [...currentPageReports],
-          isFirstPage: pageIndex === 0,
-          isLastPage: false
-        });
-        
-        // 開始新頁面，將當前記錄作為新頁的第一筆
-        currentPageReports = [reports[i]];
-        pageIndex++;
-      } else {
-        // 未超過，加入這筆記錄
-        currentPageReports.push(reports[i]);
-      }
-    }
-
-    // 加入最後一頁
-    if (currentPageReports.length > 0) {
-      pages.push({
-        pageNumber: pageIndex + 1,
-        totalPages: 0,
-        reports: currentPageReports,
-        isFirstPage: pageIndex === 0,
-        isLastPage: true
-      });
-    }
-  } finally {
-    // 確保清理測量容器（即使發生錯誤）
-    if (document.body.contains(measureContainer)) {
-      document.body.removeChild(measureContainer);
-    }
+  for (let i = 0; i < reports.length; i += DATA_ROWS_PER_PAGE) {
+    pages.push({
+      pageNumber: Math.floor(i / DATA_ROWS_PER_PAGE) + 1,
+      totalPages: 0,
+      reports: reports.slice(i, i + DATA_ROWS_PER_PAGE),
+      isFirstPage: i === 0,
+      isLastPage: false
+    });
   }
 
   // 更新總頁數

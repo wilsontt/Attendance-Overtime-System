@@ -17,6 +17,9 @@ import { recalculateOvertimeReport } from '../services/calculationService';
 import { formatDate } from '../utils/dateFormatter';
 import './PreviewModal.css';
 
+const OVERTIME_REASON_MAX_LENGTH = 25;
+const PREVIEW_ITEMS_PER_PAGE = 15;
+
 /**
  * PreviewModal 組件的 Props 介面
  */
@@ -142,6 +145,10 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
    * @param {string} newReason - 新的加班原因
    */
   const handleReasonChange = (index: number, newReason: string) => {
+    if (newReason.length > OVERTIME_REASON_MAX_LENGTH) {
+      alert(`加班理由最多 ${OVERTIME_REASON_MAX_LENGTH} 字元（含中英文與符號）。`);
+      return;
+    }
     setEditedReasons(prev => ({ ...prev, [index]: newReason }));
   };
 
@@ -213,6 +220,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
         <table className="preview-table">
           <thead>
             <tr>
+              <th>ITEM</th>
               <th>選擇</th>
               <th>國定假日</th>
               <th>日期</th>
@@ -226,7 +234,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
             </tr>
           </thead>
           <tbody>
-            {records.map((report) => {
+            {records.map((report, rowIndex) => {
               const index = report.reportIndex;
               const isLeaveDay = report.attendanceType && report.attendanceType !== '空' && report.attendanceType !== '';
               const hasClockTime = report.clockIn && report.clockOut;
@@ -236,6 +244,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
 
               return (
                 <tr key={index} className={shouldHighlight ? 'highlight-leave-day' : ''}>
+                  <td>{rowIndex + 1}</td>
                   <td>
                     <input
                       type="checkbox"
@@ -311,23 +320,44 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
    * 驗證選中記錄的加班原因是否都已填寫
    * @returns {{ isValid: boolean; missingIndexes: number[] }} 驗證結果
    */
-  const validateOvertimeReasons = (): { isValid: boolean; missingIndexes: number[] } => {
-    const selected = getSelectedReports();
-    const missingIndexes: number[] = [];
+  const validateOvertimeReasons = (): { isValid: boolean; missingLocations: string[]; tooLongLocations: string[] } => {
+    const missingLocations: string[] = [];
+    const tooLongLocations: string[] = [];
 
-    selected.forEach((report, idx) => {
-      // 需要填寫加班原因的條件：有打卡記錄 且 加班時數 >= 0.5（無論是否請假）
-      const hasClockTime = report.clockIn && report.clockOut;
-      const needsReason = hasClockTime && report.overtimeHours >= 0.5;
-      
-      if (needsReason && (!report.overtimeReason || report.overtimeReason.trim() === '')) {
-        missingIndexes.push(idx + 1); // 顯示為 1-based 索引
-      }
-    });
+    const collectIssuesBySection = (
+      sectionName: '平日加班' | '例假日加班',
+      records: Array<OvertimeReport & { reportIndex: number }>
+    ) => {
+      records.forEach((report, sectionIndex) => {
+        const recordIndex = report.reportIndex;
+        if (!recordSelection[recordIndex]) return;
+
+        const itemNumber = sectionIndex + 1;
+        const pageNumber = Math.floor(sectionIndex / PREVIEW_ITEMS_PER_PAGE) + 1;
+        const locationText = `${sectionName} 第${pageNumber}頁 ITEM 第${itemNumber}筆`;
+        const currentReason = (editedReasons[recordIndex] || report.overtimeReason || '').trim();
+
+        // 需要填寫加班原因的條件：有打卡記錄 且 加班時數 >= 0.5（無論是否請假）
+        const hasClockTime = report.clockIn && report.clockOut;
+        const needsReason = hasClockTime && report.overtimeHours >= 0.5;
+
+        if (needsReason && currentReason === '') {
+          missingLocations.push(locationText);
+        }
+
+        if (currentReason.length > OVERTIME_REASON_MAX_LENGTH) {
+          tooLongLocations.push(locationText);
+        }
+      });
+    };
+
+    collectIssuesBySection('平日加班', weekdayReports);
+    collectIssuesBySection('例假日加班', holidayReports);
 
     return {
-      isValid: missingIndexes.length === 0,
-      missingIndexes
+      isValid: missingLocations.length === 0 && tooLongLocations.length === 0,
+      missingLocations,
+      tooLongLocations
     };
   };
 
@@ -345,9 +375,16 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     // 驗證加班原因
     const reasonValidation = validateOvertimeReasons();
     if (!reasonValidation.isValid) {
+      if (reasonValidation.missingLocations.length > 0) {
+        return {
+          isValid: false,
+          errorMessage: `請先填寫所有記錄的加班原因。\n未填寫的記錄：\n- ${reasonValidation.missingLocations.join('\n- ')}`
+        };
+      }
+
       return {
         isValid: false,
-        errorMessage: `請先填寫所有記錄的加班原因。\n未填寫的記錄：第 ${reasonValidation.missingIndexes.join(', ')} 筆`
+        errorMessage: `加班理由最多 ${OVERTIME_REASON_MAX_LENGTH} 字元（含中英文與符號）。\n超長記錄：\n- ${reasonValidation.tooLongLocations.join('\n- ')}`
       };
     }
 

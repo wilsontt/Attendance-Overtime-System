@@ -1,5 +1,6 @@
 # 出勤加班單系統 - 多階段建置
-FROM node:18-alpine AS builder
+# Vite 7 需 Node ^20.19 或 >=22.12（見 frontend/package.json）
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 COPY frontend/package*.json ./
