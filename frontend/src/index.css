@@ -1,3 +1,8 @@
+@import "tailwindcss";
+
+/* 掃描共用元件目錄，否則 PortalTopNav 的 responsive utilities（如 lg:flex）不會進 bundle */
+@source "../../../0.shared-ui";
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -25,8 +30,6 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
   background-color: #ffffff; /* 確保 body 背景也是白色 */

@@ -14,7 +14,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import FileUploader from '../components/FileUploader';
-import logoUrl from '../assets/CROWN_logo.png';
+import { TopTitleNav } from '../components/TopTitleNav';
 import AttendanceTable from '../components/AttendanceTable';
 import PreviewModal from '../components/PreviewModal';
 import type { AttendanceRecord, OvertimeReport } from '../types';
@@ -175,14 +175,9 @@ const HomePage: React.FC = () => {
   };
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
-        <img 
-          src={logoUrl}
-          alt="Company Logo" 
-          style={{ height: '60px', marginRight: '15px' }} 
-        />
-        <h1 style={{ margin: 0 }}>出勤加班單系統 v1.4.1</h1>
+    <div className="relative">
+      <div className="mb-5 -mx-4 sm:-mx-5">
+        <TopTitleNav />
       </div>
       <FileUploader onFileProcessed={handleFileProcessed} />
 

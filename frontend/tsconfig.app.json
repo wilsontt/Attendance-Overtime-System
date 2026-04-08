@@ -1,5 +1,10 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
+    /* 同時支援本機與容器 shared-ui 相對路徑 */
+    "paths": {
+      "@shared-ui/*": ["0.shared-ui/*", "../../0.shared-ui/*", "../0.shared-ui/*"]
+    },
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2022",
     "useDefineForClassFields": true,
@@ -24,5 +29,34 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": [
+    "src",
+    "0.shared-ui/portal-nav/**/*.ts",
+    "0.shared-ui/portal-nav/**/*.tsx",
+    "../../0.shared-ui/portal-nav/**/*.ts",
+    "../../0.shared-ui/portal-nav/**/*.tsx",
+    "../0.shared-ui/portal-nav/**/*.ts",
+    "../0.shared-ui/portal-nav/**/*.tsx",
+    "0.shared-ui/crown-brand/**/*.ts",
+    "0.shared-ui/crown-brand/**/*.tsx",
+    "../../0.shared-ui/crown-brand/**/*.ts",
+    "../../0.shared-ui/crown-brand/**/*.tsx",
+    "../0.shared-ui/crown-brand/**/*.ts",
+    "../0.shared-ui/crown-brand/**/*.tsx",
+    "0.shared-ui/calendar-icon/CalendarIcon.tsx",
+    "0.shared-ui/calendar-icon/DateTimeDisplay.tsx",
+    "0.shared-ui/calendar-icon/useCurrentTime.ts",
+    "0.shared-ui/calendar-icon/cn.ts",
+    "0.shared-ui/calendar-icon/index.ts",
+    "../../0.shared-ui/calendar-icon/CalendarIcon.tsx",
+    "../../0.shared-ui/calendar-icon/DateTimeDisplay.tsx",
+    "../../0.shared-ui/calendar-icon/useCurrentTime.ts",
+    "../../0.shared-ui/calendar-icon/cn.ts",
+    "../../0.shared-ui/calendar-icon/index.ts",
+    "../0.shared-ui/calendar-icon/CalendarIcon.tsx",
+    "../0.shared-ui/calendar-icon/DateTimeDisplay.tsx",
+    "../0.shared-ui/calendar-icon/useCurrentTime.ts",
+    "../0.shared-ui/calendar-icon/cn.ts",
+    "../0.shared-ui/calendar-icon/index.ts"
+  ]
 }

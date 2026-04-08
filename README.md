@@ -62,13 +62,28 @@
 1. **複製專案**
    git clone <repository-url>
    cd "出勤加班單系統"
-   2. **進入前端目錄並安裝依賴**
+2. **（建議）安裝企業共用 UI 型別依賴**  
+   本專案前端透過 Vite 別名引用**企業入口網站根目錄**同層之 `0.shared-ui`。為讓 TypeScript／IDE 正確解析該目錄原始碼，請在該目錄執行一次安裝（路徑請依你本機資料夾名稱調整）：
+   ```bash
+   cd ../0.shared-ui
+   npm install
+   cd ../<本子專案資料夾>/frontend
+   ```
+3. **進入前端目錄並安裝依賴**
+   ```bash
    cd frontend
    npm install
-   3. **啟動開發伺服器**
+   ```
+4. **啟動開發伺服器**
    
    npm run dev
-      瀏覽器將自動開啟 `http://localhost:5173`。
+   瀏覽器將自動開啟 `http://localhost:5173`。
+
+### 頂部導覽列與版號
+
+- 首頁頂欄使用企業入口網站共用元件：`PortalTopNav`、`CrownBrand`、`NavCalendarCluster`（見上一層 `0.shared-ui` 與其 `README.md`）。
+- 畫面上顯示的 **應用程式版號** 與 [`frontend/package.json`](./frontend/package.json) 的 `version` 一致，由 Vite 建置時以 `define` 注入（見 [`frontend/vite.config.ts`](./frontend/vite.config.ts)）。
+- 樣式採 **Tailwind CSS v4**（`@tailwindcss/vite`），並以 `@source` 掃描 `0.shared-ui`，確保共用元件的 responsive class 會被打包。
 
 ## 📖 使用說明
 
