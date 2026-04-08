@@ -19,6 +19,14 @@ import './PreviewModal.css';
 
 const OVERTIME_REASON_MAX_LENGTH = 25;
 const PREVIEW_ITEMS_PER_PAGE = 15;
+const REMARK_MAX_LENGTH = 135;
+const REMARK_LINE_LENGTH = 45;
+const REMARK_TOTAL_LINES = 3;
+
+function normalizeRemarkInput(input: string): string {
+  const singleLine = input.replace(/\r?\n/g, '');
+  return Array.from(singleLine).slice(0, REMARK_MAX_LENGTH).join('');
+}
 
 /**
  * PreviewModal 組件的 Props 介面
@@ -372,6 +380,21 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
       return locationValidation;
     }
 
+    const weekdayRemarkLength = Array.from((remarks || '').replace(/\r?\n/g, '')).length;
+    const holidayRemarkLength = Array.from((holidayRemarks || '').replace(/\r?\n/g, '')).length;
+    if (weekdayReports.length > 0 && weekdayRemarkLength > REMARK_MAX_LENGTH) {
+      return {
+        isValid: false,
+        errorMessage: `平日加班備註最多 ${REMARK_MAX_LENGTH} 字（每列 ${REMARK_LINE_LENGTH} 字，共 ${REMARK_TOTAL_LINES} 列）。`
+      };
+    }
+    if (holidayReports.length > 0 && holidayRemarkLength > REMARK_MAX_LENGTH) {
+      return {
+        isValid: false,
+        errorMessage: `例假日加班備註最多 ${REMARK_MAX_LENGTH} 字（每列 ${REMARK_LINE_LENGTH} 字，共 ${REMARK_TOTAL_LINES} 列）。`
+      };
+    }
+
     // 驗證加班原因
     const reasonValidation = validateOvertimeReasons();
     if (!reasonValidation.isValid) {
@@ -477,13 +500,20 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                 </div>
                 <div className="input-group">
                   <label className="label-left">
-                    備註：
+                    備註：(備註最多 135 字元)
                   </label>
                   <textarea
                     value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
+                    onChange={(e) => {
+                      const normalized = normalizeRemarkInput(e.target.value);
+                      if (Array.from(e.target.value.replace(/\r?\n/g, '')).length > REMARK_MAX_LENGTH) {
+                        alert(`平日加班備註最多 ${REMARK_MAX_LENGTH} 字（每列 ${REMARK_LINE_LENGTH} 字，共 ${REMARK_TOTAL_LINES} 列）。`);
+                      }
+                      setRemarks(normalized);
+                    }}
                     placeholder="請輸入備註（選填）"
-                    rows={2}
+                    rows={3}
+                    maxLength={REMARK_MAX_LENGTH}
                   />
                 </div>
               </div>
@@ -528,9 +558,16 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                   <div className="input-with-copy">
                     <textarea
                       value={holidayRemarks}
-                      onChange={(e) => setHolidayRemarks(e.target.value)}
+                      onChange={(e) => {
+                        const normalized = normalizeRemarkInput(e.target.value);
+                        if (Array.from(e.target.value.replace(/\r?\n/g, '')).length > REMARK_MAX_LENGTH) {
+                          alert(`例假日加班備註最多 ${REMARK_MAX_LENGTH} 字（每列 ${REMARK_LINE_LENGTH} 字，共 ${REMARK_TOTAL_LINES} 列）。`);
+                        }
+                        setHolidayRemarks(normalized);
+                      }}
                       placeholder="請輸入備註（選填）"
-                      rows={2}
+                      rows={3}
+                      maxLength={REMARK_MAX_LENGTH}
                     />
                     {weekdayReports.length > 0 && (
                       <button

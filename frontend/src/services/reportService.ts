@@ -14,6 +14,9 @@ import { paginateReportsByHeight } from './paginationService';
 
 const PDF_REASON_MAX_LENGTH = 25;
 const PDF_DATA_ROWS_PER_PAGE = 15;
+const PDF_REMARK_MAX_LENGTH = 135;
+const PDF_REMARK_LINE_LENGTH = 45;
+const PDF_REMARK_TOTAL_LINES = 3;
 
 /**
  * 取得申請年月（民國年格式）
@@ -27,6 +30,17 @@ function getYearMonth(dateStr: string): string {
     return `${rocYear}年${month}月`;
   }
   return '';
+}
+
+function splitRemarkToFixedLines(remark: string): string[] {
+  const normalized = Array.from((remark || '').replace(/\r?\n/g, '')).slice(0, PDF_REMARK_MAX_LENGTH);
+  const lines: string[] = [];
+  for (let i = 0; i < PDF_REMARK_TOTAL_LINES; i++) {
+    const start = i * PDF_REMARK_LINE_LENGTH;
+    const end = start + PDF_REMARK_LINE_LENGTH;
+    lines.push(normalized.slice(start, end).join(''));
+  }
+  return lines;
 }
 
 /**
@@ -475,16 +489,9 @@ function generatePageHtml(
 ): string {
   void isFirstPage;
   void isLastPage;
-  const remarkLines = remarks
-    .split(/\r?\n/)
-    .slice(0, 3)
-    .map(line => line.trim());
+  const remarkLines = splitRemarkToFixedLines(remarks);
   const normalizedReports = [...reports];
   const blankRowsCount = Math.max(PDF_DATA_ROWS_PER_PAGE - normalizedReports.length, 0);
-
-  while (remarkLines.length < 3) {
-    remarkLines.push('');
-  }
 
   return `
     <div style="font-size: 13px;">
