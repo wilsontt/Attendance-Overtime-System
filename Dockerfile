@@ -23,6 +23,7 @@ RUN npm run build
 
 FROM nginx:alpine
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
+RUN chmod -R a+r /usr/share/nginx/html
 COPY 1.出勤加班單系統/nginx/default.conf /etc/nginx/conf.d/default.conf
 
 # 預設 nginx 服務根路徑，由主 Nginx 依 /attendance/ 轉發

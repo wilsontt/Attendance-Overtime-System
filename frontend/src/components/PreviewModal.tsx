@@ -479,6 +479,8 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
             <p>📌 以下顯示加班時數 ≥ 0.5 小時的記錄，已分為「平日加班」與「例假日加班」</p>
             <p>⚠️ 黃色標記為請假日但有打卡記錄，請確認是否包含在申請表中</p>
             <p>🏖️ 勾選「國定假日」可將平日記錄移至例假日區塊（全時段計算）</p>
+            <p>📝 備註欄最多 {REMARK_MAX_LENGTH} 字（每列 {REMARK_LINE_LENGTH} 字，共 {REMARK_TOTAL_LINES} 列）</p>
+            <p>✍️ 加班原因最多 {OVERTIME_REASON_MAX_LENGTH} 字（含中英文與符號）</p>
           </div>
 
           {/* 平日加班區塊 */}

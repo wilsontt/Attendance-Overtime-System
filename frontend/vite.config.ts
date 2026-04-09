@@ -28,6 +28,7 @@ export default defineConfig({
     alias: {
       '@shared-ui': sharedUiRoot,
     },
+    dedupe: ['react', 'react-dom'],
   },
   plugins: [react(), tailwindcss()],
   server: {
