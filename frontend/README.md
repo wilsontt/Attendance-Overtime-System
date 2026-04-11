@@ -23,6 +23,38 @@ npm run dev
 ```
 應用程式將在瀏覽器中啟動，通常位於 `http://localhost:5173`。
 
+## 導覽列版號來源
+
+- 導覽列中間顯示的系統版號，固定取自 `frontend/package.json` 的 `version` 欄位。
+- 版號參考依據為 `frontend/package.json` 第 1–5 行（例如：`"version": "1.4.1"`）。
+- 注入機制：由 `vite.config.ts` 讀取 `package.json.version`，在建置時以 `define` 注入 `__APP_VERSION__`，再由 `src/constants/appVersion.ts` 導出供畫面使用。
+
+## 共用導覽列整合重點（供其他專案複用）
+
+跨子專案規範摘要（含程式節錄）亦見 repo 根目錄 [`0.shared-ui/README.md`](../../0.shared-ui/README.md) 之 **「6. PortalTopNav：置中與應用程式版號」**。
+
+### 1) 導覽列如何置中
+
+- 本專案直接使用 `0.shared-ui/portal-nav` 的 `PortalTopNav` 作為骨架。
+- 置中關鍵不是 `justify-between`，而是三欄 Grid：`grid-cols-[1fr_auto_1fr]`。
+  - 左欄：品牌區（`left`）
+  - 中欄：系統名稱＋版號（`center`）
+  - 右欄：日期時間（`right`）
+- 中欄在大螢幕為 `hidden lg:flex justify-center items-center`，可保持幾何中心；小螢幕預設隱藏（需依產品需求自行補替代顯示）。
+
+參考位置：
+- `src/components/TopTitleNav.tsx`
+- `../../0.shared-ui/portal-nav/PortalTopNav.tsx`
+
+### 2) 導覽列版號從哪裡來
+
+- 固定來源：`frontend/package.json` 第 1–5 行中的 `version` 欄位。
+- 程式碼鏈路：
+  1. `vite.config.ts` 讀取 `package.json.version` 並以 `define` 注入 `__APP_VERSION__`
+  2. `src/vite-env.d.ts` 宣告 `__APP_VERSION__` 型別
+  3. `src/constants/appVersion.ts` 導出 `APP_VERSION`
+  4. `src/components/TopTitleNav.tsx` 以 `v{APP_VERSION}` 顯示
+
 ## 執行測試
 
 ```bash

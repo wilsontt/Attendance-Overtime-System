@@ -90,6 +90,7 @@
 
 - 顯示字串與 `frontend/package.json` 的 `version` 一致。
 - 建置時由 `vite.config.ts` 讀取該檔並以 `define` 注入 `__APP_VERSION__`，避免在嚴格 TS 設定下直接 `import` JSON 與 `erasableSyntaxOnly` 衝突。
+- 版號參考依據（固定來源）：`frontend/package.json` 第 1–5 行中的 `version` 欄位（例如 `\"version\": \"1.4.1\"`）。
 
 ### 驗證紀錄
 
@@ -99,6 +100,7 @@
 ### 文件同步
 
 - 已更新專案根目錄 `README.md`。
+- **跨子專案**：`0.shared-ui/README.md` 已納入「PortalTopNav 整合規範」一節（置中、版號策略與程式節錄），與本檔 § 版號策略及接入表格互相對照。
 - 若組織層級另有主控清單（例如 `0.docs/企業入口網站-實作產物清單.md`），可視需要補「本子專案已接入 `0.shared-ui` 頂欄」— **本次未修改該檔**。
 
 ### 後續可選工作

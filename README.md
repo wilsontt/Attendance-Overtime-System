@@ -85,6 +85,7 @@
 
 - 首頁頂欄使用企業入口網站共用元件：`PortalTopNav`、`CrownBrand`、`NavCalendarCluster`（見上一層 `0.shared-ui` 與其 `README.md`）。
 - 畫面上顯示的 **應用程式版號** 與 [`frontend/package.json`](./frontend/package.json) 的 `version` 一致，由 Vite 建置時以 `define` 注入（見 [`frontend/vite.config.ts`](./frontend/vite.config.ts)）。
+- 版號參考依據（固定來源）：`frontend/package.json` 第 1–5 行中的 `version` 欄位。
 - 樣式採 **Tailwind CSS v4**（`@tailwindcss/vite`），並以 `@source` 掃描 `0.shared-ui`，確保共用元件的 responsive class 會被打包。
 
 ## 📖 使用說明
