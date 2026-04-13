@@ -8,6 +8,15 @@ export interface PageData {
   isLastPage: boolean;
 }
 
+const DATA_ROWS_PER_PAGE = 15;
+const REASON_MAX_LENGTH = 200;
+const REASON_CHARS_PER_ROW = 25;
+
+function getReasonRows(reason: string): number {
+  const normalizedLength = Array.from((reason || '').trim()).slice(0, REASON_MAX_LENGTH).length;
+  return Math.max(1, Math.ceil(normalizedLength / REASON_CHARS_PER_ROW));
+}
+
 /**
  * 將報表記錄分頁（舊版：固定行數分頁，保留作為備用）
  * @param reports - 報表記錄陣列
@@ -105,14 +114,36 @@ export function paginateReportsByHeight(
   void remarks;
   void generateHtmlFunc;
 
-  const DATA_ROWS_PER_PAGE = 15;
   const pages: PageData[] = [];
-  for (let i = 0; i < reports.length; i += DATA_ROWS_PER_PAGE) {
+
+  let currentPageReports: OvertimeReport[] = [];
+  let remainingRows = DATA_ROWS_PER_PAGE;
+
+  for (const report of reports) {
+    const usedRows = getReasonRows(report.overtimeReason || '');
+
+    if (usedRows > remainingRows && currentPageReports.length > 0) {
+      pages.push({
+        pageNumber: pages.length + 1,
+        totalPages: 0,
+        reports: [...currentPageReports],
+        isFirstPage: pages.length === 0,
+        isLastPage: false
+      });
+      currentPageReports = [];
+      remainingRows = DATA_ROWS_PER_PAGE;
+    }
+
+    currentPageReports.push(report);
+    remainingRows -= usedRows;
+  }
+
+  if (currentPageReports.length > 0) {
     pages.push({
-      pageNumber: Math.floor(i / DATA_ROWS_PER_PAGE) + 1,
+      pageNumber: pages.length + 1,
       totalPages: 0,
-      reports: reports.slice(i, i + DATA_ROWS_PER_PAGE),
-      isFirstPage: i === 0,
+      reports: [...currentPageReports],
+      isFirstPage: pages.length === 0,
       isLastPage: false
     });
   }

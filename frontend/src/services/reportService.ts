@@ -12,8 +12,14 @@ import type { OvertimeReport } from '../types';
 import { formatDate as formatDateWithDayOfWeek } from '../utils/dateFormatter';
 import { paginateReportsByHeight } from './paginationService';
 
-const PDF_REASON_MAX_LENGTH = 25;
+const PDF_REASON_MAX_LENGTH = 200;
+const PDF_REASON_CHARS_PER_ROW = 25;
 const PDF_DATA_ROWS_PER_PAGE = 15;
+const PDF_HEADER_ROW_COUNT = 1;
+const PDF_TOTAL_TABLE_ROWS = PDF_HEADER_ROW_COUNT + PDF_DATA_ROWS_PER_PAGE;
+const PDF_ROW_HEIGHT_PX = 32;
+const PDF_SIGNATURE_AREA_HEIGHT_PX = 96;
+const PDF_PAGE_NUMBER_HEIGHT_PX = 32;
 const PDF_REMARK_MAX_LENGTH = 135;
 const PDF_REMARK_LINE_LENGTH = 45;
 const PDF_REMARK_TOTAL_LINES = 3;
@@ -41,6 +47,40 @@ function splitRemarkToFixedLines(remark: string): string[] {
     lines.push(normalized.slice(start, end).join(''));
   }
   return lines;
+}
+
+function getReasonLines(reason: string): string[] {
+  const normalized = Array.from((reason || '').trim()).slice(0, PDF_REASON_MAX_LENGTH);
+  if (normalized.length === 0) return [''];
+
+  const lines: string[] = [];
+  for (let i = 0; i < normalized.length; i += PDF_REASON_CHARS_PER_ROW) {
+    lines.push(normalized.slice(i, i + PDF_REASON_CHARS_PER_ROW).join(''));
+  }
+  return lines;
+}
+
+function getDateParts(formattedDate: string): { dateText: string; weekdayText: string } {
+  const parts = formattedDate.split(' ');
+  if (parts.length >= 2) {
+    return {
+      dateText: parts.slice(0, -1).join(' '),
+      weekdayText: parts[parts.length - 1]
+    };
+  }
+  return { dateText: formattedDate, weekdayText: '' };
+}
+
+function getTimeParts(overtimeRange: string): { startText: string; endText: string } {
+  const match = overtimeRange.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+  if (!match) {
+    return { startText: overtimeRange, endText: '' };
+  }
+
+  return {
+    startText: `${match[1]} ~`,
+    endText: match[2]
+  };
 }
 
 /**
@@ -252,7 +292,7 @@ export async function generatePdfReport(
   container.style.width = '210mm';
   container.style.backgroundColor = 'white';
   container.style.fontFamily = '"Microsoft JhengHei", "Heiti TC", sans-serif';
-  container.style.padding = '10mm';
+  container.style.padding = '6mm 10mm 10mm';
   document.body.appendChild(container);
 
   const pdf = new jsPDF('p', 'mm', 'a4');
@@ -491,16 +531,15 @@ function generatePageHtml(
   void isLastPage;
   const remarkLines = splitRemarkToFixedLines(remarks);
   const normalizedReports = [...reports];
-  const blankRowsCount = Math.max(PDF_DATA_ROWS_PER_PAGE - normalizedReports.length, 0);
 
   return `
-    <div style="font-size: 13px;">
+    <div style="font-size: 14px;">
       <!-- 第一行：公司名稱（置中） -->
-      <div style="text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 6px;">
+      <div style="text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 2px;">
         海灣國際股份有限公司
       </div>
       <!-- 第二行：申請表標題（置中，加底線）+ 申請年月（靠右） -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
         <div style="flex: 1;"></div>
         <div style="text-align: center; font-size: 24px; font-weight: bold; text-decoration: underline; flex: 1;">
           員工加班申請表
@@ -509,10 +548,10 @@ function generatePageHtml(
           申請年月：${yearMonth}
         </div>
       </div>
-      <div style="margin-bottom: 16px; font-size: 16px;">
-        <div style="margin-bottom: 5px;">員工姓名：${employeeName}</div>
-        <div style="margin-bottom: 5px;">工作地點：${workLocation}</div>
-        <div style="margin-top: 4px;">
+      <div style="margin-bottom: 10px; font-size: 16px;">
+        <div style="margin-bottom: 3px;">員工姓名：${employeeName}</div>
+        <div style="margin-bottom: 3px;">工作地點：${workLocation}</div>
+        <div style="margin-top: 2px;">
           <div style="display: flex; align-items: center; min-height: 24px;">
             <span style="display: inline-block; width: 52px;">備註：</span>
             <span style="flex: 1; border-bottom: 1px solid #000; min-height: 24px; line-height: 24px;">${remarkLines[0]}</span>
@@ -527,53 +566,87 @@ function generatePageHtml(
           </div>
         </div>
       </div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed;">
         <colgroup>
-          <col style="width: 17%;">
-          <col style="width: 14%;">
-          <col style="width: 45%;">
+          <col style="width: 15%;">
+          <col style="width: 12%;">
+          <col style="width: 49%;">
           <col style="width: 10%;">
           <col style="width: 8%;">
           <col style="width: 6%;">
         </colgroup>
         <thead>
           <tr style="background-color: #f0f0f0;">
-            <th style="border: 1px solid black; padding: 8px 10px; text-align: left; font-weight: bold; height: 32px; line-height: 16px;">日期</th>
-            <th style="border: 1px solid black; padding: 8px 10px; text-align: left; font-weight: bold; height: 32px; line-height: 16px;">時間</th>
-            <th style="border: 1px solid black; padding: 8px 10px; text-align: left; font-weight: bold; height: 32px; line-height: 16px;">加班理由</th>
-            <th style="border: 1px solid black; padding: 8px 10px; text-align: left; font-weight: bold; height: 32px; line-height: 16px;">加班時數</th>
-            <th style="border: 1px solid black; padding: 8px 10px; text-align: left; font-weight: bold; height: 32px; line-height: 16px;">誤餐費</th>
-            <th style="border: 1px solid black; padding: 8px 10px; text-align: left; font-weight: bold; height: 32px; line-height: 16px;">合計</th>
+            <th style="border: 1px solid black; padding: 8px 10px; text-align: center; vertical-align: middle; font-weight: bold; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px;">日期</th>
+            <th style="border: 1px solid black; padding: 8px 10px; text-align: center; vertical-align: middle; font-weight: bold; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px;">時間</th>
+            <th style="border: 1px solid black; padding: 8px 10px; text-align: center; vertical-align: middle; font-weight: bold; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px;">加班理由</th>
+            <th style="border: 1px solid black; padding: 8px 10px; text-align: center; vertical-align: middle; font-weight: bold; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px;">加班<br>時數</th>
+            <th style="border: 1px solid black; padding: 8px 10px; text-align: center; vertical-align: middle; font-weight: bold; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px;">誤餐費</th>
+            <th style="border: 1px solid black; padding: 8px 10px; text-align: center; vertical-align: middle; font-weight: bold; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px;">合計</th>
           </tr>
         </thead>
         <tbody>
-          ${normalizedReports.map(report => `
-            <tr>
-              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${formatDateWithDayOfWeek(report.date)}</td>
-              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${report.overtimeRange}</td>
-              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${(report.overtimeReason || '').trim().slice(0, PDF_REASON_MAX_LENGTH)}</td>
-              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${report.overtimeHours.toFixed(2)}</td>
-              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${report.mealAllowance}</td>
-              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px;"></td>
-            </tr>
-          `).join('')}
-          ${Array.from({ length: blankRowsCount }).map(() => `
-            <tr>
-              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px;"></td>
-              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px;"></td>
-              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px;"></td>
-              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px;"></td>
-              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px;"></td>
-              <td style="border: 1px solid black; padding: 8px 10px; height: 32px; line-height: 16px;"></td>
-            </tr>
-          `).join('')}
+          ${(() => {
+            let usedRows = 0;
+            let rowsHtml = '';
+
+            for (const report of normalizedReports) {
+              const formattedDate = formatDateWithDayOfWeek(report.date);
+              const { dateText, weekdayText } = getDateParts(formattedDate);
+              const { startText, endText } = getTimeParts(report.overtimeRange);
+              const reasonLines = getReasonLines(report.overtimeReason || '');
+
+              for (let lineIndex = 0; lineIndex < reasonLines.length; lineIndex++) {
+                const isFirstLine = lineIndex === 0;
+                const isLastLine = lineIndex === reasonLines.length - 1;
+                const reasonBorderBottom = isLastLine ? '1px solid black' : 'none';
+
+                rowsHtml += `
+                  <tr>
+                    <td style="border: 1px solid black; padding: 8px 10px; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      ${isFirstLine ? `${dateText}${weekdayText ? `<br>${weekdayText}` : ''}` : ''}
+                    </td>
+                    <td style="border: 1px solid black; padding: 8px 10px; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      ${isFirstLine ? `${startText}${endText ? `<br>${endText}` : ''}` : ''}
+                    </td>
+                    <td style="border: 1px solid black; border-bottom: ${reasonBorderBottom}; padding: 8px 10px; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      ${reasonLines[lineIndex]}
+                    </td>
+                    <td style="border: 1px solid black; padding: 8px 10px; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      ${isFirstLine ? report.overtimeHours.toFixed(2) : ''}
+                    </td>
+                    <td style="border: 1px solid black; padding: 8px 10px; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      ${isFirstLine ? report.mealAllowance : ''}
+                    </td>
+                    <td style="border: 1px solid black; padding: 8px 10px; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px; vertical-align: middle;"></td>
+                  </tr>
+                `;
+                usedRows++;
+              }
+            }
+
+            rowsHtml += Array.from({ length: Math.max(PDF_DATA_ROWS_PER_PAGE - usedRows, 0) })
+              .map(() => `
+                <tr>
+                  <td style="border: 1px solid black; padding: 8px 10px; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px; vertical-align: middle;"></td>
+                  <td style="border: 1px solid black; padding: 8px 10px; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px; vertical-align: middle;"></td>
+                  <td style="border: 1px solid black; padding: 8px 10px; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px; vertical-align: middle;"></td>
+                  <td style="border: 1px solid black; padding: 8px 10px; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px; vertical-align: middle;"></td>
+                  <td style="border: 1px solid black; padding: 8px 10px; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px; vertical-align: middle;"></td>
+                  <td style="border: 1px solid black; padding: 8px 10px; height: ${PDF_ROW_HEIGHT_PX}px; line-height: 16px; vertical-align: middle;"></td>
+                </tr>
+              `)
+              .join('');
+
+            return rowsHtml;
+          })()}
         </tbody>
       </table>
-      <div style="margin-top: 20px; font-size: 16px; display: flex; justify-content: space-between;">
+      <div style="margin-top: 8px; font-size: 16px; height: ${PDF_SIGNATURE_AREA_HEIGHT_PX}px; display: flex; justify-content: space-between; align-items: flex-start; padding-top: 4px; box-sizing: border-box;">
         <div style="flex: 1;">部門主管：</div>
         <div style="flex: 1;">公司主管：</div>
       </div>
-      <div style="text-align: right; margin-top: 12px; font-size: 13px; color: #666;">
+      <div style="height: ${PDF_PAGE_NUMBER_HEIGHT_PX}px; display: flex; align-items: flex-end; justify-content: flex-end; font-size: 13px; color: #666;">
         頁碼：${pageNumber}/${totalPages}
       </div>
     </div>

@@ -17,7 +17,7 @@ import { recalculateOvertimeReport } from '../services/calculationService';
 import { formatDate } from '../utils/dateFormatter';
 import './PreviewModal.css';
 
-const OVERTIME_REASON_MAX_LENGTH = 25;
+const OVERTIME_REASON_MAX_LENGTH = 200;
 const PREVIEW_ITEMS_PER_PAGE = 15;
 const REMARK_MAX_LENGTH = 135;
 const REMARK_LINE_LENGTH = 45;
