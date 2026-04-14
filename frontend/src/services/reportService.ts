@@ -567,12 +567,11 @@ function generatePageHtml(
   const normalizedReports = [...reports];
   const workLocationDisplay = normalizeWorkLocationForExport(workLocation);
 
-  /** 列表儲存格：line-height:1 避免半行距造成字上方留白；上 padding 0 貼齊格線 */
+  /** 列表儲存格：padding 對齊，確保標題列與資料列高度一致 */
   const cellBase =
-    'border: 1px solid black; padding: 0 6px 2px 6px; line-height: 1; font-size: 14px; box-sizing: border-box;';
+    'border: 1px solid black; padding: 2px 6px; line-height: 1; font-size: 14px; box-sizing: border-box;';
   const cellSingleLine = `${cellBase} white-space: nowrap; overflow: hidden; text-overflow: ellipsis;`;
-  /** 標題列改用 padding 撐高，避免 `min-height` 在 table-row/table-cell 的相容性差異 */
-  const tableHeaderThStyle = `${cellBase} text-align: center; vertical-align: middle; font-weight: bold; padding-top: 6px; padding-bottom: 6px;`;
+  const tableHeaderThStyle = `${cellBase} text-align: center; vertical-align: middle; font-weight: bold;`;
 
   return `
     <div style="flex: 1 1 auto; min-height: 0; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; font-size: 14px; color: #1f2f44;">
@@ -624,7 +623,7 @@ function generatePageHtml(
               <th style="${tableHeaderThStyle}">日期</th>
               <th style="${tableHeaderThStyle}">時間</th>
               <th style="${tableHeaderThStyle}">加班理由</th>
-              <th style="${tableHeaderThStyle}">加班時數</th>
+              <th style="${tableHeaderThStyle} vertical-align: top;">加班<br>時數</th>
               <th style="${tableHeaderThStyle}">誤餐費</th>
               <th style="${tableHeaderThStyle}">合計</th>
             </tr>
