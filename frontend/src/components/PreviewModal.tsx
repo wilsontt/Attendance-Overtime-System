@@ -14,18 +14,28 @@
 import React, { useState, useEffect } from 'react';
 import type { OvertimeReport } from '../types';
 import { recalculateOvertimeReport } from '../services/calculationService';
+import {
+  REPORT_REMARK_LINE_CHARS,
+  REPORT_REMARK_LINES,
+  REPORT_REMARK_MAX_CHARS,
+  REPORT_WORK_LOCATION_MAX_CHARS
+} from '../services/reportService';
 import { formatDate } from '../utils/dateFormatter';
 import './PreviewModal.css';
 
 const OVERTIME_REASON_MAX_LENGTH = 200;
 const PREVIEW_ITEMS_PER_PAGE = 15;
-const REMARK_MAX_LENGTH = 135;
-const REMARK_LINE_LENGTH = 45;
-const REMARK_TOTAL_LINES = 3;
+const REMARK_MAX_LENGTH = REPORT_REMARK_MAX_CHARS;
+const REMARK_LINE_LENGTH = REPORT_REMARK_LINE_CHARS;
+const REMARK_TOTAL_LINES = REPORT_REMARK_LINES;
 
 function normalizeRemarkInput(input: string): string {
   const singleLine = input.replace(/\r?\n/g, '');
   return Array.from(singleLine).slice(0, REMARK_MAX_LENGTH).join('');
+}
+
+function normalizeWorkLocationInput(input: string): string {
+  return Array.from(input.replace(/\r?\n/g, '')).slice(0, REPORT_WORK_LOCATION_MAX_CHARS).join('');
 }
 
 /**
@@ -380,6 +390,21 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
       return locationValidation;
     }
 
+    const weekdayWorkLocationLen = Array.from(workLocation.replace(/\r?\n/g, '')).length;
+    const holidayWorkLocationLen = Array.from(holidayWorkLocation.replace(/\r?\n/g, '')).length;
+    if (weekdayReports.length > 0 && weekdayWorkLocationLen > REPORT_WORK_LOCATION_MAX_CHARS) {
+      return {
+        isValid: false,
+        errorMessage: `平日加班工作地點最多 ${REPORT_WORK_LOCATION_MAX_CHARS} 字。`
+      };
+    }
+    if (holidayReports.length > 0 && holidayWorkLocationLen > REPORT_WORK_LOCATION_MAX_CHARS) {
+      return {
+        isValid: false,
+        errorMessage: `例假日加班工作地點最多 ${REPORT_WORK_LOCATION_MAX_CHARS} 字。`
+      };
+    }
+
     const weekdayRemarkLength = Array.from((remarks || '').replace(/\r?\n/g, '')).length;
     const holidayRemarkLength = Array.from((holidayRemarks || '').replace(/\r?\n/g, '')).length;
     if (weekdayReports.length > 0 && weekdayRemarkLength > REMARK_MAX_LENGTH) {
@@ -479,7 +504,10 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
             <p>📌 以下顯示加班時數 ≥ 0.5 小時的記錄，已分為「平日加班」與「例假日加班」</p>
             <p>⚠️ 黃色標記為請假日但有打卡記錄，請確認是否包含在申請表中</p>
             <p>🏖️ 勾選「國定假日」可將平日記錄移至例假日區塊（全時段計算）</p>
-            <p>📝 備註欄最多 {REMARK_MAX_LENGTH} 字（每列 {REMARK_LINE_LENGTH} 字，共 {REMARK_TOTAL_LINES} 列）</p>
+            <p>
+              📝 工作地點最多 {REPORT_WORK_LOCATION_MAX_CHARS} 字；備註欄最多 {REMARK_MAX_LENGTH} 字（每列{' '}
+              {REMARK_LINE_LENGTH} 字，共 {REMARK_TOTAL_LINES} 列）
+            </p>
             <p>✍️ 加班原因最多 {OVERTIME_REASON_MAX_LENGTH} 字（含中英文與符號）</p>
           </div>
 
@@ -496,13 +524,14 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                   <input
                     type="text"
                     value={workLocation}
-                    onChange={(e) => setWorkLocation(e.target.value)}
+                    maxLength={REPORT_WORK_LOCATION_MAX_CHARS}
+                    onChange={(e) => setWorkLocation(normalizeWorkLocationInput(e.target.value))}
                     placeholder="請輸入工作地點"
                   />
                 </div>
                 <div className="input-group">
                   <label className="label-left">
-                    備註：(備註最多 135 字元)
+                    備註：(最多 {REMARK_MAX_LENGTH} 字元)
                   </label>
                   <textarea
                     value={remarks}
@@ -538,7 +567,8 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                     <input
                       type="text"
                       value={holidayWorkLocation}
-                      onChange={(e) => setHolidayWorkLocation(e.target.value)}
+                      maxLength={REPORT_WORK_LOCATION_MAX_CHARS}
+                      onChange={(e) => setHolidayWorkLocation(normalizeWorkLocationInput(e.target.value))}
                       placeholder="請輸入工作地點"
                     />
                     {weekdayReports.length > 0 && (
