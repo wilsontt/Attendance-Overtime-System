@@ -286,6 +286,13 @@
   padding-bottom: 8px;
 }
 
+.employee-info-text {
+  margin: -4px 0 12px;
+  font-size: 14px;
+  color: #213547;
+  font-weight: 500;
+}
+
 .input-group {
   margin-bottom: 15px;
 }

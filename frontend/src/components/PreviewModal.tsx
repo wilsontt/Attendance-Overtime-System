@@ -308,6 +308,29 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   };
 
   /**
+   * 依區塊記錄彙整員工資訊（員工編號＋員工姓名）
+   * - 單一員工：直接顯示「A123 王小明」
+   * - 多位員工：以頓號串接，避免重複顯示
+   */
+  const buildEmployeeSummary = (
+    records: Array<OvertimeReport & { reportIndex: number }>
+  ): string => {
+    const employeeSet = new Set<string>();
+
+    records.forEach((report) => {
+      const employeeId = report.employeeId?.trim();
+      const employeeName = report.name?.trim();
+      if (employeeId || employeeName) {
+        employeeSet.add([employeeId, employeeName].filter(Boolean).join(' '));
+      }
+    });
+
+    return employeeSet.size > 0
+      ? Array.from(employeeSet).join('、')
+      : '無員工資訊';
+  };
+
+  /**
    * 驗證工作地點是否已填寫
    * @returns {boolean} 驗證結果
    */
@@ -517,6 +540,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
               {/* 平日加班的工作地點和備註 */}
               <div className="input-section">
                 <h3>平日加班資訊</h3>
+                <p className="employee-info-text">
+                  員工資訊：{buildEmployeeSummary(weekdayReports)}
+                </p>
                 <div className="input-group">
                   <label className="label-left">
                     工作地點：<span className="required">*</span>
@@ -559,6 +585,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
               {/* 例假日加班的工作地點和備註 */}
               <div className="input-section">
                 <h3>例假日加班資訊</h3>
+                <p className="employee-info-text">
+                  員工資訊：{buildEmployeeSummary(holidayReports)}
+                </p>
                 <div className="input-group">
                   <label className="label-left">
                     工作地點：<span className="required">*</span>
