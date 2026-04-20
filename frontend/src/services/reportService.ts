@@ -12,41 +12,104 @@ import type { OvertimeReport } from '../types';
 import { formatDate as formatDateWithDayOfWeek } from '../utils/dateFormatter';
 import { paginateReportsByHeight } from './paginationService';
 
+/**
+ * PDF 表格內可換行文字的切行規則。
+ * 目前只用於「加班理由」欄位，避免內容過長時撐破固定列高。
+ */
 const PDF_REASON_MAX_LENGTH = 200;
 const PDF_REASON_CHARS_PER_ROW = 25;
+/** 每頁固定 15 筆資料列；表頭另計 1 列。 */
 const PDF_DATA_ROWS_PER_PAGE = 15;
-/** 與 0.standards/輸出列印字體放大設計.md 第 8 點一致 */
-const PDF_MARGIN_TOP_MM = 10;
+/**
+ * A4 可列印區的外框規格。
+ * - mm 常數對應列印頁邊界
+ * - px 常數對應 HTML 畫面中的區塊間距
+ */
+const PDF_MARGIN_TOP_MM = 7.35;
 const PDF_MARGIN_BOTTOM_MM = 6;
 const PDF_MARGIN_X_MM = 10;
 const PDF_BLOCK_GAP_PX = 8;
-/** 兩大標題間距（海灣…與員工加班申請表）：原 4px 之半 */
-const PDF_GAP_COMPANY_TO_FORM_TITLE_PX = 2;
+/** px / mm 換算基準，依 96 DPI 計算。 */
+const PDF_PX_PER_MM = 96 / 25.4;
+/**
+ * 頁首兩大標題的相對位置規格。
+ * `PDF_GAP_COMPANY_TO_FORM_TITLE_PX` 是實際生效的兩標題間距；
+ * `PDF_TITLE_STACK_RESERVED_GAP_PX` 是標題堆疊區預留高度，用來鎖住列表起點。
+ */
+/**
+ * 兩大標題間距（海灣…與員工加班申請表）。
+ * 此值只影響標題堆疊區內部兩行標題的相對距離，
+ * 不應再連動到上方區塊與列表之間的位置。
+ */
+const PDF_GAP_COMPANY_TO_FORM_TITLE_PX = 12;
 /** 表單標題列與「員工姓名」區塊之間距：原 10px 之半 */
 const PDF_TITLE_ROW_MARGIN_BOTTOM_PX = 5;
+/** 兩大標題本身的文字區高度。 */
+const PDF_COMPANY_TITLE_HEIGHT_PX = 24;
+const PDF_FORM_TITLE_ROW_HEIGHT_PX = 24;
 /**
- * 表內固定 16 列（表頭 1 + 資料 15）等高分配，避免表頭與資料列高度差過大。
+ * 標題堆疊區保留固定高度，避免調整兩大標題間距時把整個列表往下推。
+ * 目前預留 24px 間距空間，足以容納現行 `PDF_GAP_COMPANY_TO_FORM_TITLE_PX`。
  */
-const PDF_TABLE_TOTAL_ROWS = PDF_DATA_ROWS_PER_PAGE + 1;
-const PDF_TABLE_HEADER_AREA_PERCENT = `${100 / PDF_TABLE_TOTAL_ROWS}%`;
-const PDF_TABLE_BODY_ROW_PERCENT = `${100 / PDF_TABLE_TOTAL_ROWS}%`;
-const PDF_SIGNATURE_AREA_HEIGHT_PX = 96;
-const PDF_PAGE_NUMBER_HEIGHT_PX = 32;
-/** 與預覽／驗證共用，供 `PreviewModal` 等匯入 */
+const PDF_TITLE_STACK_RESERVED_GAP_PX = 24;
+/** 標題堆疊區總高：公司標題 + 保留間距 + 表單標題列 + 與資訊區的間距。 */
+const PDF_TITLE_STACK_HEIGHT_PX =
+  PDF_COMPANY_TITLE_HEIGHT_PX +
+  PDF_TITLE_STACK_RESERVED_GAP_PX +
+  PDF_FORM_TITLE_ROW_HEIGHT_PX +
+  PDF_TITLE_ROW_MARGIN_BOTTOM_PX;
+/**
+ * 頁首資訊區的行高規格。
+ * - `PDF_INFO_LINE_*` 用於員工姓名、工作地點
+ * - `PDF_REMARK_LINE_HEIGHT_PX` 用於 3 條備註底線
+ */
+const PDF_INFO_LINE_HEIGHT_PX = 19;
+const PDF_INFO_LINE_MARGIN_BOTTOM_PX = 3;
+const PDF_REMARK_LINE_HEIGHT_PX = 24;
+/** 上方固定資訊區總高：標題堆疊 + 兩行資訊 + 三行備註。 */
+const PDF_TOP_SECTION_HEIGHT_PX =
+  PDF_TITLE_STACK_HEIGHT_PX +
+  (PDF_INFO_LINE_HEIGHT_PX + PDF_INFO_LINE_MARGIN_BOTTOM_PX) * 2 +
+  PDF_REMARK_LINE_HEIGHT_PX * 3;
+/** 單頁可用高度：A4 全高扣除上下邊界。 */
+const PDF_PRINT_PAGE_HEIGHT_MM = 297 - PDF_MARGIN_TOP_MM - PDF_MARGIN_BOTTOM_MM;
+const PDF_PRINT_PAGE_HEIGHT_PX = PDF_PRINT_PAGE_HEIGHT_MM * PDF_PX_PER_MM;
+/**
+ * 表格區與頁尾區的固定高度規格。
+ * 這些常數共同決定中間列表區還剩多少空間可分配給 15 列資料。
+ */
+/** 列表表頭固定高度；45px 可完整顯示兩行表頭文字。 */
+const PDF_TABLE_HEADER_HEIGHT_PX = 45;
+/** 頁尾區塊固定高度：簽名區在上，頁碼區在下。 */
+const PDF_SIGNATURE_AREA_HEIGHT_PX = 88;
+const PDF_PAGE_NUMBER_HEIGHT_PX = 26;
+/** 中間列表區總高：頁面可用高度扣除上方資訊區、上下區塊間距與頁尾。 */
+const PDF_TABLE_AREA_HEIGHT_PX =
+  PDF_PRINT_PAGE_HEIGHT_PX -
+  PDF_TOP_SECTION_HEIGHT_PX -
+  PDF_BLOCK_GAP_PX * 2 -
+  PDF_SIGNATURE_AREA_HEIGHT_PX -
+  PDF_PAGE_NUMBER_HEIGHT_PX;
+/** 資料列固定高：先扣表頭，再由 15 列平均分配剩餘高度。 */
+const PDF_TABLE_BODY_ROW_HEIGHT_PX = (PDF_TABLE_AREA_HEIGHT_PX - PDF_TABLE_HEADER_HEIGHT_PX) / PDF_DATA_ROWS_PER_PAGE;
+/**
+ * 預覽與 PDF 共用的欄位長度限制。
+ * 這組常數會匯出給 `PreviewModal` 與驗證邏輯，確保畫面與輸出規則一致。
+ */
 export const REPORT_WORK_LOCATION_MAX_CHARS = 40;
 export const REPORT_REMARK_LINE_CHARS = 40;
 export const REPORT_REMARK_MAX_CHARS = 120;
 export const REPORT_REMARK_LINES = 3;
 
+/**
+ * PDF 端沿用共用長度規格的別名。
+ * 保留獨立常數名稱，可讓 PDF 相關函式在語意上直接表達用途，
+ * 同時避免未來若預覽與輸出規格拆分時需要大範圍改名。
+ */
 const PDF_REMARK_MAX_LENGTH = REPORT_REMARK_MAX_CHARS;
 const PDF_REMARK_LINE_LENGTH = REPORT_REMARK_LINE_CHARS;
 const PDF_REMARK_TOTAL_LINES = REPORT_REMARK_LINES;
 
-/**
- * 取得申請年月（民國年格式）
- * @param {string} dateStr - 日期字串（民國年格式：1141001）
- * @returns {string} 年月字串（格式：114年10月）
- */
 /**
  * 工作地點單行化並截斷為 PDF／Excel 上限字數（與預覽驗證一致）
  */
@@ -54,6 +117,9 @@ function normalizeWorkLocationForExport(location: string): string {
   return Array.from((location || '').replace(/\r?\n/g, '')).slice(0, REPORT_WORK_LOCATION_MAX_CHARS).join('');
 }
 
+/**
+ * 由民國日期字串萃取申請年月，供檔名與表頭使用。
+ */
 function getYearMonth(dateStr: string): string {
   if (/^\d{7}$/.test(dateStr)) {
     const rocYear = dateStr.substring(0, 3);
@@ -63,6 +129,9 @@ function getYearMonth(dateStr: string): string {
   return '';
 }
 
+/**
+ * 將備註切成固定三列，對齊紙本表單的手寫欄位。
+ */
 function splitRemarkToFixedLines(remark: string): string[] {
   const normalized = Array.from((remark || '').replace(/\r?\n/g, '')).slice(0, PDF_REMARK_MAX_LENGTH);
   const lines: string[] = [];
@@ -74,6 +143,9 @@ function splitRemarkToFixedLines(remark: string): string[] {
   return lines;
 }
 
+/**
+ * 將加班理由切成表格可容納的多列文字。
+ */
 function getReasonLines(reason: string): string[] {
   const normalized = Array.from((reason || '').trim()).slice(0, PDF_REASON_MAX_LENGTH);
   if (normalized.length === 0) return [''];
@@ -85,6 +157,9 @@ function getReasonLines(reason: string): string[] {
   return lines;
 }
 
+/**
+ * 將「日期 + 星期」拆開，方便在 PDF 儲存格內上下排列。
+ */
 function getDateParts(formattedDate: string): { dateText: string; weekdayText: string } {
   const parts = formattedDate.split(' ');
   if (parts.length >= 2) {
@@ -96,6 +171,9 @@ function getDateParts(formattedDate: string): { dateText: string; weekdayText: s
   return { dateText: formattedDate, weekdayText: '' };
 }
 
+/**
+ * 將 `HH:mm - HH:mm` 拆成上下兩列顯示的起訖時間。
+ */
 function getTimeParts(overtimeRange: string): { startText: string; endText: string } {
   const match = overtimeRange.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
   if (!match) {
@@ -471,7 +549,7 @@ export function printReport(
       generatePageHtml
     );
     weekdayPages.forEach(pageData => {
-      htmlContent += `<div class="page" style="display:flex;flex-direction:column;box-sizing:border-box;width:100%;min-height:277mm;">${generatePageHtml(
+      htmlContent += `<div class="page" style="display:flex;flex-direction:column;box-sizing:border-box;width:100%;height:${PDF_PRINT_PAGE_HEIGHT_MM}mm;">${generatePageHtml(
         '平日加班',
         pageData.reports,
         employeeName,
@@ -498,7 +576,7 @@ export function printReport(
       generatePageHtml
     );
     holidayPages.forEach(pageData => {
-      htmlContent += `<div class="page" style="display:flex;flex-direction:column;box-sizing:border-box;width:100%;min-height:277mm;">${generatePageHtml(
+      htmlContent += `<div class="page" style="display:flex;flex-direction:column;box-sizing:border-box;width:100%;height:${PDF_PRINT_PAGE_HEIGHT_MM}mm;">${generatePageHtml(
         '例假日加班',
         pageData.reports,
         employeeName,
@@ -539,14 +617,17 @@ export function printReport(
 }
 
 /**
- * 生成單頁 HTML 內容（供 PDF 與列印使用）
- * @param {string} _title - 標題（保留參數供未來使用）
+ * 生成單頁 HTML 內容（供 PDF 與列印共用）
+ * @param {string} _title - 報表區塊標題（保留參數供未來版型擴充）
  * @param {OvertimeReport[]} reports - 加班記錄陣列
  * @param {string} employeeName - 員工姓名
  * @param {string} yearMonth - 申請年月
  * @param {string} workLocation - 工作地點
  * @param {string} remarks - 備註
  * @param {number} pageNumber - 頁碼
+ * @param {number} totalPages - 總頁數
+ * @param {boolean} isFirstPage - 是否為第一頁
+ * @param {boolean} isLastPage - 是否為最後一頁
  * @returns {string} HTML 字串
  */
 function generatePageHtml(
@@ -567,63 +648,68 @@ function generatePageHtml(
   const normalizedReports = [...reports];
   const workLocationDisplay = normalizeWorkLocationForExport(workLocation);
 
-  /** 列表儲存格：padding 對齊，確保標題列與資料列高度一致 */
+  /** 列表儲存格：每頁、表格區、列高都以固定 px 基準渲染，避免第二頁後高度漂移。 */
   const cellBase =
     'border: 1px solid black; padding: 2px 6px; line-height: 1; font-size: 14px; box-sizing: border-box;';
-  const cellSingleLine = `${cellBase} white-space: nowrap; overflow: hidden; text-overflow: ellipsis;`;
-  const tableHeaderThStyle = `${cellBase} text-align: center; vertical-align: middle; font-weight: bold;`;
+  const bodyCellBase =
+    `${cellBase} height: ${PDF_TABLE_BODY_ROW_HEIGHT_PX}px; min-height: ${PDF_TABLE_BODY_ROW_HEIGHT_PX}px; max-height: ${PDF_TABLE_BODY_ROW_HEIGHT_PX}px; overflow: hidden;`;
+  const cellSingleLine = `${bodyCellBase} white-space: nowrap; overflow: hidden; text-overflow: ellipsis;`;
+  const tableHeaderThStyle =
+    `${cellBase} text-align: center; vertical-align: top; font-weight: bold; height: ${PDF_TABLE_HEADER_HEIGHT_PX}px; min-height: ${PDF_TABLE_HEADER_HEIGHT_PX}px; max-height: ${PDF_TABLE_HEADER_HEIGHT_PX}px; padding-top: 1px; padding-bottom: 0; overflow: hidden;`;
 
   return `
-    <div style="flex: 1 1 auto; min-height: 0; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; font-size: 14px; color: #1f2f44;">
-      <div style="flex: 0 0 auto;">
-        <div style="text-align: center; font-size: 24px; line-height: 1; font-weight: bold; padding-bottom: ${PDF_GAP_COMPANY_TO_FORM_TITLE_PX}px;">
-          海灣國際股份有限公司
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; line-height: 1; padding-bottom: ${PDF_TITLE_ROW_MARGIN_BOTTOM_PX}px;">
-          <div style="flex: 1;"></div>
-          <div style="text-align: center; font-size: 24px; font-weight: bold; text-decoration: underline; flex: 1;">
-            員工加班申請表
+    <div style="height: 100%; min-height: 0; width: 100%; box-sizing: border-box; display: flex; flex-direction: column; font-size: 14px; color: #1f2f44;">
+      <div style="flex: 0 0 ${PDF_TOP_SECTION_HEIGHT_PX}px; height: ${PDF_TOP_SECTION_HEIGHT_PX}px;">
+        <div style="position: relative; height: ${PDF_TITLE_STACK_HEIGHT_PX}px;">
+          <div style="height: ${PDF_COMPANY_TITLE_HEIGHT_PX}px; text-align: center; font-size: 24px; line-height: 1; font-weight: bold;">
+            海灣國際股份有限公司
           </div>
-          <div style="text-align: right; font-size: 16px; flex: 1;">
-            申請年月：${yearMonth}
+          <div style="position: absolute; left: 0; right: 0; top: ${PDF_COMPANY_TITLE_HEIGHT_PX + PDF_GAP_COMPANY_TO_FORM_TITLE_PX}px; height: ${PDF_FORM_TITLE_ROW_HEIGHT_PX}px; display: flex; justify-content: space-between; align-items: center; line-height: 1; padding-bottom: ${PDF_TITLE_ROW_MARGIN_BOTTOM_PX}px; box-sizing: border-box;">
+            <div style="flex: 1;"></div>
+            <div style="text-align: center; font-size: 24px; font-weight: bold; text-decoration: underline; flex: 1;">
+              員工加班申請表
+            </div>
+            <div style="text-align: right; font-size: 16px; flex: 1;">
+              申請年月：${yearMonth}
+            </div>
           </div>
         </div>
         <div style="font-size: 16px;">
-          <div style="margin-bottom: 3px;">員工姓名：${employeeName}</div>
-          <div style="margin-bottom: 3px;">工作地點：${workLocationDisplay}</div>
+          <div style="height: ${PDF_INFO_LINE_HEIGHT_PX}px; line-height: ${PDF_INFO_LINE_HEIGHT_PX}px; margin-bottom: ${PDF_INFO_LINE_MARGIN_BOTTOM_PX}px;">員工姓名：${employeeName}</div>
+          <div style="height: ${PDF_INFO_LINE_HEIGHT_PX}px; line-height: ${PDF_INFO_LINE_HEIGHT_PX}px; margin-bottom: ${PDF_INFO_LINE_MARGIN_BOTTOM_PX}px;">工作地點：${workLocationDisplay}</div>
           <div>
-            <div style="display: flex; align-items: center; min-height: 24px; line-height: 24px;">
+            <div style="display: flex; align-items: center; height: ${PDF_REMARK_LINE_HEIGHT_PX}px; min-height: ${PDF_REMARK_LINE_HEIGHT_PX}px; line-height: ${PDF_REMARK_LINE_HEIGHT_PX}px;">
               <span style="display: inline-block; width: 52px;">備註：</span>
-              <span style="flex: 1; border-bottom: 1px solid #000; min-height: 24px; line-height: 24px;">${remarkLines[0]}</span>
+              <span style="flex: 1; border-bottom: 1px solid #000; height: ${PDF_REMARK_LINE_HEIGHT_PX}px; min-height: ${PDF_REMARK_LINE_HEIGHT_PX}px; line-height: ${PDF_REMARK_LINE_HEIGHT_PX}px;">${remarkLines[0]}</span>
             </div>
-            <div style="display: flex; align-items: center; min-height: 24px; line-height: 24px;">
+            <div style="display: flex; align-items: center; height: ${PDF_REMARK_LINE_HEIGHT_PX}px; min-height: ${PDF_REMARK_LINE_HEIGHT_PX}px; line-height: ${PDF_REMARK_LINE_HEIGHT_PX}px;">
               <span style="display: inline-block; width: 52px;"></span>
-              <span style="flex: 1; border-bottom: 1px solid #000; min-height: 24px; line-height: 24px;">${remarkLines[1]}</span>
+              <span style="flex: 1; border-bottom: 1px solid #000; height: ${PDF_REMARK_LINE_HEIGHT_PX}px; min-height: ${PDF_REMARK_LINE_HEIGHT_PX}px; line-height: ${PDF_REMARK_LINE_HEIGHT_PX}px;">${remarkLines[1]}</span>
             </div>
-            <div style="display: flex; align-items: center; min-height: 24px; line-height: 24px;">
+            <div style="display: flex; align-items: center; height: ${PDF_REMARK_LINE_HEIGHT_PX}px; min-height: ${PDF_REMARK_LINE_HEIGHT_PX}px; line-height: ${PDF_REMARK_LINE_HEIGHT_PX}px;">
               <span style="display: inline-block; width: 52px;"></span>
-              <span style="flex: 1; border-bottom: 1px solid #000; min-height: 24px; line-height: 24px;">${remarkLines[2]}</span>
+              <span style="flex: 1; border-bottom: 1px solid #000; height: ${PDF_REMARK_LINE_HEIGHT_PX}px; min-height: ${PDF_REMARK_LINE_HEIGHT_PX}px; line-height: ${PDF_REMARK_LINE_HEIGHT_PX}px;">${remarkLines[2]}</span>
             </div>
           </div>
         </div>
       </div>
       <div style="flex: 0 0 auto; height: ${PDF_BLOCK_GAP_PX}px; min-height: ${PDF_BLOCK_GAP_PX}px;"></div>
-      <div style="flex: 1 1 0; min-height: 0; overflow: visible; position: relative; width: 100%;">
-        <table style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; width: 100%; height: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed;">
+      <div style="flex: 0 0 ${PDF_TABLE_AREA_HEIGHT_PX}px; height: ${PDF_TABLE_AREA_HEIGHT_PX}px; min-height: ${PDF_TABLE_AREA_HEIGHT_PX}px; overflow: hidden; position: relative; width: 100%;">
+        <table style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; width: 100%; height: ${PDF_TABLE_AREA_HEIGHT_PX}px; border-collapse: collapse; font-size: 14px; table-layout: fixed;">
           <colgroup>
-            <col style="width: 15%;">
-            <col style="width: 12%;">
-            <col style="width: 49%;">
+            <col style="width: 14%;">
             <col style="width: 10%;">
+            <col style="width: 53%;">
+            <col style="width: 9%;">
             <col style="width: 8%;">
             <col style="width: 6%;">
           </colgroup>
           <thead>
-            <tr style="background-color: #f0f0f0; height: ${PDF_TABLE_HEADER_AREA_PERCENT}; box-sizing: border-box;">
+            <tr style="background-color: #f0f0f0; height: ${PDF_TABLE_HEADER_HEIGHT_PX}px; min-height: ${PDF_TABLE_HEADER_HEIGHT_PX}px; max-height: ${PDF_TABLE_HEADER_HEIGHT_PX}px; box-sizing: border-box;">
               <th style="${tableHeaderThStyle}">日期</th>
               <th style="${tableHeaderThStyle}">時間</th>
               <th style="${tableHeaderThStyle}">加班理由</th>
-              <th style="${tableHeaderThStyle} vertical-align: top;">加班<br>時數</th>
+              <th style="${tableHeaderThStyle}">加班<br>時數</th>
               <th style="${tableHeaderThStyle}">誤餐費</th>
               <th style="${tableHeaderThStyle}">合計</th>
             </tr>
@@ -643,7 +729,7 @@ function generatePageHtml(
                   const isFirstLine = lineIndex === 0;
 
                   rowsHtml += `
-                  <tr style="height: ${PDF_TABLE_BODY_ROW_PERCENT};">
+                  <tr style="height: ${PDF_TABLE_BODY_ROW_HEIGHT_PX}px; min-height: ${PDF_TABLE_BODY_ROW_HEIGHT_PX}px; max-height: ${PDF_TABLE_BODY_ROW_HEIGHT_PX}px;">
                     <td style="${cellSingleLine} vertical-align: top;">
                       ${isFirstLine ? `${dateText}${weekdayText ? `<br>${weekdayText}` : ''}` : ''}
                     </td>
@@ -659,7 +745,7 @@ function generatePageHtml(
                     <td style="${cellSingleLine} vertical-align: top;">
                       ${isFirstLine ? report.mealAllowance : ''}
                     </td>
-                    <td style="${cellBase} vertical-align: top;"></td>
+                    <td style="${bodyCellBase} vertical-align: top;"></td>
                   </tr>
                 `;
                   usedRows++;
@@ -669,13 +755,13 @@ function generatePageHtml(
               rowsHtml += Array.from({ length: Math.max(PDF_DATA_ROWS_PER_PAGE - usedRows, 0) })
                 .map(
                   () => `
-                <tr style="height: ${PDF_TABLE_BODY_ROW_PERCENT};">
-                  <td style="${cellBase} vertical-align: top;"></td>
-                  <td style="${cellBase} vertical-align: top;"></td>
-                  <td style="${cellBase} vertical-align: top;"></td>
-                  <td style="${cellBase} vertical-align: top;"></td>
-                  <td style="${cellBase} vertical-align: top;"></td>
-                  <td style="${cellBase} vertical-align: top;"></td>
+                <tr style="height: ${PDF_TABLE_BODY_ROW_HEIGHT_PX}px; min-height: ${PDF_TABLE_BODY_ROW_HEIGHT_PX}px; max-height: ${PDF_TABLE_BODY_ROW_HEIGHT_PX}px;">
+                  <td style="${bodyCellBase} vertical-align: top;"></td>
+                  <td style="${bodyCellBase} vertical-align: top;"></td>
+                  <td style="${bodyCellBase} vertical-align: top;"></td>
+                  <td style="${bodyCellBase} vertical-align: top;"></td>
+                  <td style="${bodyCellBase} vertical-align: top;"></td>
+                  <td style="${bodyCellBase} vertical-align: top;"></td>
                 </tr>
               `
                 )

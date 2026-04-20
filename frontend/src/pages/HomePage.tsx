@@ -1,15 +1,12 @@
 /**
  * 首頁組件
- * 
- * 用途：出勤加班單系統的主要頁面，整合檔案上傳、資料顯示、篩選與報表產生功能
- * 流程：
- * 1. 使用者上傳 CSV/TXT 檔案
- * 2. 解析檔案並自動計算加班時數與誤餐費
- * 3. 顯示計算結果於表格中
- * 4. 提供篩選功能（按姓名、日期範圍）
- * 5. 使用者可編輯加班原因
- * 6. 點擊下載按鈕開啟預覽 Modal
- * 7. 在 Modal 中選擇記錄並下載 Excel/PDF 或列印
+ *
+ * 這個頁面是前端流程編排中心，主要負責：
+ * 1. 接收檔案上傳後的原始出勤資料
+ * 2. 呼叫計算服務轉成可展示、可匯出的加班報表
+ * 3. 提供姓名與日期篩選
+ * 4. 維護表格編輯狀態與預覽 Modal 開關
+ * 5. 將使用者最後確認的資料交給匯出服務
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -86,6 +83,7 @@ const HomePage: React.FC = () => {
    * @param {string} newReason - 新的加班原因
    */
   const handleReasonChange = (index: number, newReason: string) => {
+    // 表格顯示的是 filteredReports，因此先找出畫面上那筆資料，再回寫原始報表狀態。
     const targetReport = filteredReports[index];
     if (!targetReport) return;
 
@@ -183,6 +181,7 @@ const HomePage: React.FC = () => {
 
       {overtimeReports.length > 0 && (
         <>
+          {/* 篩選只影響畫面與預覽名單，不會改動原始上傳資料。 */}
           <div style={{ marginBottom: '20px' }}>
             <input
               type="text"
@@ -206,7 +205,7 @@ const HomePage: React.FC = () => {
           </div>
           <AttendanceTable reports={filteredReports} onReasonChange={handleReasonChange} />
           
-          {/* 單一下載按鈕 */}
+          {/* 所有匯出入口都先進入預覽 Modal，避免直接下載錯誤資料。 */}
           <div style={{ marginTop: '20px' }}>
             <button 
               onClick={handleOpenPreview} 

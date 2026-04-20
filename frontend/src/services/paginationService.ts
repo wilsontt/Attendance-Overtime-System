@@ -1,17 +1,36 @@
+/**
+ * 報表分頁服務。
+ *
+ * 這個模組專門處理「一頁能放幾筆資料」的規則，避免 Excel / PDF /
+ * 列印流程各自維護一套分頁邏輯。
+ */
 import type { OvertimeReport } from '../types';
 
+/**
+ * 單一頁面的分頁結果。
+ */
 export interface PageData {
+  /** 目前頁碼，從 1 開始。 */
   pageNumber: number;
+  /** 該批資料的總頁數。 */
   totalPages: number;
+  /** 這一頁實際要渲染的報表資料。 */
   reports: OvertimeReport[];
+  /** 是否為第一頁，供樣板控制頁首行為。 */
   isFirstPage: boolean;
+  /** 是否為最後一頁，供樣板控制頁尾行為。 */
   isLastPage: boolean;
 }
 
+/** 固定版型下，表格主體最多容納 15 列資料高度。 */
 const DATA_ROWS_PER_PAGE = 15;
+/** 加班理由與預覽驗證保持一致，避免分頁與實際輸出不一致。 */
 const REASON_MAX_LENGTH = 200;
 const REASON_CHARS_PER_ROW = 25;
 
+/**
+ * 估算單筆加班理由在表格中會占用幾列。
+ */
 function getReasonRows(reason: string): number {
   const normalizedLength = Array.from((reason || '').trim()).slice(0, REASON_MAX_LENGTH).length;
   return Math.max(1, Math.ceil(normalizedLength / REASON_CHARS_PER_ROW));
@@ -73,10 +92,11 @@ export function paginateReports(reports: OvertimeReport[]): PageData[] {
 }
 
 /**
- * 將報表記錄分頁（新版：動態高度檢測）
- * 
- * 此函數會實際測量每頁內容的渲染高度，確保不超過 A4 頁面限制
- * 
+ * 依「加班理由換行後占用列數」做分頁。
+ *
+ * 這裡不是直接量 DOM 高度，而是以固定列高模型預先估算，讓 PDF 與列印
+ * 都能共用相同結果，避免某一筆理由太長把下一列擠出頁面。
+ *
  * @param reportType - 報表類型（'平日加班' 或 '例假日加班'）
  * @param reports - 報表記錄陣列
  * @param employeeName - 員工姓名

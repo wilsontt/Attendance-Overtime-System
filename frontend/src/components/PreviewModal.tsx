@@ -331,6 +331,31 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   };
 
   /**
+   * 依區塊記錄彙整申請年月（民國年格式）
+   * - 來源：報表資料中的 date 欄位
+   * - 7 碼民國格式（YYYMMDD）轉為「YYY年MM月」
+   * - 若同區塊有多個月份，使用頓號串接
+   */
+  const buildYearMonthSummary = (
+    records: Array<OvertimeReport & { reportIndex: number }>
+  ): string => {
+    const yearMonthSet = new Set<string>();
+
+    records.forEach((report) => {
+      const dateStr = report.date?.trim() ?? '';
+      if (/^\d{7}$/.test(dateStr)) {
+        const rocYear = dateStr.substring(0, 3);
+        const month = dateStr.substring(3, 5);
+        yearMonthSet.add(`${rocYear}年${month}月`);
+      }
+    });
+
+    return yearMonthSet.size > 0
+      ? Array.from(yearMonthSet).join('、')
+      : '無申請年月';
+  };
+
+  /**
    * 驗證工作地點是否已填寫
    * @returns {boolean} 驗證結果
    */
@@ -543,6 +568,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                 <p className="employee-info-text">
                   員工資訊：{buildEmployeeSummary(weekdayReports)}
                 </p>
+                <p className="employee-info-text">
+                  申請年月：{buildYearMonthSummary(weekdayReports)}
+                </p>
                 <div className="input-group">
                   <label className="label-left">
                     工作地點：<span className="required">*</span>
@@ -587,6 +615,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                 <h3>例假日加班資訊</h3>
                 <p className="employee-info-text">
                   員工資訊：{buildEmployeeSummary(holidayReports)}
+                </p>
+                <p className="employee-info-text">
+                  申請年月：{buildYearMonthSummary(holidayReports)}
                 </p>
                 <div className="input-group">
                   <label className="label-left">

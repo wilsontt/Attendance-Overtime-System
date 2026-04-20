@@ -1,3 +1,11 @@
+/**
+ * 首頁頂部導覽列。
+ *
+ * 職責只有版頭展示，不承擔任何業務狀態：
+ * - 左側顯示企業品牌
+ * - 中間顯示系統名稱與版本號
+ * - 右側顯示即時日期與時間
+ */
 import type { ReactElement } from 'react';
 import { CrownBrand } from '@shared-ui/crown-brand';
 import { NavCalendarCluster, PortalTopNav } from '@shared-ui/portal-nav';
@@ -5,7 +13,7 @@ import logoUrl from '@shared-ui/crown-brand/assets/CROWN_logo.png';
 import { APP_VERSION } from '../constants/appVersion';
 
 /**
- * 首頁頂部導覽：左品牌、中系統名稱與版號、右即時日期時間。
+ * 組合 shared-ui 的共用版頭元件，提供首頁一致的入口網站外觀。
  */
 export function TopTitleNav(): ReactElement {
   return (

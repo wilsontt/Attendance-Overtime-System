@@ -1,17 +1,37 @@
+/**
+ * 舊版報表下載元件。
+ *
+ * 目前主要保留作為相容層與手動測試工具，實際下載主流程已移至
+ * `reportService.ts` 與 `PreviewModal.tsx`。此元件仍負責：
+ * - 接收使用者已選取的報表資料
+ * - 依預覽類型觸發 Excel / PDF / 列印
+ * - 提供 html2canvas 轉 PDF 所需的隱藏 DOM
+ */
 import React, { useRef, useEffect } from 'react';
 import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import type { OvertimeReport } from '../../src/types';
 
+/**
+ * `ReportGenerator` 的輸入參數。
+ */
 interface ReportGeneratorProps {
+  /** 舊介面保留欄位，避免既有呼叫端型別破壞。 */
   reports: OvertimeReport[]; // 保留以維持相容性，但實際使用 selectedReports
+  /** 真正要輸出的資料來源。 */
   selectedReports: OvertimeReport[];
+  /** 報表抬頭上的工作地點。 */
   workLocation: string;
+  /** 指定當前要觸發哪一種輸出流程。 */
   previewType: 'excel' | 'pdf' | 'print';
+  /** 由外層控制開啟哪一種預覽/輸出。 */
   onOpenPreview: (type: 'excel' | 'pdf' | 'print') => void;
 }
 
+/**
+ * 接到外部指定的 `previewType` 後立即執行對應輸出。
+ */
 const ReportGenerator: React.FC<ReportGeneratorProps> = ({ 
   // reports, // 未使用，但保留在 props 中以維持介面相容性
   selectedReports, 
@@ -19,6 +39,7 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
   previewType,
   onOpenPreview 
 }) => {
+  /** 提供 PDF 截圖用的隱藏內容節點。 */
   const printRef = useRef<HTMLDivElement>(null);
 
   // 當 selectedReports 有變化時，執行對應的報表生成
@@ -34,6 +55,9 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
     }
   }, [selectedReports, previewType]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /**
+   * 以簡化版樣板輸出單一工作表 Excel。
+   */
   const generateExcel = async () => {
     if (selectedReports.length === 0) return;
 
@@ -133,6 +157,9 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
     window.URL.revokeObjectURL(url);
   };
 
+  /**
+   * 將隱藏的報表 DOM 轉成畫布，再嵌入 PDF。
+   */
   const generatePdf = async () => {
     if (!printRef.current || selectedReports.length === 0) return;
 
@@ -167,6 +194,9 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
     }
   };
 
+  /**
+   * 在新視窗產生列印版 HTML，交給瀏覽器列印。
+   */
   const printReport = () => {
     if (selectedReports.length === 0) return;
 
@@ -259,6 +289,9 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
   };
 
   // 準備 PDF 生成的資料
+  /**
+   * 取得 PDF 標頭區塊需要的最小資料集。
+   */
   const getPdfContent = () => {
     if (selectedReports.length === 0) return null;
 
