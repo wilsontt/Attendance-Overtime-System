@@ -41,7 +41,7 @@ const PDF_PX_PER_MM = 96 / 25.4;
  * 此值只影響標題堆疊區內部兩行標題的相對距離，
  * 不應再連動到上方區塊與列表之間的位置。
  */
-const PDF_GAP_COMPANY_TO_FORM_TITLE_PX = 12;
+const PDF_GAP_COMPANY_TO_FORM_TITLE_PX = 8;
 /** 表單標題列與「員工姓名」區塊之間距：原 10px 之半 */
 const PDF_TITLE_ROW_MARGIN_BOTTOM_PX = 5;
 /** 兩大標題本身的文字區高度。 */
@@ -83,6 +83,8 @@ const PDF_TABLE_HEADER_HEIGHT_PX = 45;
 /** 頁尾區塊固定高度：簽名區在上，頁碼區在下。 */
 const PDF_SIGNATURE_AREA_HEIGHT_PX = 88;
 const PDF_PAGE_NUMBER_HEIGHT_PX = 26;
+/** 預留給表格最底邊框的高度，避免最後一列底線剛好落在裁切邊界。 */
+const PDF_TABLE_BOTTOM_BORDER_RESERVED_PX = 1;
 /** 中間列表區總高：頁面可用高度扣除上方資訊區、上下區塊間距與頁尾。 */
 const PDF_TABLE_AREA_HEIGHT_PX =
   PDF_PRINT_PAGE_HEIGHT_PX -
@@ -90,8 +92,9 @@ const PDF_TABLE_AREA_HEIGHT_PX =
   PDF_BLOCK_GAP_PX * 2 -
   PDF_SIGNATURE_AREA_HEIGHT_PX -
   PDF_PAGE_NUMBER_HEIGHT_PX;
-/** 資料列固定高：先扣表頭，再由 15 列平均分配剩餘高度。 */
-const PDF_TABLE_BODY_ROW_HEIGHT_PX = (PDF_TABLE_AREA_HEIGHT_PX - PDF_TABLE_HEADER_HEIGHT_PX) / PDF_DATA_ROWS_PER_PAGE;
+/** 資料列固定高：先扣表頭與表格底線保留值，再由 15 列平均分配剩餘高度。 */
+const PDF_TABLE_BODY_ROW_HEIGHT_PX =
+  (PDF_TABLE_AREA_HEIGHT_PX - PDF_TABLE_HEADER_HEIGHT_PX - PDF_TABLE_BOTTOM_BORDER_RESERVED_PX) / PDF_DATA_ROWS_PER_PAGE;
 /**
  * 預覽與 PDF 共用的欄位長度限制。
  * 這組常數會匯出給 `PreviewModal` 與驗證邏輯，確保畫面與輸出規則一致。
@@ -648,9 +651,9 @@ function generatePageHtml(
   const normalizedReports = [...reports];
   const workLocationDisplay = normalizeWorkLocationForExport(workLocation);
 
-  /** 列表儲存格：每頁、表格區、列高都以固定 px 基準渲染，避免第二頁後高度漂移。 */
+  /** 列表儲存格：框線改為每條線只畫一次，避免 collapse 合併後的粗細視覺差異。 */
   const cellBase =
-    'border: 1px solid black; padding: 2px 6px; line-height: 1; font-size: 14px; box-sizing: border-box;';
+    'border-right: 1px solid black; border-bottom: 1px solid black; padding: 2px 6px; line-height: 1; font-size: 14px; box-sizing: border-box;';
   const bodyCellBase =
     `${cellBase} height: ${PDF_TABLE_BODY_ROW_HEIGHT_PX}px; min-height: ${PDF_TABLE_BODY_ROW_HEIGHT_PX}px; max-height: ${PDF_TABLE_BODY_ROW_HEIGHT_PX}px; overflow: hidden;`;
   const cellSingleLine = `${bodyCellBase} white-space: nowrap; overflow: hidden; text-overflow: ellipsis;`;
@@ -695,7 +698,7 @@ function generatePageHtml(
       </div>
       <div style="flex: 0 0 auto; height: ${PDF_BLOCK_GAP_PX}px; min-height: ${PDF_BLOCK_GAP_PX}px;"></div>
       <div style="flex: 0 0 ${PDF_TABLE_AREA_HEIGHT_PX}px; height: ${PDF_TABLE_AREA_HEIGHT_PX}px; min-height: ${PDF_TABLE_AREA_HEIGHT_PX}px; overflow: hidden; position: relative; width: 100%;">
-        <table style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; width: 100%; height: ${PDF_TABLE_AREA_HEIGHT_PX}px; border-collapse: collapse; font-size: 14px; table-layout: fixed;">
+        <table style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; width: 100%; height: ${PDF_TABLE_AREA_HEIGHT_PX}px; border-collapse: separate; border-spacing: 0; border-top: 1px solid black; border-left: 1px solid black; border-bottom: 1px solid black; box-sizing: border-box; font-size: 14px; table-layout: fixed;">
           <colgroup>
             <col style="width: 14%;">
             <col style="width: 10%;">
