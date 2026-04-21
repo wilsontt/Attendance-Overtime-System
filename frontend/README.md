@@ -1,7 +1,7 @@
 # 出勤加班單系統 Frontend
 
-> **版本**：v1.2.0  
-> **最後更新**：2025-12-09
+> **版本**：v1.4.5  
+> **最後更新**：2026-04-14
 
 本專案為一個 React + TypeScript 應用程式，旨在幫助使用者上傳出勤記錄（支援 CSV 與 TXT 格式），自動計算加班時數與誤餐費，並提供篩選、預覽、驗證與報表匯出（Excel/PDF/列印）等完整功能。
 
@@ -26,7 +26,7 @@ npm run dev
 ## 導覽列版號來源
 
 - 導覽列中間顯示的系統版號，固定取自 `frontend/package.json` 的 `version` 欄位。
-- 版號參考依據為 `frontend/package.json` 第 1–5 行（例如：`"version": "1.4.1"`）。
+- 版號參考依據為 `frontend/package.json` 第 1–5 行（例如：`"version": "1.4.5"`）。
 - 注入機制：由 `vite.config.ts` 讀取 `package.json.version`，在建置時以 `define` 注入 `__APP_VERSION__`，再由 `src/constants/appVersion.ts` 導出供畫面使用。
 
 ## 共用導覽列整合重點（供其他專案複用）
@@ -136,6 +136,7 @@ npm test
   - 被選中且需填寫原因的記錄，不可為空
   - 加班理由最多 **200 字元**（以每列 25 字進行列位占用計算）
   - PDF / 列印輸出時，加班理由會將半形英數、符號與空白轉為全型；預覽與 Excel 維持原始輸入
+  - 實作位置：`src/utils/overtimeReasonFormatter.ts` 的 `normalizeOvertimeReasonForPrint()`，由 `src/services/reportService.ts` 的 `getReasonLines()` 與 `src/services/paginationService.ts` 的 `getReasonRows()` 共用
   - 工作地點最多 **40 字元**
   - 備註最多 **120 字元**（每列 40 字，共 3 列）
   - 錯誤訊息以「平日加班/例假日加班 + 第幾頁 + ITEM 第幾筆」回報，方便對照預覽畫面
@@ -149,6 +150,7 @@ npm test
   - 每頁固定 **16 列**（1 列表頭 + 15 列資料）
   - 不足 15 筆資料時，自動補空白列
   - **頁面邊界與區塊間距**（與 `0.standards/輸出列印字體放大設計.md` 一致）：上邊界 **7.35mm**、下邊界 6mm、左右 10mm；上方區與列表、列表與下方簽名區各 **8px**；公司標題與表單標題間 **24px**，且只影響兩大標題間距；表單標題與員工姓名區間 **5px**；頁尾由下往上為 **頁次 26px**、**簽名區 88px**；列表表頭固定 **45px**，資料 15 列以 **`calc((100% - 45px) / 15)`** 平均分配剩餘高度；列印頁容器採固定高度基準，不使用 `min-height`
+  - **表格框線策略**：改採「每條線只畫一次」模式；`table` 負責上/左/下外框，儲存格負責右/下框線，並額外預留 **1px** 給最底框線，避免最後一列底線落在裁切邊界
 - **固定資訊區**：每頁都顯示標題、申請年月、員工姓名、工作地點、3 列備註與簽名欄位
 - **列表字級**：出勤記錄列表字級為 **14px**
 - **欄位顯示規則**：
@@ -214,6 +216,22 @@ npm run test:watch
 ```
 
 ## 版本歷史
+
+### v1.4.5 (2026-04-14)
+**功能調整**：
+- 🔧 加班理由僅在 PDF / 列印輸出時，將半形英數、符號與空白轉為全型 Unicode 字元
+- 🔧 表格框線改為單次繪製策略，避免內外框線粗細不一致
+
+**改進項目**：
+- 🔧 PDF / 列印分頁估算與實際切行共用同一份加班理由全型後字串
+- 🔧 預留表格最底 **1px** 框線空間，避免最後一列 bottom 框線被裁切
+- 📚 同步更新 README、列印規格與 `1.docs` 備查文件
+
+**技術改進**：
+- 🚀 新增 `src/utils/overtimeReasonFormatter.ts`
+- 🚀 調整 `src/services/reportService.ts` 的 `getReasonLines()`
+- 🚀 調整 `src/services/paginationService.ts` 的 `getReasonRows()`
+- 🚀 新增 `tests/overtimeReasonFormatter.test.ts`
 
 ### v1.2.0 (2025-12-09)
 **功能調整**：

@@ -29,6 +29,7 @@
   - **PDF 下載**：生成排版精美的 PDF 報告（支援中文顯示、頁碼標註）
   - **ITEM 序號欄**：預覽表每筆記錄最前方顯示 ITEM（1,2,3...）
   - **固定版面**：每頁固定 16 列（表頭 1 列 + 資料 15 列），不足 15 筆以空白列補齊；頁面邊界與區塊間距依 `0.standards/輸出列印字體放大設計.md`（上 **7.35mm**／下 6mm／左右 10mm、區塊間距 8px、公司標題與表單標題間距 **24px** 且只影響兩大標題間距、表單標題與員工姓名區間距 **5px**、頁尾由下往上頁次 **26px**＋簽名 **88px**、列表表頭固定 **45px**、資料 15 列以 **`calc((100% - 45px) / 15)`** 平均分配剩餘高度、列印頁容器採固定高度基準、不使用 `min-height`）
+  - **表格框線策略**：輸出表格改為單次繪線；外框由 `table` 補齊上/左/下邊線，儲存格負責右/下邊線，並預留最底 **1px** 供最後一列 bottom 框線渲染
   - **固定資訊區**：每頁固定顯示標題、申請年月、員工姓名、工作地點、3 列備註、簽名欄
   - **列表字級**：出勤記錄列表字級為 14px
   - **欄位顯示規則**：日期欄/時間欄採 2 列顯示，其餘欄位維持單列不折行
@@ -36,6 +37,7 @@
     - 被選中且需填寫原因的記錄，不可為空
     - **加班理由長度控管**：加班理由最多 200 字元（以每列 25 字進行列位占用計算）
     - **PDF / 列印輸出規則**：加班理由在最終 PDF / 列印時，會將半形英數、符號與空白轉為全型；預覽與 Excel 維持原始輸入
+    - **實作位置**：`frontend/src/utils/overtimeReasonFormatter.ts` 的 `normalizeOvertimeReasonForPrint()`，由 `frontend/src/services/reportService.ts` 的 `getReasonLines()` 與 `frontend/src/services/paginationService.ts` 的 `getReasonRows()` 共用
     - **工作地點長度控管**：工作地點最多 40 字元
     - **備註長度控管**：備註最多 120 字元（每列 40 字，共 3 列）
     - 錯誤訊息以「平日加班/例假日加班 + 第幾頁 + ITEM 第幾筆」回報，方便對照預覽畫面
@@ -189,6 +191,22 @@ frontend/
 ```
 
 ## 📝 版本歷史
+
+### v1.4.5 (2026-04-14)
+**功能調整**：
+- 🔧 加班理由僅在 PDF / 列印輸出時轉為全型 Unicode 字元
+- 🔧 表格框線改為單次繪製策略，修正內外框線粗細不一致
+
+**改進項目**：
+- 🔧 PDF / 列印分頁估算與實際切行共用同一份全型後加班理由字串
+- 🔧 預留表格最底 **1px** 邊框空間，避免最後一列 bottom 框線被裁切
+- 📚 同步更新 README、列印規格與 `1.docs` 文件
+
+**技術改進**：
+- 🚀 新增 `frontend/src/utils/overtimeReasonFormatter.ts`
+- 🚀 調整 `frontend/src/services/reportService.ts`
+- 🚀 調整 `frontend/src/services/paginationService.ts`
+- 🚀 新增 `frontend/tests/overtimeReasonFormatter.test.ts`
 
 ### v1.2.0 (2025-12-09)
 **功能調整**：
