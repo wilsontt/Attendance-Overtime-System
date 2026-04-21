@@ -10,6 +10,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import type { OvertimeReport } from '../types';
 import { formatDate as formatDateWithDayOfWeek } from '../utils/dateFormatter';
+import { normalizeOvertimeReasonForPrint } from '../utils/overtimeReasonFormatter';
 import { paginateReportsByHeight } from './paginationService';
 
 /**
@@ -147,10 +148,10 @@ function splitRemarkToFixedLines(remark: string): string[] {
 }
 
 /**
- * 將加班理由切成表格可容納的多列文字。
+ * 將加班理由先轉為輸出用全型文字，再切成表格可容納的多列文字。
  */
 function getReasonLines(reason: string): string[] {
-  const normalized = Array.from((reason || '').trim()).slice(0, PDF_REASON_MAX_LENGTH);
+  const normalized = Array.from(normalizeOvertimeReasonForPrint(reason || '').trim()).slice(0, PDF_REASON_MAX_LENGTH);
   if (normalized.length === 0) return [''];
 
   const lines: string[] = [];

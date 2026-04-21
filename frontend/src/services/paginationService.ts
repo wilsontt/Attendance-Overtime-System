@@ -5,6 +5,7 @@
  * 列印流程各自維護一套分頁邏輯。
  */
 import type { OvertimeReport } from '../types';
+import { normalizeOvertimeReasonForPrint } from '../utils/overtimeReasonFormatter';
 
 /**
  * 單一頁面的分頁結果。
@@ -29,10 +30,10 @@ const REASON_MAX_LENGTH = 200;
 const REASON_CHARS_PER_ROW = 25;
 
 /**
- * 估算單筆加班理由在表格中會占用幾列。
+ * 估算單筆加班理由在 PDF / 列印輸出時會占用幾列。
  */
 function getReasonRows(reason: string): number {
-  const normalizedLength = Array.from((reason || '').trim()).slice(0, REASON_MAX_LENGTH).length;
+  const normalizedLength = Array.from(normalizeOvertimeReasonForPrint(reason || '').trim()).slice(0, REASON_MAX_LENGTH).length;
   return Math.max(1, Math.ceil(normalizedLength / REASON_CHARS_PER_ROW));
 }
 
