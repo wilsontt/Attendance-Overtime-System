@@ -80,3 +80,39 @@
   cursor: not-allowed;
   color: #888;
 }
+
+.attendance-table .reason-input {
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 0.92rem;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+.attendance-table .reason-editable {
+  border: 1px solid #2563eb;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.attendance-table .reason-disabled-leave {
+  background: #fff7ed;
+  border: 2px solid #f97316;
+  color: #9a3412;
+  font-weight: 700;
+}
+
+.attendance-table .reason-disabled-threshold {
+  background: #fef2f2;
+  border: 2px solid #ef4444;
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.attendance-table .reason-disabled-missing-clock {
+  background: #f1f5f9;
+  border: 2px solid #64748b;
+  color: #334155;
+  font-weight: 600;
+}

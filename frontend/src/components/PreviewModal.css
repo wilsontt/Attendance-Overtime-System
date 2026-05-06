@@ -189,10 +189,55 @@
   outline: none;
 }
 
-.preview-table input[type="text"].disabled-input {
-  background-color: #e9ecef;
+.preview-table input[type="text"].reason-input {
+  width: calc(100% - 10px);
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+.preview-table input[type="text"].reason-editable {
+  border: 1px solid #2563eb;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.preview-table input[type="text"].reason-editable:focus {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  outline: none;
+}
+
+.preview-table input[type="text"].reason-disabled-leave {
+  background: #fff7ed;
+  border: 2px solid #f97316;
+  color: #9a3412;
+  font-weight: 700;
   cursor: not-allowed;
-  color: #6c757d;
+}
+
+.preview-table input[type="text"].reason-disabled-threshold {
+  background: #fef2f2;
+  border: 2px solid #ef4444;
+  color: #991b1b;
+  font-weight: 700;
+  cursor: not-allowed;
+}
+
+.preview-table input[type="text"].reason-disabled-missing-clock {
+  background: #f1f5f9;
+  border: 2px solid #64748b;
+  color: #334155;
+  font-weight: 600;
+  cursor: not-allowed;
+}
+
+.preview-table input[type="text"].reason-unselected {
+  background: #f8fafc;
+  border: 1px dashed #94a3b8;
+  color: #64748b;
+  cursor: not-allowed;
 }
 
 /* Checkbox 樣式 */

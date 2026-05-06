@@ -83,8 +83,8 @@ function parseRecord(lines: string[]): ParsedRecord | null {
   
   for (const line of lines) {
     // 匹配刷卡時間（格式：1141104 08:38 或在行尾）
-    // 格式1: "1141104 08:38    正常" 或 "1141104 08:38    異常"
-    const timeMatch = line.match(/\d{7}\s+(\d{2}:\d{2})\s+(?:正常|異常)/);
+    // 格式1: "1141104 08:38    正常/異常/符合"
+    const timeMatch = line.match(/\d{7}\s+(\d{2}:\d{2})\s+(?:正常|異常|符合)/);
     if (timeMatch) {
       times.push(timeMatch[1]);
     }

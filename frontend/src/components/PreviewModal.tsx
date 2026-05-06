@@ -3,7 +3,7 @@
  * 
  * 用途：提供加班申請表預覽、記錄選擇、國定假日標記與下載功能
  * 流程：
- * 1. 過濾加班時數 >= 0.5 的記錄
+ * 1. 過濾有完整上下班刷卡時間的記錄
  * 2. 分離平日加班與例假日加班記錄
  * 3. 使用者可勾選要包含在申請表中的記錄
  * 4. 使用者可標記國定假日（影響加班時數計算）
@@ -69,7 +69,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   onDownloadPdf,
   onPrint
 }) => {
-  /** 過濾出加班時數 >= 0.5 的記錄 */
+  /** 過濾出有完整上下班刷卡時間的記錄 */
   const [filteredReports, setFilteredReports] = useState<OvertimeReport[]>([]);
   
   /** 平日加班工作地點 */
@@ -98,8 +98,8 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
    */
   useEffect(() => {
     if (isOpen) {
-      // 過濾加班時數 >= 0.5 的記錄
-      const filtered = reports.filter(r => r.overtimeHours >= 0.5);
+      // 過濾有完整上下班刷卡時間的記錄
+      const filtered = reports.filter(r => Boolean(r.clockIn && r.clockOut));
       setFilteredReports(filtered);
       
       // 初始化記錄選擇狀態
@@ -255,10 +255,21 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
             {records.map((report, rowIndex) => {
               const index = report.reportIndex;
               const isLeaveDay = report.attendanceType && report.attendanceType !== '空' && report.attendanceType !== '';
-              const hasClockTime = report.clockIn && report.clockOut;
+              const hasClockTime = Boolean(report.clockIn && report.clockOut);
+              const isUnderThreshold = report.overtimeHours < 0.5;
               const shouldHighlight = isLeaveDay && hasClockTime;
-              // 新邏輯：選擇欄勾選 且 有打卡記錄 → 可編輯（無論是否請假）
-              const isOvertimeEditable = recordSelection[index] && hasClockTime;
+              // 選擇欄勾選且有完整打卡，並達到 0.5 小時門檻才可編輯
+              const isOvertimeEditable =
+                recordSelection[index] && hasClockTime && !isLeaveDay && !isUnderThreshold;
+              const reasonStateClass = !recordSelection[index]
+                ? 'reason-unselected'
+                : isLeaveDay
+                  ? 'reason-disabled-leave'
+                  : !hasClockTime
+                    ? 'reason-disabled-missing-clock'
+                    : isUnderThreshold
+                      ? 'reason-disabled-threshold'
+                      : 'reason-editable';
 
               return (
                 <tr key={index} className={shouldHighlight ? 'highlight-leave-day' : ''}>
@@ -290,9 +301,17 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                       type="text"
                       value={editedReasons[index] || ''}
                       onChange={(e) => handleReasonChange(index, e.target.value)}
-                      placeholder={isLeaveDay ? `請${report.attendanceType}` : '請輸入原因'}
+                      placeholder={
+                        isLeaveDay
+                          ? `請${report.attendanceType}`
+                          : isUnderThreshold
+                            ? '未達30分鐘'
+                            : !hasClockTime
+                              ? '缺少刷卡時間'
+                              : '請輸入原因'
+                      }
                       disabled={!isOvertimeEditable}
-                      className={!isOvertimeEditable ? 'disabled-input' : ''}
+                      className={`reason-input ${reasonStateClass}`}
                     />
                   </td>
                 </tr>
@@ -403,8 +422,8 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
         const locationText = `${sectionName} 第${pageNumber}頁 ITEM 第${itemNumber}筆`;
         const currentReason = (editedReasons[recordIndex] || report.overtimeReason || '').trim();
 
-        // 需要填寫加班原因的條件：有打卡記錄 且 加班時數 >= 0.5（無論是否請假）
-        const hasClockTime = report.clockIn && report.clockOut;
+        // 需要填寫加班原因的條件：有完整刷卡且加班時數 >= 0.5 小時
+        const hasClockTime = Boolean(report.clockIn && report.clockOut);
         const needsReason = hasClockTime && report.overtimeHours >= 0.5;
 
         if (needsReason && currentReason === '') {
@@ -549,7 +568,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
         <div className="modal-body">
           {/* 說明文字 */}
           <div className="preview-instructions">
-            <p>📌 以下顯示加班時數 ≥ 0.5 小時的記錄，已分為「平日加班」與「例假日加班」</p>
+            <p>📌 以下顯示有完整上下班刷卡的記錄，已分為「平日加班」與「例假日加班」</p>
             <p>⚠️ 黃色標記為請假日但有打卡記錄，請確認是否包含在申請表中</p>
             <p>🏖️ 勾選「國定假日」可將平日記錄移至例假日區塊（全時段計算）</p>
             <p>

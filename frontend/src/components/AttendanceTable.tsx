@@ -6,7 +6,7 @@
  * 1. 以表格形式呈現所有加班記錄
  * 2. 顯示員工資訊、上下班時間、加班時數、誤餐費等欄位
  * 3. 提供可編輯的加班原因輸入欄位
- * 4. 當加班時數 < 0.5 時，禁用編輯功能
+ * 4. 需有完整上下班刷卡時間且加班時數達 0.5 小時才可編輯加班原因
  */
 
 import React from 'react';
@@ -46,7 +46,17 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
       </thead>
       <tbody>
         {reports.map((report, index) => {
-          const isEditable = report.overtimeHours >= 0.5;
+          const hasClockTime = Boolean(report.clockIn && report.clockOut);
+          const isLeaveDay = Boolean(report.attendanceType && report.attendanceType !== '空');
+          const isUnderThreshold = report.overtimeHours < 0.5;
+          const isEditable = hasClockTime && !isLeaveDay && !isUnderThreshold;
+          const reasonStateClass = isLeaveDay
+            ? 'reason-disabled-leave'
+            : !hasClockTime
+              ? 'reason-disabled-missing-clock'
+              : isUnderThreshold
+                ? 'reason-disabled-threshold'
+                : 'reason-editable';
           
           return (
             <tr key={index}>
@@ -58,8 +68,16 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
                   type="text" 
                   value={report.overtimeReason} 
                   onChange={(e) => onReasonChange(index, e.target.value)}
-                  placeholder={isEditable ? "請輸入原因" : "未達加班標準"}
-                  style={{ width: '100%', border: '1px solid #ddd', padding: '4px' }}
+                  placeholder={
+                    isLeaveDay
+                      ? `請${report.attendanceType}`
+                      : isUnderThreshold
+                        ? '未達30分鐘'
+                        : !hasClockTime
+                          ? '缺少刷卡時間'
+                          : '請輸入原因'
+                  }
+                  className={`reason-input ${reasonStateClass}`}
                   disabled={!isEditable}
                 />
               </td>
