@@ -40,6 +40,8 @@ const HomePage: React.FC = () => {
   
   /** 預覽 Modal 開關狀態 */
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState<boolean>(false);
+  /** 原始 TXT 內容（供列印原始資料使用） */
+  const [rawTxtContent, setRawTxtContent] = useState<string>('');
 
   /**
    * 當出勤記錄變更時，自動計算加班時數與誤餐費
@@ -57,8 +59,13 @@ const HomePage: React.FC = () => {
    * 處理檔案上傳完成事件
    * @param {AttendanceRecord[]} records - 解析後的出勤記錄陣列
    */
-  const handleFileProcessed = (records: AttendanceRecord[]) => {
+  const handleFileProcessed = (
+    records: AttendanceRecord[],
+    uploadedRawTxtContent: string,
+    fileType: 'txt' | 'csv'
+  ) => {
     setAttendanceRecords(records);
+    setRawTxtContent(fileType === 'txt' ? uploadedRawTxtContent : '');
   };
 
   /**
@@ -217,6 +224,7 @@ const HomePage: React.FC = () => {
 
           <PreviewModal
             reports={filteredReports}
+            rawTxtContent={rawTxtContent}
             isOpen={isPreviewModalOpen}
             onClose={handleClosePreview}
             onDownloadExcel={handleDownloadExcel}

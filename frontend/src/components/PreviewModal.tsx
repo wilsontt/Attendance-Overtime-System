@@ -44,6 +44,8 @@ function normalizeWorkLocationInput(input: string): string {
 interface PreviewModalProps {
   /** 加班報表陣列 */
   reports: OvertimeReport[];
+  /** 原始 TXT 內容（僅 TXT 上傳時有值） */
+  rawTxtContent: string;
   /** Modal 開關狀態 */
   isOpen: boolean;
   /** 關閉 Modal 回呼函數 */
@@ -63,6 +65,7 @@ interface PreviewModalProps {
  */
 const PreviewModal: React.FC<PreviewModalProps> = ({ 
   reports, 
+  rawTxtContent,
   isOpen, 
   onClose, 
   onDownloadExcel,
@@ -557,6 +560,160 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     onPrint(selectedWeekday, selectedHoliday, workLocation, remarks, holidayWorkLocation, holidayRemarks);
   };
 
+  /**
+   * 合併多頁 TXT 內容，移除重複頁首與分頁資訊
+   * 規則：刪除「... 接下頁 ...」前最後一條分隔線到下一頁表頭下方分隔線之間的內容
+   */
+  const mergePagedTxtForPrint = (rawTxt: string): string => {
+    const normalized = rawTxt.replace(/\r\n/g, '\n').replace(/\f/g, '\n');
+    const lines = normalized.split('\n');
+    const headerMatcher = (line: string) =>
+      line.includes('員工姓名') && line.includes('歸屬日期') && line.includes('主管核定');
+
+    let searchFrom = 0;
+    while (true) {
+      const nextPageMarker = lines.findIndex((line, idx) => idx >= searchFrom && line.includes('... 接下頁 ...'));
+      if (nextPageMarker < 0) break;
+
+      let removeStart = -1;
+      for (let i = nextPageMarker; i >= 0; i--) {
+        if (lines[i].includes('====')) {
+          removeStart = i;
+          break;
+        }
+      }
+
+      const secondHeader = lines.findIndex((line, idx) => idx > nextPageMarker && headerMatcher(line));
+      if (secondHeader < 0 || removeStart < 0) {
+        searchFrom = nextPageMarker + 1;
+        continue;
+      }
+
+      let removeEnd = -1;
+      for (let i = secondHeader + 1; i < lines.length; i++) {
+        if (lines[i].includes('====')) {
+          removeEnd = i;
+          break;
+        }
+      }
+
+      if (removeEnd < removeStart) {
+        searchFrom = secondHeader + 1;
+        continue;
+      }
+
+      lines.splice(removeStart, removeEnd - removeStart + 1);
+      searchFrom = removeStart;
+    }
+
+    return lines
+      .filter((line, index, arr) => !(line.trim() === '' && arr[index - 1]?.trim() === ''))
+      .join('\n')
+      .trim();
+  };
+
+  /**
+   * 以 iframe 列印原始 TXT（比照 Notepad：細明體 8pt、四邊 2mm）。
+   * 採 iframe 而非 window.open，以繼承父頁 font context，確保 Mac 上 Noto Sans TC 能正確渲染中文。
+   * 等待 fonts.ready 後再觸發列印，避免字型尚未載入就印出空白中文。
+   * 檔名格式與下載 PDF 相同，末尾加 _原始TXT。
+   */
+  const handlePrintRawTxt = () => {
+    if (!rawTxtContent.trim()) {
+      alert('目前沒有可列印的原始 TXT 內容。');
+      return;
+    }
+
+    const mergedTxt = mergePagedTxtForPrint(rawTxtContent);
+
+    // 從報表取得員工資訊與年月，組成與下載 PDF 相同規則的標題（用作儲存 PDF 的預設檔名）
+    const firstReport = filteredReports[0];
+    let docTitle = '員工加班申請表_原始TXT';
+    if (firstReport) {
+      const employeeName = `${firstReport.employeeId} ${firstReport.name}`.trim();
+      const dateStr = firstReport.date ?? '';
+      const yearMonth = /^\d{7}$/.test(dateStr)
+        ? `${dateStr.substring(0, 3)}年${dateStr.substring(3, 5)}月`
+        : '';
+      docTitle = yearMonth
+        ? `員工加班申請表-${employeeName}-${yearMonth}_原始TXT`
+        : `員工加班申請表-${employeeName}_原始TXT`;
+    }
+
+    const escapedTxt = mergedTxt
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no, url=no">
+<title>${docTitle}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 portrait; margin: 2mm; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  pre {
+    font-family: "Courier New", "Noto Sans TC", "PMingLiU", "MingLiU", monospace, "PingFang TC", "Heiti TC", sans-serif;
+    font-size: 8pt;
+    line-height: 1.2;
+    white-space: pre;
+    margin: 0;
+    padding: 0;
+    color: #000;
+  }
+  a { color: inherit !important; text-decoration: none !important; pointer-events: none; }
+</style>
+</head>
+<body>
+<pre>${escapedTxt}</pre>
+</body>
+</html>`;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      document.body.removeChild(iframe);
+      return;
+    }
+
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+
+    iframe.onload = () => {
+      const run = async () => {
+        try {
+          if (iframe.contentDocument?.fonts) await iframe.contentDocument.fonts.ready;
+        } catch { /* ignore */ }
+        setTimeout(() => {
+          // 暫時替換父頁面標題：iframe 列印時，Chrome/Safari 以父頁面 title 作為儲存 PDF 的預設檔名
+          const originalTitle = document.title;
+          document.title = docTitle;
+          try {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+          } catch (e) {
+            console.error('Print failed:', e);
+          } finally {
+            setTimeout(() => {
+              document.title = originalTitle;
+              if (document.body.contains(iframe)) document.body.removeChild(iframe);
+            }, 3000);
+          }
+        }, 1000);
+      };
+      void run();
+    };
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -701,6 +858,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
 
         <div className="modal-footer">
           <button className="btn-cancel" onClick={onClose}>取消</button>
+          <button className="btn-confirm" onClick={handlePrintRawTxt} disabled={!rawTxtContent.trim()}>
+            列印原始TXT
+          </button>
           <button className="btn-confirm" onClick={handleDownloadExcel}>下載 Excel</button>
           <button className="btn-confirm" onClick={handleDownloadPdf}>下載 PDF</button>
           <button className="btn-confirm" onClick={handlePrint}>列印</button>

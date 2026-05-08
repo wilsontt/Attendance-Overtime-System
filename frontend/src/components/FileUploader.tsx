@@ -12,7 +12,7 @@
 
 import React, { useState } from 'react';
 import Papa from 'papaparse';
-import { parseTxtFile } from '../services/txtParser';
+import { parseTxtContent } from '../services/txtParser';
 import type { AttendanceRecord } from '../types';
 
 /**
@@ -20,7 +20,11 @@ import type { AttendanceRecord } from '../types';
  */
 interface FileUploaderProps {
   /** 檔案處理完成後的回呼函數 */
-  onFileProcessed: (records: AttendanceRecord[]) => void;
+  onFileProcessed: (
+    records: AttendanceRecord[],
+    rawTxtContent: string,
+    fileType: 'txt' | 'csv'
+  ) => void;
 }
 
 /**
@@ -54,7 +58,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileProcessed }) => {
           if (actualHeaders.length !== expectedHeaders.length || 
               !expectedHeaders.every((header, index) => header === actualHeaders[index])) {
             setError('CSV 檔案格式不正確，請確認標頭是否符合「員工編號,姓名,歸屬日期,考勤別,數量,上班時間,下班時間」的順序。');
-            onFileProcessed([]);
+            onFileProcessed([], '', 'csv');
             setIsProcessing(false);
             return;
           }
@@ -86,17 +90,17 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileProcessed }) => {
           
           const records = parsedRecords.filter((record): record is AttendanceRecord => record !== null);
           
-          onFileProcessed(records);
+          onFileProcessed(records, '', 'csv');
           setIsProcessing(false);
         } catch (err) {
           setError(`處理 CSV 檔案時發生錯誤: ${err}`);
-          onFileProcessed([]);
+          onFileProcessed([], '', 'csv');
           setIsProcessing(false);
         }
       },
       error: (err) => {
         setError(`讀取 CSV 檔案時發生錯誤: ${err.message}`);
-        onFileProcessed([]);
+        onFileProcessed([], '', 'csv');
         setIsProcessing(false);
       }
     });
@@ -108,12 +112,13 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileProcessed }) => {
    */
   const handleTxtFile = async (file: File) => {
     try {
-      const records = await parseTxtFile(file);
-      onFileProcessed(records);
+      const content = await file.text();
+      const records = parseTxtContent(content);
+      onFileProcessed(records, content, 'txt');
       setIsProcessing(false);
     } catch (err) {
       setError(`處理 TXT 檔案時發生錯誤: ${err}`);
-      onFileProcessed([]);
+      onFileProcessed([], '', 'txt');
       setIsProcessing(false);
     }
   };
@@ -144,7 +149,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileProcessed }) => {
       setError('請上傳 TXT 或 CSV 格式的檔案。');
       setFile(null);
       setIsProcessing(false);
-      onFileProcessed([]);
+      onFileProcessed([], '', 'csv');
     }
   };
 
@@ -154,7 +159,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileProcessed }) => {
   const handleRemoveFile = () => {
     setFile(null);
     setError(null);
-    onFileProcessed([]);
+    onFileProcessed([], '', 'csv');
   };
 
   return (

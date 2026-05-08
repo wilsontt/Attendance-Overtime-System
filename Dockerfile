@@ -13,7 +13,8 @@ WORKDIR /app/frontend
 
 # 先裝 frontend 依賴
 COPY 1.出勤加班單系統/frontend/package*.json ./
-RUN npm i -g npm@11.12.1 && npm --version && npm ci --no-audit --no-fund
+# RUN npm i -g npm@11.12.1 && npm --version && npm ci --no-audit --no-fund
+RUN npm --version && npm ci --no-audit --no-fund
 
 # 複製 frontend 與 shared-ui 原始碼
 COPY 1.出勤加班單系統/frontend/ ./

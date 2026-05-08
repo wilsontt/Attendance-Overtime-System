@@ -267,6 +267,12 @@
   transition: background-color 0.2s;
 }
 
+.modal-footer button:disabled {
+  background-color: #b0b0b0;
+  color: #f5f5f5;
+  cursor: not-allowed;
+}
+
 .btn-cancel {
   background-color: #e0e0e0;
   color: #333;
