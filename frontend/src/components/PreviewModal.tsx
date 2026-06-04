@@ -13,7 +13,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import type { OvertimeReport } from '../types';
-import { recalculateOvertimeReport } from '../services/calculationService';
+import { isNaturalHoliday, recalculateOvertimeReport } from '../services/calculationService';
 import {
   REPORT_REMARK_LINE_CHARS,
   REPORT_REMARK_LINES,
@@ -46,6 +46,14 @@ interface PreviewModalProps {
   reports: OvertimeReport[];
   /** 原始 TXT 內容（僅 TXT 上傳時有值） */
   rawTxtContent: string;
+  /** 「加到例假日加班」強制標記（key: `${employeeId}__${date}`），與主列表雙向同步 */
+  holidayOverrides: Record<string, boolean>;
+  /** 切換「加到例假日加班」強制標記回呼函數（同步回主列表） */
+  onToggleHolidayOverride: (employeeId: string, date: string) => void;
+  /** 「加到平日加班」強制標記（key: `${employeeId}__${date}`），與主列表雙向同步 */
+  weekdayOverrides: Record<string, boolean>;
+  /** 切換「加到平日加班」強制標記回呼函數（同步回主列表） */
+  onToggleWeekdayOverride: (employeeId: string, date: string) => void;
   /** Modal 開關狀態 */
   isOpen: boolean;
   /** 關閉 Modal 回呼函數 */
@@ -66,6 +74,10 @@ interface PreviewModalProps {
 const PreviewModal: React.FC<PreviewModalProps> = ({ 
   reports, 
   rawTxtContent,
+  holidayOverrides,
+  onToggleHolidayOverride,
+  weekdayOverrides,
+  onToggleWeekdayOverride,
   isOpen, 
   onClose, 
   onDownloadExcel,
@@ -87,8 +99,11 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   /** 例假日加班備註 */
   const [holidayRemarks, setHolidayRemarks] = useState<string>('');
   
-  /** 國定假日標記（key: date, value: isHoliday） */
+  /** 強制例假日標記（key: `${employeeId}__${date}`，value: 是否強制列為例假日） */
   const [holidayFlags, setHolidayFlags] = useState<{ [key: string]: boolean }>({});
+
+  /** 強制平日標記（key: `${employeeId}__${date}`，value: 是否強制列為平日；補班日落在週末用） */
+  const [weekdayFlags, setWeekdayFlags] = useState<{ [key: string]: boolean }>({});
   
   /** 記錄選擇狀態（key: index, value: isSelected） */
   const [recordSelection, setRecordSelection] = useState<{ [key: number]: boolean }>({});
@@ -107,9 +122,19 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
    */
   useEffect(() => {
     if (isOpen) {
+      // 先依強制標記重算，再做門檻過濾：
+      // - 「加到例假日加班」：平日以全日例假日重算（避免勞動節等平日時數為 0 被提前濾掉）。
+      // - 「加到平日加班」：週末補班日以平日 18:00 起算重算。
+      const recalculated = reports.map(report => {
+        const key = `${report.employeeId}__${report.date}`;
+        if (holidayOverrides[key]) return recalculateOvertimeReport(report, true);
+        if (weekdayOverrides[key]) return recalculateOvertimeReport(report, false);
+        return report;
+      });
+
       // 過濾有完整刷卡且加班時數達門檻（>= 0.5 小時）的記錄；
       // 未達加班標準的日子（如未達 30 分鐘）不進入預覽，連帶不會被選取/匯出/列印。
-      const filtered = reports.filter(r => Boolean(r.clockIn && r.clockOut) && r.overtimeHours >= 0.5);
+      const filtered = recalculated.filter(r => Boolean(r.clockIn && r.clockOut) && r.overtimeHours >= 0.5);
       setFilteredReports(filtered);
       
       // 初始化記錄選擇狀態
@@ -135,8 +160,16 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
       });
       setEditedReasons(initialReasons);
 
-      // 重置國定假日標記、工作地點與備註
-      setHolidayFlags({});
+      // 依主列表強制標記 seed 旗標（key: `${employeeId}__${date}`）
+      const seededHolidayFlags: { [key: string]: boolean } = {};
+      const seededWeekdayFlags: { [key: string]: boolean } = {};
+      filtered.forEach((report) => {
+        const key = `${report.employeeId}__${report.date}`;
+        if (holidayOverrides[key]) seededHolidayFlags[key] = true;
+        if (weekdayOverrides[key]) seededWeekdayFlags[key] = true;
+      });
+      setHolidayFlags(seededHolidayFlags);
+      setWeekdayFlags(seededWeekdayFlags);
       setWorkLocation('');
       setRemarks('');
 
@@ -150,6 +183,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
         }
       }, 0);
     }
+    // 不將 holidayOverrides 納入依賴：僅在開啟當下讀取快照，
+    // 避免 Modal 開啟中由預覽端切換假日造成 effect 重跑而清空已填輸入。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, reports]);
 
   if (!isOpen) return null;
@@ -157,16 +193,41 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   /**
    * 處理國定假日標記切換事件
    * @param {number} index - 記錄索引
+   * @param {string} employeeId - 員工編號
    * @param {string} date - 日期字串
    */
-  const handleHolidayToggle = (index: number, date: string) => {
-    const newIsHoliday = !holidayFlags[date];
-    setHolidayFlags(prev => ({ ...prev, [date]: newIsHoliday }));
+  const handleHolidayToggle = (index: number, employeeId: string, date: string) => {
+    const key = `${employeeId}__${date}`;
+    const newIsHoliday = !holidayFlags[key];
+    setHolidayFlags(prev => ({ ...prev, [key]: newIsHoliday }));
     
     // 重新計算該記錄的加班時數和誤餐費
     const updatedReports = [...filteredReports];
     updatedReports[index] = recalculateOvertimeReport(updatedReports[index], newIsHoliday);
     setFilteredReports(updatedReports);
+
+    // 雙向同步回主列表的「加到例假日加班」標記
+    onToggleHolidayOverride(employeeId, date);
+  };
+
+  /**
+   * 處理「補班日改列平日加班」切換事件（週末記錄專用）
+   * @param {number} index - 記錄索引
+   * @param {string} employeeId - 員工編號
+   * @param {string} date - 日期字串
+   */
+  const handleWeekdayToggle = (index: number, employeeId: string, date: string) => {
+    const key = `${employeeId}__${date}`;
+    const newForceWeekday = !weekdayFlags[key];
+    setWeekdayFlags(prev => ({ ...prev, [key]: newForceWeekday }));
+
+    // 強制平日 → 以 18:00 起算重算；取消 → 回歸自然（週末＝例假日）
+    const updatedReports = [...filteredReports];
+    updatedReports[index] = recalculateOvertimeReport(updatedReports[index], !newForceWeekday);
+    setFilteredReports(updatedReports);
+
+    // 雙向同步回主列表的「加到平日加班」標記
+    onToggleWeekdayOverride(employeeId, date);
   };
 
   /**
@@ -199,33 +260,22 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
       .map((report, index) => ({
         ...report,
         overtimeReason: editedReasons[index] || report.overtimeReason,
-        isHoliday: holidayFlags[report.date] || false,
+        isHoliday: isHolidayRecord(report),
       }))
       .filter((_, index) => recordSelection[index] === true);
   };
 
   /**
-   * 判斷記錄是否為例假日（週六、週日或國定假日）
+   * 判斷記錄是否為例假日（套用強制標記後的最終結果）
+   * 優先序：強制例假日 > 強制平日（補班）> 自然星期幾。
    * @param {OvertimeReport} report - 加班報表
    * @returns {boolean} 是否為例假日
    */
   const isHolidayRecord = (report: OvertimeReport): boolean => {
-    // 如果手動標記為國定假日
-    if (holidayFlags[report.date]) return true;
-    
-    // 解析日期判斷星期幾
-    const dateStr = report.date;
-    if (/^\d{7}$/.test(dateStr)) {
-      const rocYear = parseInt(dateStr.substring(0, 3));
-      const month = parseInt(dateStr.substring(3, 5));
-      const day = parseInt(dateStr.substring(5, 7));
-      const year = rocYear + 1911;
-      const date = new Date(year, month - 1, day);
-      const dayOfWeek = date.getDay();
-      return dayOfWeek === 0 || dayOfWeek === 6; // 週日或週六
-    }
-    
-    return false;
+    const key = `${report.employeeId}__${report.date}`;
+    if (holidayFlags[key]) return true;  // 強制例假日（國定假日落在平日）
+    if (weekdayFlags[key]) return false; // 強制平日（補班日落在週末）
+    return isNaturalHoliday(report.date); // 自然判斷（週六、週日）
   };
 
   /**
@@ -260,7 +310,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
             <tr>
               <th>ITEM</th>
               <th>選擇</th>
-              <th>國定假日</th>
+              <th>假日↔平日</th>
               <th>日期</th>
               <th>考勤別</th>
               <th>上班時間</th>
@@ -302,12 +352,21 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                     />
                   </td>
                   <td>
-                    <input
-                      type="checkbox"
-                      checked={holidayFlags[report.date] || false}
-                      onChange={() => handleHolidayToggle(index, report.date)}
-                      title="勾選表示此日為國定假日"
-                    />
+                    {isNaturalHoliday(report.date) ? (
+                      <input
+                        type="checkbox"
+                        checked={weekdayFlags[`${report.employeeId}__${report.date}`] || false}
+                        onChange={() => handleWeekdayToggle(index, report.employeeId, report.date)}
+                        title="勾選＝補班日，改列「平日加班」（18:00 起算）"
+                      />
+                    ) : (
+                      <input
+                        type="checkbox"
+                        checked={holidayFlags[`${report.employeeId}__${report.date}`] || false}
+                        onChange={() => handleHolidayToggle(index, report.employeeId, report.date)}
+                        title="勾選＝國定假日，改列「例假日加班」（全日計算）"
+                      />
+                    )}
                   </td>
                   <td>{formatDate(report.date)}</td>
                   <td>{report.attendanceType || '-'}</td>
@@ -744,7 +803,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
           <div className="preview-instructions">
             <p>📌 以下顯示有完整上下班刷卡的記錄，已分為「平日加班」與「例假日加班」</p>
             <p>⚠️ 黃色標記為請假日但有打卡記錄，請確認是否包含在申請表中</p>
-            <p>🏖️ 勾選「國定假日」可將平日記錄移至例假日區塊（全時段計算）</p>
+            <p>🏖️「假日↔平日」欄：平日列勾選＝國定假日（移至例假日、全時段計算）；週末列勾選＝補班日（移至平日、18:00 起算）</p>
             <p>
               📝 工作地點最多 {REPORT_WORK_LOCATION_MAX_CHARS} 字；備註欄最多 {REMARK_MAX_LENGTH} 字（每列{' '}
               {REMARK_LINE_LENGTH} 字，共 {REMARK_TOTAL_LINES} 列）

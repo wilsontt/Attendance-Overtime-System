@@ -21,14 +21,57 @@ interface AttendanceTableProps {
   reports: OvertimeReport[];
   /** 加班原因變更回呼函數 */
   onReasonChange: (index: number, newReason: string) => void;
+  /** 「加到例假日加班」強制標記（key: `${employeeId}__${date}`） */
+  holidayOverrides: Record<string, boolean>;
+  /** 切換「加到例假日加班」強制標記回呼函數 */
+  onToggleHolidayOverride: (employeeId: string, date: string) => void;
+  /** 「加到平日加班」強制標記（key: `${employeeId}__${date}`） */
+  weekdayOverrides: Record<string, boolean>;
+  /** 切換「加到平日加班」強制標記回呼函數 */
+  onToggleWeekdayOverride: (employeeId: string, date: string) => void;
 }
+
+/**
+ * 取得日期的星期幾（0=週日 ~ 6=週六），無法解析時回傳 null。
+ * @param {string} dateStr - 歸屬日期（民國年 7 碼格式：1141001）
+ * @returns {number | null} 星期幾
+ */
+const getDayOfWeek = (dateStr: string): number | null => {
+  if (!/^\d{7}$/.test(dateStr)) return null;
+  const year = parseInt(dateStr.substring(0, 3)) + 1911;
+  const month = parseInt(dateStr.substring(3, 5)) - 1;
+  const day = parseInt(dateStr.substring(5, 7));
+  return new Date(year, month, day).getDay();
+};
+
+/**
+ * 判斷日期是否為平日（週一至週五）。
+ * 僅平日記錄需要「加到例假日加班」選項，週六日本即為例假日。
+ * @param {string} dateStr - 歸屬日期（民國年 7 碼格式：1141001）
+ * @returns {boolean} 是否為平日
+ */
+const isWeekday = (dateStr: string): boolean => {
+  const dayOfWeek = getDayOfWeek(dateStr);
+  return dayOfWeek !== null && dayOfWeek >= 1 && dayOfWeek <= 5;
+};
+
+/**
+ * 判斷日期是否為週末（週六或週日）。
+ * 僅週末記錄需要「加到平日加班」選項（補班日落在週末）。
+ * @param {string} dateStr - 歸屬日期（民國年 7 碼格式：1141001）
+ * @returns {boolean} 是否為週末
+ */
+const isWeekend = (dateStr: string): boolean => {
+  const dayOfWeek = getDayOfWeek(dateStr);
+  return dayOfWeek === 0 || dayOfWeek === 6;
+};
 
 /**
  * AttendanceTable 組件
  * @param {AttendanceTableProps} props - 組件屬性
  * @returns {JSX.Element} 出勤表格組件
  */
-const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChange }) => {
+const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChange, holidayOverrides, onToggleHolidayOverride, weekdayOverrides, onToggleWeekdayOverride }) => {
   return (
     <table className="attendance-table">
       <thead>
@@ -42,6 +85,8 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
           <th>加班時間</th>
           <th>加班時數</th>
           <th>誤餐費</th>
+          <th>加到例假日加班</th>
+          <th>加到平日加班</th>
         </tr>
       </thead>
       <tbody>
@@ -86,6 +131,30 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
               <td>{report.overtimeRange}</td>
               <td>{report.overtimeHours.toFixed(2)}</td>
               <td>{report.mealAllowance}</td>
+              <td style={{ textAlign: 'center' }}>
+                {isWeekday(report.date) ? (
+                  <input
+                    type="checkbox"
+                    checked={holidayOverrides[`${report.employeeId}__${report.date}`] || false}
+                    onChange={() => onToggleHolidayOverride(report.employeeId, report.date)}
+                    title="勾選後，下載時此平日記錄將改列入「例假日加班」並以全日重算"
+                  />
+                ) : (
+                  <span style={{ color: '#999' }}>—</span>
+                )}
+              </td>
+              <td style={{ textAlign: 'center' }}>
+                {isWeekend(report.date) ? (
+                  <input
+                    type="checkbox"
+                    checked={weekdayOverrides[`${report.employeeId}__${report.date}`] || false}
+                    onChange={() => onToggleWeekdayOverride(report.employeeId, report.date)}
+                    title="勾選後，下載時此週末（補班）記錄將改列入「平日加班」並以 18:00 起算重算"
+                  />
+                ) : (
+                  <span style={{ color: '#999' }}>—</span>
+                )}
+              </td>
             </tr>
           );
         })}

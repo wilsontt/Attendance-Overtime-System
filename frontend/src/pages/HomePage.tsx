@@ -9,7 +9,7 @@
  * 5. 將使用者最後確認的資料交給匯出服務
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import FileUploader from '../components/FileUploader';
 import { TopTitleNav } from '../components/TopTitleNav';
 import AttendanceTable from '../components/AttendanceTable';
@@ -26,9 +26,29 @@ const HomePage: React.FC = () => {
   /** 原始出勤記錄（從檔案解析而來） */
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   
-  /** 加班報表（計算後的結果） */
-  const [overtimeReports, setOvertimeReports] = useState<OvertimeReport[]>([]);
-  
+  /** 使用者於主列表編輯的加班原因（key: `${employeeId}__${date}`） */
+  const [reasonOverrides, setReasonOverrides] = useState<Record<string, string>>({});
+
+  /** 依出勤記錄計算出的加班報表（衍生狀態，不用 effect） */
+  const calculatedReports = useMemo(
+    () =>
+      attendanceRecords.length > 0
+        ? calculateOvertimeAndMealAllowance(attendanceRecords)
+        : [],
+    [attendanceRecords]
+  );
+
+  /** 合併計算結果與使用者編輯的加班原因 */
+  const overtimeReports = useMemo(
+    () =>
+      calculatedReports.map((report) => {
+        const key = `${report.employeeId}__${report.date}`;
+        const override = reasonOverrides[key];
+        return override !== undefined ? { ...report, overtimeReason: override } : report;
+      }),
+    [calculatedReports, reasonOverrides]
+  );
+
   /** 姓名篩選條件 */
   const [filterName, setFilterName] = useState<string>('');
   
@@ -44,16 +64,18 @@ const HomePage: React.FC = () => {
   const [rawTxtContent, setRawTxtContent] = useState<string>('');
 
   /**
-   * 當出勤記錄變更時，自動計算加班時數與誤餐費
+   * 「加到例假日加班」強制標記（key: `${employeeId}__${date}`，value: 是否強制列為例假日）。
+   * 適用於國定假日落在平日（如勞動節落在週五）但有加班，需以例假日全日規則申報。
+   * 由主列表與預覽 Modal 共用並雙向同步。
    */
-  useEffect(() => {
-    if (attendanceRecords.length > 0) {
-      const reports = calculateOvertimeAndMealAllowance(attendanceRecords);
-      setOvertimeReports(reports);
-    } else {
-      setOvertimeReports([]);
-    }
-  }, [attendanceRecords]);
+  const [holidayOverrides, setHolidayOverrides] = useState<Record<string, boolean>>({});
+
+  /**
+   * 「加到平日加班」強制標記（key: `${employeeId}__${date}`，value: 是否強制列為平日）。
+   * 適用於補班日落在週末（如補班日落在週六）但有加班，需以平日 18:00 起算規則申報。
+   * 由主列表與預覽 Modal 共用並雙向同步。
+   */
+  const [weekdayOverrides, setWeekdayOverrides] = useState<Record<string, boolean>>({});
 
   /**
    * 處理檔案上傳完成事件
@@ -65,6 +87,9 @@ const HomePage: React.FC = () => {
     fileType: 'txt' | 'csv'
   ) => {
     setAttendanceRecords(records);
+    setReasonOverrides({});
+    setHolidayOverrides({});
+    setWeekdayOverrides({});
     setRawTxtContent(fileType === 'txt' ? uploadedRawTxtContent : '');
   };
 
@@ -94,12 +119,28 @@ const HomePage: React.FC = () => {
     const targetReport = filteredReports[index];
     if (!targetReport) return;
 
-    setOvertimeReports(prev => prev.map(report => {
-      if (report.employeeId === targetReport.employeeId && report.date === targetReport.date) {
-        return { ...report, overtimeReason: newReason };
-      }
-      return report;
-    }));
+    const key = `${targetReport.employeeId}__${targetReport.date}`;
+    setReasonOverrides(prev => ({ ...prev, [key]: newReason }));
+  };
+
+  /**
+   * 切換「加到例假日加班」強制標記（主列表與預覽 Modal 雙向同步使用）
+   * @param {string} employeeId - 員工編號
+   * @param {string} date - 歸屬日期
+   */
+  const handleToggleHolidayOverride = (employeeId: string, date: string) => {
+    const key = `${employeeId}__${date}`;
+    setHolidayOverrides(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  /**
+   * 切換「加到平日加班」強制標記（補班日落在週末用；主列表與預覽 Modal 雙向同步）
+   * @param {string} employeeId - 員工編號
+   * @param {string} date - 歸屬日期
+   */
+  const handleToggleWeekdayOverride = (employeeId: string, date: string) => {
+    const key = `${employeeId}__${date}`;
+    setWeekdayOverrides(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   /**
@@ -210,7 +251,14 @@ const HomePage: React.FC = () => {
               style={{ padding: '8px' }}
             />
           </div>
-          <AttendanceTable reports={filteredReports} onReasonChange={handleReasonChange} />
+          <AttendanceTable
+            reports={filteredReports}
+            onReasonChange={handleReasonChange}
+            holidayOverrides={holidayOverrides}
+            onToggleHolidayOverride={handleToggleHolidayOverride}
+            weekdayOverrides={weekdayOverrides}
+            onToggleWeekdayOverride={handleToggleWeekdayOverride}
+          />
           
           {/* 所有匯出入口都先進入預覽 Modal，避免直接下載錯誤資料。 */}
           <div style={{ marginTop: '20px' }}>
@@ -225,6 +273,10 @@ const HomePage: React.FC = () => {
           <PreviewModal
             reports={filteredReports}
             rawTxtContent={rawTxtContent}
+            holidayOverrides={holidayOverrides}
+            onToggleHolidayOverride={handleToggleHolidayOverride}
+            weekdayOverrides={weekdayOverrides}
+            onToggleWeekdayOverride={handleToggleWeekdayOverride}
             isOpen={isPreviewModalOpen}
             onClose={handleClosePreview}
             onDownloadExcel={handleDownloadExcel}
