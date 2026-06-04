@@ -11,7 +11,7 @@
  * 6. 驗證必填欄位後下載 Excel/PDF 或列印
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { OvertimeReport } from '../types';
 import { recalculateOvertimeReport } from '../services/calculationService';
 import {
@@ -96,13 +96,20 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   /** 加班原因編輯狀態（key: index, value: reason） */
   const [editedReasons, setEditedReasons] = useState<{ [key: number]: string }>({});
 
+  /** 平日加班工作地點輸入框（開啟時自動聚焦） */
+  const weekdayWorkLocationRef = useRef<HTMLInputElement>(null);
+
+  /** 例假日加班工作地點輸入框（無平日加班時的聚焦備援） */
+  const holidayWorkLocationRef = useRef<HTMLInputElement>(null);
+
   /**
    * 當 Modal 開啟時，初始化狀態
    */
   useEffect(() => {
     if (isOpen) {
-      // 過濾有完整上下班刷卡時間的記錄
-      const filtered = reports.filter(r => Boolean(r.clockIn && r.clockOut));
+      // 過濾有完整刷卡且加班時數達門檻（>= 0.5 小時）的記錄；
+      // 未達加班標準的日子（如未達 30 分鐘）不進入預覽，連帶不會被選取/匯出/列印。
+      const filtered = reports.filter(r => Boolean(r.clockIn && r.clockOut) && r.overtimeHours >= 0.5);
       setFilteredReports(filtered);
       
       // 初始化記錄選擇狀態
@@ -132,6 +139,16 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
       setHolidayFlags({});
       setWorkLocation('');
       setRemarks('');
+
+      // 開啟後將游標停在平日加班工作地點（無平日加班時退而聚焦例假日）。
+      // 以 setTimeout 等待 DOM 完成渲染後再聚焦。
+      setTimeout(() => {
+        if (weekdayWorkLocationRef.current) {
+          weekdayWorkLocationRef.current.focus();
+        } else {
+          holidayWorkLocationRef.current?.focus();
+        }
+      }, 0);
     }
   }, [isOpen, reports]);
 
@@ -715,8 +732,8 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay">
+      <div className="modal-content">
         <div className="modal-header">
           <h2>加班申請預覽</h2>
           <button className="close-button" onClick={onClose}>×</button>
@@ -753,6 +770,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                   </label>
                   <input
                     type="text"
+                    ref={weekdayWorkLocationRef}
                     value={workLocation}
                     maxLength={REPORT_WORK_LOCATION_MAX_CHARS}
                     onChange={(e) => setWorkLocation(normalizeWorkLocationInput(e.target.value))}
@@ -802,6 +820,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                   <div className="input-with-copy">
                     <input
                       type="text"
+                      ref={holidayWorkLocationRef}
                       value={holidayWorkLocation}
                       maxLength={REPORT_WORK_LOCATION_MAX_CHARS}
                       onChange={(e) => setHolidayWorkLocation(normalizeWorkLocationInput(e.target.value))}

@@ -40,7 +40,7 @@ src/
 
 1. **輸入**：`FileUploader` 上傳 CSV（react-papaparse）或 TXT（自訂 `txtParser`），解析為 `AttendanceRecord[]`
 2. **計算**：`HomePage` 呼叫 `calculateOvertimeAndMealAllowance()`，將記錄轉為 `OvertimeReport[]`（此時 `isHoliday` 全部預設 `false`，`attendanceType` 記錄自動填入加班原因 `請{attendanceType}`）
-3. **預覽**：`PreviewModal` 維護**自身獨立的報表副本**：使用者可勾選記錄、逐筆切換 `isHoliday`（切換後呼叫 `recalculateOvertimeReport()` 重新計算該筆時數）、填寫工作地點與備註
+3. **預覽**：`PreviewModal` 維護**自身獨立的報表副本**：開啟時僅保留「有完整刷卡且 `overtimeHours >= 0.5`」的記錄（未達加班標準的日子，如未達 30 分鐘，不進入預覽，連帶不被選取/匯出/列印）；使用者可勾選記錄、逐筆切換 `isHoliday`（切換後呼叫 `recalculateOvertimeReport()` 重新計算該筆時數）、填寫工作地點與備註
 4. **匯出**：`reportService`（Excel/PDF）或瀏覽器列印，確認前先驗證必填欄位
 
 ### 核心資料型別（`src/types/index.ts`）
@@ -77,6 +77,11 @@ src/
 
 ### PreviewModal 的狀態隔離
 PreviewModal 在開啟時以 `props.reports` 為初始值，建立自己的 state。對 `isHoliday` 的切換、勾選狀態等都只存在於 Modal 內部，不會回寫 `HomePage` 的狀態。匯出時才將 Modal 內部整理好的資料往上傳遞給 callback。
+
+開啟時行為：初始化只保留 `overtimeHours >= 0.5` 的記錄（未達門檻日不顯示），並自動將游標聚焦至「平日加班資訊」的工作地點輸入框（無平日加班時退而聚焦例假日）。
+
+### PreviewModal 為鎖定式 Modal
+`modal-overlay` 不綁定點擊關閉，點擊預覽頁外框不會關閉；僅能透過「取消」按鈕或右上「×」呼叫 `onClose` 跳回前一頁。
 
 ### PDF 匯出
 使用 `html2canvas` + `jspdf` 將 HTML 渲染至畫布再轉為 PDF，繞過 jspdf 原生字型引擎無法正確顯示繁體中文的問題。**樣式必須內嵌至 HTML 中**；外部連結的 CSS 可能無法被 html2canvas 渲染。
