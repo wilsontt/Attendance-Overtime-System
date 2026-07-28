@@ -74,6 +74,8 @@ const HomePage: React.FC = () => {
         const overrideReason = reasonOverrides[key];
         
         const finalReason = overrideReason !== undefined ? overrideReason : report.overtimeReason;
+        // 如果原本是空白，不自動幫忙填寫 "忘記打卡補登"
+        // 使用者仍須手動在「加班原因」欄位輸入
         
         return { ...report, overtimeReason: finalReason };
       }),
@@ -199,6 +201,7 @@ const HomePage: React.FC = () => {
    */
   const handleOpenPreview = () => {
     // 檢查是否有原始缺卡且「已開始補登但未完成」的記錄
+    // 檢查是否有原始缺卡但「尚未補登完成」或「完全沒動」的記錄
     const incompletePunches = filteredReports.filter(report => {
       const originallyMissingIn = !report.originalClockIn;
       const originallyMissingOut = !report.originalClockOut;
@@ -207,6 +210,7 @@ const HomePage: React.FC = () => {
         const key = `${report.employeeId}__${report.date}`;
         const override = punchOverrides[key];
         
+        // 如果使用者有填寫任何一欄 (上班、下班、或理由)
         const hasStartedPunching = override && (override.clockIn || override.clockOut || override.reason?.trim());
         
         if (hasStartedPunching) {
@@ -214,14 +218,12 @@ const HomePage: React.FC = () => {
           const hasClockOut = Boolean(report.originalClockOut || override.clockOut);
           const hasReason = Boolean(override.reason?.trim());
           
+          // 若已開始補登，但沒有全部填完，則視為未完成
           return !(hasClockIn && hasClockOut && hasReason);
         }
         
-        const hasClockIn = Boolean(report.originalClockIn || override?.clockIn);
-        const hasClockOut = Boolean(report.originalClockOut || override?.clockOut);
-        const hasReason = Boolean(override?.reason?.trim());
-        
-        return !(hasClockIn && hasClockOut && hasReason);
+        // 如果連動都沒動，也是未完成
+        return true;
       }
       return false;
     });

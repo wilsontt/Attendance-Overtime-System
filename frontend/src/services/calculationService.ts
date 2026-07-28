@@ -116,9 +116,10 @@ const getDayOfWeek = (dateStr: string): number | null => {
       return null;
     }
     return date.getDay();
-  } catch (e) {
-    return null;
-  }
+    } catch (error) {
+      console.error('Failed to parse date:', error);
+      return null;
+    }
 };
 
 /**

@@ -49,21 +49,7 @@ export interface AttendanceRecord {
  * 1. 繼承 AttendanceRecord 的基本資訊
  * 2. 加入計算後的加班時數、誤餐費、加班時間範圍等欄位
  */
-export interface OvertimeReport {
-  /** 員工編號 */
-  employeeId: string;
-  /** 員工姓名 */
-  name: string;
-  /** 歸屬日期（民國年格式：1141001 或西元格式） */
-  date: string;
-  /** 考勤別（事假、病假、請年休假、公假或空白） */
-  attendanceType?: string;
-  /** 請假數量（天數） */
-  leaveQuantity?: number;
-  /** 上班打卡時間（格式：HH:mm） */
-  clockIn: string;
-  /** 下班打卡時間（格式：HH:mm） */
-  clockOut: string;
+export interface OvertimeReport extends AttendanceRecord {
   /** 計算後的加班時數（單位：小時，對齊到 0.5 小時） */
   overtimeHours: number;
   /** 誤餐費金額（平日下班 >= 19:30 給予 $50） */

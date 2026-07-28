@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, fireEvent, screen, cleanup, waitFor } from '@testing-library/react';
 import FileUploader from '../../src/components/FileUploader';
-import Papa from 'papaparse';
+    // no Papa reference
 
 // Mock papaparse to control its behavior during tests
 vi.mock('papaparse', () => ({

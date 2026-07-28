@@ -19,44 +19,44 @@ describe('calculateOvertimeAndMealAllowance', () => {
   // Test cases for weekday overtime (Mon-Fri, 18:00 onwards) and meal allowance (>= 19:30)
   it('should calculate weekday overtime and meal allowance correctly', () => {
     // Weekday, ends before 19:30, no meal allowance
-    let records = [createRecord('2025-10-06', '09:00', '19:00')]; // Monday
-    let result = calculateOvertimeAndMealAllowance(records);
-    expect(result[0].overtimeHours).toBe(1.0); // 18:00 to 19:00
-    expect(result[0].mealAllowance).toBe(0);
+    const records1 = [createRecord('2025-10-06', '09:00', '19:00')]; // Monday
+    const result1 = calculateOvertimeAndMealAllowance(records1);
+    expect(result1[0].overtimeHours).toBe(1.0); // 18:00 to 19:00
+    expect(result1[0].mealAllowance).toBe(0);
 
     // Weekday, ends at 19:30, with meal allowance
-    records = [createRecord('2025-10-07', '09:00', '19:30')]; // Tuesday
-    result = calculateOvertimeAndMealAllowance(records);
-    expect(result[0].overtimeHours).toBe(1.5); // 18:00 to 19:30
-    expect(result[0].mealAllowance).toBe(50);
+    const records2 = [createRecord('2025-10-07', '09:00', '19:30')]; // Tuesday
+    const result2 = calculateOvertimeAndMealAllowance(records2);
+    expect(result2[0].overtimeHours).toBe(1.5); // 18:00 to 19:30
+    expect(result2[0].mealAllowance).toBe(50);
 
     // Weekday, ends after 19:30, with meal allowance
-    records = [createRecord('2025-10-08', '09:00', '20:00')]; // Wednesday
-    result = calculateOvertimeAndMealAllowance(records);
-    expect(result[0].overtimeHours).toBe(2.0); // 18:00 to 20:00
-    expect(result[0].mealAllowance).toBe(50);
+    const records3 = [createRecord('2025-10-08', '09:00', '20:00')]; // Wednesday
+    const result3 = calculateOvertimeAndMealAllowance(records3);
+    expect(result3[0].overtimeHours).toBe(2.0); // 18:00 to 20:00
+    expect(result3[0].mealAllowance).toBe(50);
   });
 
   // Test cases for weekend overtime (all hours are overtime) and no meal allowance
   it('should calculate weekend overtime correctly with no meal allowance', () => {
     // Saturday
-    let records = [createRecord('2025-10-04', '09:00', '17:00')]; // Saturday
-    let result = calculateOvertimeAndMealAllowance(records);
-    expect(result[0].overtimeHours).toBe(8.0); // 09:00 to 17:00
-    expect(result[0].mealAllowance).toBe(0);
+    const records1 = [createRecord('2025-10-04', '09:00', '17:00')]; // Saturday
+    const result1 = calculateOvertimeAndMealAllowance(records1);
+    expect(result1[0].overtimeHours).toBe(8.0); // 09:00 to 17:00
+    expect(result1[0].mealAllowance).toBe(0);
 
     // Sunday
-    records = [createRecord('2025-10-05', '10:00', '18:00')]; // Sunday
-    result = calculateOvertimeAndMealAllowance(records);
-    expect(result[0].overtimeHours).toBe(8.0); // 10:00 to 18:00
-    expect(result[0].mealAllowance).toBe(0);
+    const records2 = [createRecord('2025-10-05', '10:00', '18:00')]; // Sunday
+    const result2 = calculateOvertimeAndMealAllowance(records2);
+    expect(result2[0].overtimeHours).toBe(8.0); // 10:00 to 18:00
+    expect(result2[0].mealAllowance).toBe(0);
   });
 
   // Test cases for no overtime
   it('should handle records with no overtime', () => {
     // Weekday, leaves before 18:00
-    let records = [createRecord('2025-10-09', '09:00', '17:00')]; // Thursday
-    let result = calculateOvertimeAndMealAllowance(records);
+    const records = [createRecord('2025-10-09', '09:00', '17:00')]; // Thursday
+    const result = calculateOvertimeAndMealAllowance(records);
     expect(result[0].overtimeHours).toBe(0);
     expect(result[0].mealAllowance).toBe(0);
   });

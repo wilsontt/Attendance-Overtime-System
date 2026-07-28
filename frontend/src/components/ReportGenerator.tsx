@@ -7,7 +7,7 @@
  * - 依預覽類型觸發 Excel / PDF / 列印
  * - 提供 html2canvas 轉 PDF 所需的隱藏 DOM
  */
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -37,28 +37,55 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
   selectedReports = [], 
   workLocation, 
   previewType,
-  onOpenPreview 
+  // onOpenPreview  // 已被移除的屬性，如果 HomePage.tsx 仍有傳遞，可能需要更新 HomePage.tsx
 }) => {
   /** 提供 PDF 截圖用的隱藏內容節點。 */
   const printRef = useRef<HTMLDivElement>(null);
 
-  // 當 selectedReports 有變化時，執行對應的報表生成
-  useEffect(() => {
-    if (selectedReports.length > 0) {
-      if (previewType === 'excel') {
-        generateExcel();
-      } else if (previewType === 'pdf') {
-        generatePdf();
-      } else if (previewType === 'print') {
-        printReport();
-      }
+  const generatePdf = useCallback(async () => {
+    if (!printRef.current || selectedReports.length === 0) return;
+
+    try {
+      // 暫時顯示元素以供 html2canvas 截圖
+      printRef.current.style.display = 'block';
+
+      const canvas = await html2canvas(printRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        windowWidth: printRef.current.scrollWidth,
+        windowHeight: printRef.current.scrollHeight
+      });
+      
+      // 隱藏元素
+      printRef.current.style.display = 'none';
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      
+      const firstReport = selectedReports[0];
+      const employeeName = `${firstReport.employeeId} ${firstReport.name}`;
+      pdf.save(`員工加班申請表-${employeeName}.pdf`);
+    } catch (error) {
+      console.error('PDF 生成失敗:', error);
+      alert('PDF 生成失敗，請稍後再試');
     }
-  }, [selectedReports, previewType]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedReports]);
+
+
+
+
+
+
 
   /**
    * 以簡化版樣板輸出單一工作表 Excel。
    */
-  const generateExcel = async () => {
+  const generateExcel = useCallback(async () => {
     if (selectedReports.length === 0) return;
 
     const workbook = new ExcelJS.Workbook();
@@ -106,17 +133,19 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
     const headerRow = worksheet.addRow(['日期', '時間', '加班原因', '加班時數', '誤餐費']);
     headerRow.font = { bold: true };
     headerRow.eachCell(cell => {
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFD3D3D3' }
-      };
-      cell.border = {
-        top: { style: 'thin' },
-        left: { style: 'thin' },
-        bottom: { style: 'thin' },
-        right: { style: 'thin' }
-      };
+      if (cell.type !== ExcelJS.ValueType.Null) {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFD3D3D3' }
+        };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+      }
     });
 
     // 資料列
@@ -130,12 +159,14 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
       ]);
       
       row.eachCell(cell => {
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
-        };
+        if (cell.type !== ExcelJS.ValueType.Null) {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
+        }
       });
     });
 
@@ -155,49 +186,12 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
     a.download = `員工加班申請表-${employeeName}-${yearMonth}.xlsx`;
     a.click();
     window.URL.revokeObjectURL(url);
-  };
-
-  /**
-   * 將隱藏的報表 DOM 轉成畫布，再嵌入 PDF。
-   */
-  const generatePdf = async () => {
-    if (!printRef.current || selectedReports.length === 0) return;
-
-    try {
-      // 暫時顯示元素以供 html2canvas 截圖
-      printRef.current.style.display = 'block';
-
-      const canvas = await html2canvas(printRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        windowWidth: printRef.current.scrollWidth,
-        windowHeight: printRef.current.scrollHeight
-      });
-      
-      // 隱藏元素
-      printRef.current.style.display = 'none';
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      
-      const firstReport = selectedReports[0];
-      const employeeName = `${firstReport.employeeId} ${firstReport.name}`;
-      pdf.save(`員工加班申請表-${employeeName}.pdf`);
-    } catch (error) {
-      console.error('PDF 生成失敗:', error);
-      alert('PDF 生成失敗，請稍後再試');
-    }
-  };
+  }, [selectedReports, workLocation]);
 
   /**
    * 在新視窗產生列印版 HTML，交給瀏覽器列印。
    */
-  const printReport = () => {
+  const printReport = useCallback(() => {
     if (selectedReports.length === 0) return;
 
     const firstReport = selectedReports[0];
@@ -281,112 +275,27 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({
       };
       
       if (printWindow.document.readyState === 'complete') {
-         setTimeout(() => {
-      printWindow.print();
+        setTimeout(() => {
+          printWindow.print();
         }, 500);
       }
     }
-  };
+  }, [selectedReports, workLocation]);
 
-  // 準備 PDF 生成的資料
-  /**
-   * 取得 PDF 標頭區塊需要的最小資料集。
-   */
-  const getPdfContent = () => {
-    if (selectedReports.length === 0) return null;
-
-    const firstReport = selectedReports[0];
-    const employeeName = `${firstReport.employeeId} ${firstReport.name}`;
-    
-    // 取得申請年月
-    const dateStr = firstReport.date;
-    let yearMonth = '';
-    if (/^\d{7}$/.test(dateStr)) {
-      const rocYear = dateStr.substring(0, 3);
-      const month = dateStr.substring(3, 5);
-      yearMonth = `${rocYear}年${month}月`;
+  // 當 selectedReports 有變化時，執行對應的報表生成
+  useEffect(() => {
+    if (selectedReports.length > 0) {
+      if (previewType === 'excel') {
+        generateExcel();
+      } else if (previewType === 'pdf') {
+        generatePdf();
+      } else if (previewType === 'print') {
+        printReport();
+      }
     }
+  }, [selectedReports, previewType, generateExcel, generatePdf, printReport]);
 
-    return { employeeName, yearMonth };
-  };
-
-  const pdfData = getPdfContent();
-
-  return (
-    <div style={{ marginTop: '20px' }}>
-      <button 
-        onClick={() => onOpenPreview('excel')} 
-        style={{ marginRight: '10px', padding: '10px 15px' }}
-      >
-        下載 Excel
-      </button>
-      <button 
-        onClick={() => onOpenPreview('pdf')} 
-        style={{ marginRight: '10px', padding: '10px 15px' }}
-      >
-        下載 PDF
-      </button>
-      <button 
-        onClick={() => onOpenPreview('print')} 
-        style={{ padding: '10px 15px' }}
-      >
-        列印報告
-      </button>
-
-      {/* 隱藏的 PDF 生成專用表格 */}
-      {pdfData && (
-        <div 
-          ref={printRef} 
-          style={{ 
-            display: 'none',
-            position: 'fixed', 
-            top: 0, 
-            left: -10000, 
-            width: '210mm',
-            minHeight: '297mm',
-            padding: '20mm', 
-            backgroundColor: 'white', 
-            color: 'black',
-            fontFamily: '"Microsoft JhengHei", "Heiti TC", sans-serif'
-          }}
-        >
-          <h2 style={{ textAlign: 'center', marginBottom: '10px', fontSize: '20px' }}>
-            海灣國際股份有限公司員工加班申請表
-          </h2>
-          <div style={{ textAlign: 'center', marginBottom: '20px', fontSize: '14px' }}>
-            申請年月：{pdfData.yearMonth}
-          </div>
-          <div style={{ marginBottom: '15px', fontSize: '14px' }}>
-            <div style={{ marginBottom: '5px' }}>員工姓名：{pdfData.employeeName}</div>
-            <div style={{ marginBottom: '5px' }}>工作地點：{workLocation}</div>
-            <div>備註：</div>
-          </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f0f0f0' }}>
-                <th style={{ border: '1px solid black', padding: '6px 8px', textAlign: 'left' }}>日期</th>
-                <th style={{ border: '1px solid black', padding: '6px 8px', textAlign: 'left' }}>時間</th>
-                <th style={{ border: '1px solid black', padding: '6px 8px', textAlign: 'left' }}>加班原因</th>
-                <th style={{ border: '1px solid black', padding: '6px 8px', textAlign: 'left' }}>加班時數</th>
-                <th style={{ border: '1px solid black', padding: '6px 8px', textAlign: 'left' }}>誤餐費</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selectedReports.map((report, index) => (
-                <tr key={index}>
-                  <td style={{ border: '1px solid black', padding: '6px 8px' }}>{report.date}</td>
-                  <td style={{ border: '1px solid black', padding: '6px 8px' }}>{report.overtimeRange}</td>
-                  <td style={{ border: '1px solid black', padding: '6px 8px' }}>{report.overtimeReason || ''}</td>
-                  <td style={{ border: '1px solid black', padding: '6px 8px' }}>{report.overtimeHours.toFixed(2)}</td>
-                  <td style={{ border: '1px solid black', padding: '6px 8px' }}>{report.mealAllowance}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
+  return null;
 };
 
 export default ReportGenerator;
