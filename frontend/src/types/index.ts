@@ -35,6 +35,10 @@ export interface AttendanceRecord {
   clockIn: string;
   /** 下班打卡時間（格式：HH:mm） */
   clockOut: string;
+  /** 原始上班打卡時間（用於判斷是否缺卡需補登） */
+  originalClockIn?: string;
+  /** 原始下班打卡時間（用於判斷是否缺卡需補登） */
+  originalClockOut?: string;
 }
 
 /**

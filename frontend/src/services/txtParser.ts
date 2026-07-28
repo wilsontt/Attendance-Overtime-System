@@ -79,20 +79,35 @@ function parseRecord(lines: string[]): ParsedRecord | null {
   }
 
   // 提取刷卡時間
-  const times: string[] = [];
+  let clockIn = '';
+  let clockOut = '';
+  const fallbackTimes: string[] = [];
   
   for (const line of lines) {
     // 匹配刷卡時間（格式：1141104 08:38 或在行尾）
     // 格式1: "1141104 08:38    正常/異常/符合"
     const timeMatch = line.match(/\d{7}\s+(\d{2}:\d{2})\s+(?:正常|異常|符合)/);
     if (timeMatch) {
-      times.push(timeMatch[1]);
+      if (line.includes('上班/')) {
+        clockIn = timeMatch[1];
+      } else if (line.includes('下班/')) {
+        clockOut = timeMatch[1];
+      } else {
+        fallbackTimes.push(timeMatch[1]);
+      }
     }
   }
 
-  // 第一個時間是上班時間，第二個是下班時間
-  result.clockIn = times[0] || '';
-  result.clockOut = times[1] || '';
+  // 處理未明確標示上班/下班的情境（依序補齊空缺）
+  if (!clockIn && fallbackTimes.length > 0) {
+    clockIn = fallbackTimes.shift() || '';
+  }
+  if (!clockOut && fallbackTimes.length > 0) {
+    clockOut = fallbackTimes.shift() || '';
+  }
+
+  result.clockIn = clockIn;
+  result.clockOut = clockOut;
 
   return result;
 }

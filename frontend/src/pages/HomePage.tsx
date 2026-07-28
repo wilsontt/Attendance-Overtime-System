@@ -15,8 +15,9 @@ import { TopTitleNav } from '../components/TopTitleNav';
 import AttendanceTable from '../components/AttendanceTable';
 import PreviewModal from '../components/PreviewModal';
 import type { AttendanceRecord, OvertimeReport } from '../types';
-import { calculateOvertimeAndMealAllowance } from '../services/calculationService';
+import { calculateOvertimeAndMealAllowance, isNaturalHoliday } from '../services/calculationService';
 import { generateExcelReport, generatePdfReport, printReport } from '../services/reportService';
+import { formatDate } from '../utils/dateFormatter';
 
 /**
  * HomePage 組件
@@ -29,13 +30,40 @@ const HomePage: React.FC = () => {
   /** 使用者於主列表編輯的加班原因（key: `${employeeId}__${date}`） */
   const [reasonOverrides, setReasonOverrides] = useState<Record<string, string>>({});
 
+  /** 忘記打卡補登狀態（key: `${employeeId}__${date}`） */
+  const [punchOverrides, setPunchOverrides] = useState<Record<string, { clockIn?: string, clockOut?: string, reason?: string }>>({});
+
+  /** 處理忘記打卡時間與理由補登 */
+  const handlePunchOverride = (employeeId: string, date: string, field: 'clockIn' | 'clockOut' | 'reason', value: string) => {
+    const key = `${employeeId}__${date}`;
+    setPunchOverrides(prev => ({
+      ...prev,
+      [key]: { ...prev[key], [field]: value }
+    }));
+  };
+
+  /** 合併原始記錄與使用者補登的上下班時間 */
+  const recordsWithPunchOverrides = useMemo(() => {
+    return attendanceRecords.map((record) => {
+      const key = `${record.employeeId}__${record.date}`;
+      const override = punchOverrides[key];
+      return {
+        ...record,
+        originalClockIn: record.clockIn,
+        originalClockOut: record.clockOut,
+        clockIn: override?.clockIn || record.clockIn,
+        clockOut: override?.clockOut || record.clockOut,
+      };
+    });
+  }, [attendanceRecords, punchOverrides]);
+
   /** 依出勤記錄計算出的加班報表（衍生狀態，不用 effect） */
   const calculatedReports = useMemo(
     () =>
-      attendanceRecords.length > 0
-        ? calculateOvertimeAndMealAllowance(attendanceRecords)
+      recordsWithPunchOverrides.length > 0
+        ? calculateOvertimeAndMealAllowance(recordsWithPunchOverrides)
         : [],
-    [attendanceRecords]
+    [recordsWithPunchOverrides]
   );
 
   /** 合併計算結果與使用者編輯的加班原因 */
@@ -43,8 +71,11 @@ const HomePage: React.FC = () => {
     () =>
       calculatedReports.map((report) => {
         const key = `${report.employeeId}__${report.date}`;
-        const override = reasonOverrides[key];
-        return override !== undefined ? { ...report, overtimeReason: override } : report;
+        const overrideReason = reasonOverrides[key];
+        
+        const finalReason = overrideReason !== undefined ? overrideReason : report.overtimeReason;
+        
+        return { ...report, overtimeReason: finalReason };
       }),
     [calculatedReports, reasonOverrides]
   );
@@ -90,6 +121,7 @@ const HomePage: React.FC = () => {
     setReasonOverrides({});
     setHolidayOverrides({});
     setWeekdayOverrides({});
+    setPunchOverrides({});
     setRawTxtContent(fileType === 'txt' ? uploadedRawTxtContent : '');
   };
 
@@ -143,10 +175,81 @@ const HomePage: React.FC = () => {
     setWeekdayOverrides(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  /** 彙整忘記打卡理由作為預設備註 */
+  const { defaultWeekdayRemarks, defaultHolidayRemarks } = useMemo(() => {
+    let weekday = '';
+    let holiday = '';
+    Object.entries(punchOverrides).forEach(([key, override]) => {
+      if (override.reason?.trim()) {
+        const [, date] = key.split('__');
+        const isHoliday = holidayOverrides[key] || (!weekdayOverrides[key] && isNaturalHoliday(date));
+        const text = `${formatDate(date).split(' ')[0]}補登：${override.reason}。 `;
+        if (isHoliday) {
+          holiday += text;
+        } else {
+          weekday += text;
+        }
+      }
+    });
+    return { defaultWeekdayRemarks: weekday, defaultHolidayRemarks: holiday };
+  }, [punchOverrides, holidayOverrides, weekdayOverrides]);
+
   /**
    * 開啟預覽 Modal
    */
   const handleOpenPreview = () => {
+    // 檢查是否有原始缺卡且「已開始補登但未完成」的記錄
+    const incompletePunches = filteredReports.filter(report => {
+      const originallyMissingIn = !report.originalClockIn;
+      const originallyMissingOut = !report.originalClockOut;
+      
+      if (originallyMissingIn || originallyMissingOut) {
+        const key = `${report.employeeId}__${report.date}`;
+        const override = punchOverrides[key];
+        
+        const hasStartedPunching = override && (override.clockIn || override.clockOut || override.reason?.trim());
+        
+        if (hasStartedPunching) {
+          const hasClockIn = Boolean(report.originalClockIn || override.clockIn);
+          const hasClockOut = Boolean(report.originalClockOut || override.clockOut);
+          const hasReason = Boolean(override.reason?.trim());
+          
+          return !(hasClockIn && hasClockOut && hasReason);
+        }
+        
+        const hasClockIn = Boolean(report.originalClockIn || override?.clockIn);
+        const hasClockOut = Boolean(report.originalClockOut || override?.clockOut);
+        const hasReason = Boolean(override?.reason?.trim());
+        
+        return !(hasClockIn && hasClockOut && hasReason);
+      }
+      return false;
+    });
+
+    if (incompletePunches.length > 0) {
+      const errList = incompletePunches.map(r => ` - ${r.name} ${formatDate(r.date).split(' ')[0]}`).join('\n');
+      alert(`您有缺卡記錄尚未補登完成！\n請確保缺卡記錄的「上班時間」、「下班時間」及「缺卡備註」皆已填寫。\n\n未完成名單：\n${errList}`);
+      return;
+    }
+
+    // 檢查一般加班原因是否都有填寫 (包含補登後的記錄，如果有達到加班門檻)
+    const missingOvertimeReasons = filteredReports.filter(report => {
+      const isLeaveDay = report.attendanceType && report.attendanceType !== '空' && report.attendanceType !== '';
+      const isUnderThreshold = report.overtimeHours < 0.5;
+      
+      // 有完整打卡 (含補登)、非請假、達到門檻，就必須填寫加班原因
+      if (report.clockIn && report.clockOut && !isLeaveDay && !isUnderThreshold) {
+        return !report.overtimeReason?.trim();
+      }
+      return false;
+    });
+
+    if (missingOvertimeReasons.length > 0) {
+      const errList = missingOvertimeReasons.map(r => ` - ${r.name} ${formatDate(r.date).split(' ')[0]}`).join('\n');
+      alert(`您有加班記錄尚未填寫「加班原因」！\n請確保所有符合加班條件的記錄都已填寫加班原因。\n\n未填寫名單：\n${errList}`);
+      return;
+    }
+
     setIsPreviewModalOpen(true);
   };
 
@@ -258,6 +361,8 @@ const HomePage: React.FC = () => {
             onToggleHolidayOverride={handleToggleHolidayOverride}
             weekdayOverrides={weekdayOverrides}
             onToggleWeekdayOverride={handleToggleWeekdayOverride}
+            punchOverrides={punchOverrides}
+            onPunchOverride={handlePunchOverride}
           />
           
           {/* 所有匯出入口都先進入預覽 Modal，避免直接下載錯誤資料。 */}
@@ -282,6 +387,8 @@ const HomePage: React.FC = () => {
             onDownloadExcel={handleDownloadExcel}
             onDownloadPdf={handleDownloadPdf}
             onPrint={handlePrint}
+            defaultWeekdayRemarks={defaultWeekdayRemarks}
+            defaultHolidayRemarks={defaultHolidayRemarks}
           />
         </>
       )}

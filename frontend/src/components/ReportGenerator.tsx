@@ -34,7 +34,7 @@ interface ReportGeneratorProps {
  */
 const ReportGenerator: React.FC<ReportGeneratorProps> = ({ 
   // reports, // 未使用，但保留在 props 中以維持介面相容性
-  selectedReports, 
+  selectedReports = [], 
   workLocation, 
   previewType,
   onOpenPreview 

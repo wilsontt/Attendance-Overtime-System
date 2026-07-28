@@ -29,6 +29,10 @@ interface AttendanceTableProps {
   weekdayOverrides: Record<string, boolean>;
   /** 切換「加到平日加班」強制標記回呼函數 */
   onToggleWeekdayOverride: (employeeId: string, date: string) => void;
+  /** 忘記打卡補登狀態（key: `${employeeId}__${date}`） */
+  punchOverrides: Record<string, { clockIn?: string; clockOut?: string; reason?: string }>;
+  /** 處理忘記打卡時間與理由補登 */
+  onPunchOverride: (employeeId: string, date: string, field: 'clockIn' | 'clockOut' | 'reason', value: string) => void;
 }
 
 /**
@@ -71,7 +75,7 @@ const isWeekend = (dateStr: string): boolean => {
  * @param {AttendanceTableProps} props - 組件屬性
  * @returns {JSX.Element} 出勤表格組件
  */
-const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChange, holidayOverrides, onToggleHolidayOverride, weekdayOverrides, onToggleWeekdayOverride }) => {
+const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChange, holidayOverrides, onToggleHolidayOverride, weekdayOverrides, onToggleWeekdayOverride, punchOverrides, onPunchOverride }) => {
   return (
     <table className="attendance-table">
       <thead>
@@ -82,6 +86,7 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
           <th>加班原因</th>
           <th>上班時間</th>
           <th>下班時間</th>
+          <th>缺卡備註</th>
           <th>加班時間</th>
           <th>加班時數</th>
           <th>誤餐費</th>
@@ -126,8 +131,39 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
                   disabled={!isEditable}
                 />
               </td>
-              <td>{report.clockIn}</td>
-              <td>{report.clockOut}</td>
+              <td>
+                {report.originalClockIn ? report.originalClockIn : (
+                  <input 
+                    type="time" 
+                    onChange={(e) => onPunchOverride(report.employeeId, report.date, 'clockIn', e.target.value)}
+                    value={punchOverrides[`${report.employeeId}__${report.date}`]?.clockIn || ''}
+                    style={{ width: '110px', padding: '2px' }}
+                  />
+                )}
+              </td>
+              <td>
+                {report.originalClockOut ? report.originalClockOut : (
+                  <input 
+                    type="time" 
+                    onChange={(e) => onPunchOverride(report.employeeId, report.date, 'clockOut', e.target.value)}
+                    value={punchOverrides[`${report.employeeId}__${report.date}`]?.clockOut || ''}
+                    style={{ width: '110px', padding: '2px' }}
+                  />
+                )}
+              </td>
+              <td>
+                {(!report.originalClockIn || !report.originalClockOut) ? (
+                  <input 
+                    type="text" 
+                    placeholder="缺卡理由(帶入備註)"
+                    onChange={(e) => onPunchOverride(report.employeeId, report.date, 'reason', e.target.value)}
+                    value={punchOverrides[`${report.employeeId}__${report.date}`]?.reason || ''}
+                    className="reason-input reason-editable"
+                  />
+                ) : (
+                  <span style={{ color: '#999' }}>—</span>
+                )}
+              </td>
               <td>{report.overtimeRange}</td>
               <td>{report.overtimeHours.toFixed(2)}</td>
               <td>{report.mealAllowance}</td>

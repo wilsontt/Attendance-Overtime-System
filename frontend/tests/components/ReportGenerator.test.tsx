@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import ReportGenerator from '../../src/components/ReportGenerator';
 import { OvertimeReport } from '../../src/types';
 
@@ -35,58 +35,55 @@ describe('ReportGenerator', () => {
       date: '2025-10-01',
       clockIn: '09:00',
       clockOut: '19:00',
+      originalClockIn: '09:00',
+      originalClockOut: '19:00',
       overtimeHours: 1.0,
       mealAllowance: 0,
+      overtimeRange: '',
+      overtimeReason: '',
     },
   ];
 
-  it('should render correctly', () => {
-    render(<ReportGenerator reports={mockReports} />);
-    expect(screen.getByText('下載 Excel')).toBeInTheDocument();
-    expect(screen.getByText('下載 PDF')).toBeInTheDocument();
-    expect(screen.getByText('列印報告')).toBeInTheDocument();
+  afterEach(() => {
+    cleanup();
   });
 
-  it('should call generateExcel when "下載 Excel" button is clicked', async () => {
-    const { Workbook } = await import('exceljs');
-    render(<ReportGenerator reports={mockReports} />);
+  const mockProps = {
+    reports: mockReports,
+    onOpenPreview: vi.fn(),
+    previewType: 'excel' as const,
+    onReasonChange: vi.fn(),
+  };
+
+  it('should render correctly', () => {
+    render(<ReportGenerator {...mockProps} />);
+    expect(screen.getByText('下載 Excel')).toBeTruthy();
+  });
+
+  it('should call onOpenPreview with excel when "下載 Excel" button is clicked', () => {
+    const onOpenPreview = vi.fn();
+    render(<ReportGenerator {...mockProps} onOpenPreview={onOpenPreview} />);
     
     fireEvent.click(screen.getByText('下載 Excel'));
     
-    expect(Workbook).toHaveBeenCalledTimes(1);
-    // Further checks could be added to verify worksheet content, but mocking the lib is enough for unit test
+    expect(onOpenPreview).toHaveBeenCalledWith('excel');
   });
 
-  it('should call generatePdf when "下載 PDF" button is clicked', async () => {
-    const pdfMake = await import('pdfmake/build/pdfmake');
-    render(<ReportGenerator reports={mockReports} />);
+  it('should call onOpenPreview with pdf when "下載 PDF" button is clicked', () => {
+    const onOpenPreview = vi.fn();
+    render(<ReportGenerator {...mockProps} onOpenPreview={onOpenPreview} />);
     
     fireEvent.click(screen.getByText('下載 PDF'));
     
-    expect(pdfMake.default.createPdf).toHaveBeenCalledTimes(1);
-    // Further checks could verify docDefinition content
+    expect(onOpenPreview).toHaveBeenCalledWith('pdf');
   });
 
-  it('should call printReport when "列印報告" button is clicked', () => {
-    const mockPrint = vi.fn();
-    const originalWindowOpen = window.open;
-    const originalWindowFocus = window.focus;
-    const originalWindowPrint = window.print;
+  it('should call onOpenPreview with print when "列印報告" button is clicked', () => {
+    const onOpenPreview = vi.fn();
+    render(<ReportGenerator {...mockProps} onOpenPreview={onOpenPreview} />);
 
-    window.open = vi.fn(() => ({
-      document: { write: vi.fn(), close: vi.fn() },
-      focus: vi.fn(),
-      print: mockPrint,
-    })) as any;
-
-    render(<ReportGenerator reports={mockReports} />);
     fireEvent.click(screen.getByText('列印報告'));
 
-    expect(window.open).toHaveBeenCalledTimes(1);
-    expect(mockPrint).toHaveBeenCalledTimes(1);
-
-    window.open = originalWindowOpen;
-    window.focus = originalWindowFocus;
-    window.print = originalWindowPrint;
+    expect(onOpenPreview).toHaveBeenCalledWith('print');
   });
 });

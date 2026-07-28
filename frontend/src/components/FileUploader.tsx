@@ -171,6 +171,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileProcessed }) => {
           onChange={handleFileUpload}
           style={{ display: 'none' }}
           id="file-upload-input"
+          data-testid="file-input"
         />
         <label htmlFor="file-upload-input">
           <button

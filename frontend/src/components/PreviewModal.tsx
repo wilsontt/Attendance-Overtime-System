@@ -90,6 +90,10 @@ interface PreviewModalProps {
     holidayWorkLocation: string,
     holidayRemarks: string,
   ) => void;
+  /** 預設平日加班備註（包含補登理由） */
+  defaultWeekdayRemarks: string;
+  /** 預設例假日加班備註（包含補登理由） */
+  defaultHolidayRemarks: string;
 }
 
 /**
@@ -109,6 +113,8 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   onDownloadExcel,
   onDownloadPdf,
   onPrint,
+  defaultWeekdayRemarks,
+  defaultHolidayRemarks,
 }) => {
   /** 過濾出有完整上下班刷卡時間的記錄 */
   const [filteredReports, setFilteredReports] = useState<OvertimeReport[]>([]);
@@ -213,7 +219,8 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
       setHolidayFlags(seededHolidayFlags);
       setWeekdayFlags(seededWeekdayFlags);
       setWorkLocation('');
-      setRemarks('');
+      setRemarks(defaultWeekdayRemarks);         // 改吃傳入的預設平日備註
+      setHolidayRemarks(defaultHolidayRemarks);  // 改吃傳入的預設假日備註
 
       // 開啟後將游標停在平日加班工作地點（無平日加班時退而聚焦例假日）。
       // 以 setTimeout 等待 DOM 完成渲染後再聚焦。
