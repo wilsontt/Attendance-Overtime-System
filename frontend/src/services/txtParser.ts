@@ -98,12 +98,25 @@ function parseRecord(lines: string[]): ParsedRecord | null {
     }
   }
 
-  // 處理未明確標示上班/下班的情境（依序補齊空缺）
-  if (!clockIn && fallbackTimes.length > 0) {
-    clockIn = fallbackTimes.shift() || '';
-  }
-  if (!clockOut && fallbackTimes.length > 0) {
-    clockOut = fallbackTimes.shift() || '';
+  // 處理未明確標示上班/下班的情境
+  if (fallbackTimes.length > 0) {
+    if (fallbackTimes.length === 1 && !clockIn && !clockOut) {
+      // 只有一筆未標示的打卡，且上下班都為空時，依據時段判斷 (大於等於 12:00 視為下班)
+      const hour = parseInt(fallbackTimes[0].split(':')[0], 10);
+      if (hour >= 12) {
+        clockOut = fallbackTimes.shift() || '';
+      } else {
+        clockIn = fallbackTimes.shift() || '';
+      }
+    } else {
+      // 若有兩筆以上，或已存在一筆明確打卡，則依序補齊空缺
+      if (!clockIn && fallbackTimes.length > 0) {
+        clockIn = fallbackTimes.shift() || '';
+      }
+      if (!clockOut && fallbackTimes.length > 0) {
+        clockOut = fallbackTimes.shift() || '';
+      }
+    }
   }
 
   result.clockIn = clockIn;

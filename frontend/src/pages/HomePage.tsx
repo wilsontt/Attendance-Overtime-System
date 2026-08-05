@@ -203,6 +203,18 @@ const HomePage: React.FC = () => {
     // 檢查是否有原始缺卡且「已開始補登但未完成」的記錄
     // 檢查是否有原始缺卡但「尚未補登完成」或「完全沒動」的記錄
     const incompletePunches = filteredReports.filter(report => {
+      // 精確判斷：是否為「全天請假」 (大於等於 1 天)
+      const isFullLeave = Boolean(
+        report.attendanceType && 
+        report.attendanceType !== '空' && 
+        report.attendanceType !== '' &&
+        report.leaveQuantity && 
+        report.leaveQuantity >= 1
+      );
+      
+      // 如果是全天請假，直接略過缺卡檢查
+      if (isFullLeave) return false;
+
       const originallyMissingIn = !report.originalClockIn;
       const originallyMissingOut = !report.originalClockOut;
       
@@ -236,11 +248,17 @@ const HomePage: React.FC = () => {
 
     // 檢查一般加班原因是否都有填寫 (包含補登後的記錄，如果有達到加班門檻)
     const missingOvertimeReasons = filteredReports.filter(report => {
-      const isLeaveDay = report.attendanceType && report.attendanceType !== '空' && report.attendanceType !== '';
+      const isFullLeave = Boolean(
+        report.attendanceType && 
+        report.attendanceType !== '空' && 
+        report.attendanceType !== '' &&
+        report.leaveQuantity && 
+        report.leaveQuantity >= 1
+      );
       const isUnderThreshold = report.overtimeHours < 0.5;
       
-      // 有完整打卡 (含補登)、非請假、達到門檻，就必須填寫加班原因
-      if (report.clockIn && report.clockOut && !isLeaveDay && !isUnderThreshold) {
+      // 有完整打卡 (含補登)、非全天請假、達到門檻，就必須填寫加班原因
+      if (report.clockIn && report.clockOut && !isFullLeave && !isUnderThreshold) {
         return !report.overtimeReason?.trim();
       }
       return false;

@@ -97,10 +97,16 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
       <tbody>
         {reports.map((report, index) => {
           const hasClockTime = Boolean(report.clockIn && report.clockOut);
-          const isLeaveDay = Boolean(report.attendanceType && report.attendanceType !== '空');
+          const isFullLeave = Boolean(
+            report.attendanceType && 
+            report.attendanceType !== '空' && 
+            report.attendanceType !== '' &&
+            report.leaveQuantity && 
+            report.leaveQuantity >= 1
+          );
           const isUnderThreshold = report.overtimeHours < 0.5;
-          const isEditable = hasClockTime && !isLeaveDay && !isUnderThreshold;
-          const reasonStateClass = isLeaveDay
+          const isEditable = hasClockTime && !isFullLeave && !isUnderThreshold;
+          const reasonStateClass = isFullLeave
             ? 'reason-disabled-leave'
             : !hasClockTime
               ? 'reason-disabled-missing-clock'
@@ -119,7 +125,7 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
                   value={report.overtimeReason} 
                   onChange={(e) => onReasonChange(index, e.target.value)}
                   placeholder={
-                    isLeaveDay
+                    isFullLeave
                       ? `請${report.attendanceType}`
                       : isUnderThreshold
                         ? '未達30分鐘'
@@ -132,7 +138,8 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
                 />
               </td>
               <td>
-                {report.originalClockIn ? report.originalClockIn : (
+                {isFullLeave ? <span style={{ color: '#999' }}>—</span> : 
+                 report.originalClockIn ? report.originalClockIn : (
                   <input 
                     type="time" 
                     onChange={(e) => onPunchOverride(report.employeeId, report.date, 'clockIn', e.target.value)}
@@ -142,7 +149,8 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
                 )}
               </td>
               <td>
-                {report.originalClockOut ? report.originalClockOut : (
+                {isFullLeave ? <span style={{ color: '#999' }}>—</span> : 
+                 report.originalClockOut ? report.originalClockOut : (
                   <input 
                     type="time" 
                     onChange={(e) => onPunchOverride(report.employeeId, report.date, 'clockOut', e.target.value)}
@@ -152,7 +160,8 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
                 )}
               </td>
               <td>
-                {(!report.originalClockIn || !report.originalClockOut) ? (
+                {isFullLeave ? <span style={{ color: '#999' }}>—</span> : 
+                 (!report.originalClockIn || !report.originalClockOut) ? (
                   <input 
                     type="text" 
                     placeholder="缺卡理由(帶入備註)"
