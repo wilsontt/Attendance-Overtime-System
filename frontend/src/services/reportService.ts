@@ -9,7 +9,7 @@ import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import type { OvertimeReport } from '../types';
-import { formatDate as formatDateWithDayOfWeek } from '../utils/dateFormatter';
+import { formatReportDateWithSegment } from '../utils/reportDateFormatter';
 import { normalizeOvertimeReasonForPrint } from '../utils/overtimeReasonFormatter';
 import { paginateReportsByHeight } from './paginationService';
 
@@ -168,8 +168,8 @@ function getDateParts(formattedDate: string): { dateText: string; weekdayText: s
   const parts = formattedDate.split(' ');
   if (parts.length >= 2) {
     return {
-      dateText: parts.slice(0, -1).join(' '),
-      weekdayText: parts[parts.length - 1]
+      dateText: parts[0],
+      weekdayText: parts.slice(1).join(' ')
     };
   }
   return { dateText: formattedDate, weekdayText: '' };
@@ -317,7 +317,7 @@ function createWorksheet(
   // 資料列
   reports.forEach((report) => {
     const row = worksheet.addRow([
-      formatDateWithDayOfWeek(report.date),
+      formatReportDateWithSegment(report),
       report.overtimeRange,
       report.overtimeReason || '',
       report.overtimeHours.toFixed(2),
@@ -724,7 +724,7 @@ function generatePageHtml(
               let rowsHtml = '';
 
               for (const report of normalizedReports) {
-                const formattedDate = formatDateWithDayOfWeek(report.date);
+                const formattedDate = formatReportDateWithSegment(report);
                 const { dateText, weekdayText } = getDateParts(formattedDate);
                 const { startText, endText } = getTimeParts(report.overtimeRange);
                 const reasonLines = getReasonLines(report.overtimeReason || '');

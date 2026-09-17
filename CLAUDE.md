@@ -49,6 +49,7 @@ src/
 
 - **AttendanceRecord**：從檔案解析的原始資料（員工、日期、上下班時間、請假類型、原始打卡時間）
 - **OvertimeReport**：計算後的結果，繼承 AttendanceRecord 並加入 `overtimeHours`、`mealAllowance`、`overtimeRange`、`overtimeReason`、`isHoliday`
+- `OvertimeReport.segment` 用於區分早段、晚段、假日全段；報表日期欄需在星期後顯示段別（例：`週三 早段`、`週三 晚段`、`週六 全段`）
 
 ## 主要服務
 
@@ -64,6 +65,7 @@ src/
 ### reportService.ts
 匯出並處理分頁（每頁固定 16 列：1 列表頭 + 15 列資料，不足補空白列）：
 - 產生 Excel（平日/例假日兩個工作表）與 PDF（多頁，含標題/頁尾/頁碼）
+- 預覽、Excel、PDF、列印的日期顯示需共用 `formatReportDateWithSegment()`，保持日期欄段別一致
 - 加班理由在 PDF/列印輸出前，由 `normalizeOvertimeReasonForPrint()` 轉為全型 Unicode（解決繁中字型排版一致性問題），預覽與 Excel 保留原始輸入
 
 ### txtParser.ts

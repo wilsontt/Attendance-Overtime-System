@@ -22,7 +22,7 @@ import {
   REPORT_REMARK_MAX_CHARS,
   REPORT_WORK_LOCATION_MAX_CHARS,
 } from '../services/reportService';
-import { formatDate } from '../utils/dateFormatter';
+import { formatReportDateWithSegment } from '../utils/reportDateFormatter';
 import './PreviewModal.css';
 
 const OVERTIME_REASON_MAX_LENGTH = 200;
@@ -422,7 +422,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                       />
                     )}
                   </td>
-                  <td>{formatDate(report.date)}</td>
+                  <td>{formatReportDateWithSegment(report)}</td>
                   <td>{report.shiftType === 'warehouse' ? '倉庫班' : '公司班'}</td>
                   <td>{report.segment || '全'}</td>
                   <td>{report.attendanceType || '-'}</td>
