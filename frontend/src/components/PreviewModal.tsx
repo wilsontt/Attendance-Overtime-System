@@ -15,7 +15,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { OvertimeReport } from '../types';
 import {
   isNaturalHoliday,
-  recalculateOvertimeReport,
 } from '../services/calculationService';
 import {
   REPORT_REMARK_LINE_CHARS,
@@ -131,23 +130,14 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   /** 例假日加班備註 */
   const [holidayRemarks, setHolidayRemarks] = useState<string>('');
 
-  /** 強制例假日標記（key: `${employeeId}__${date}`，value: 是否強制列為例假日） */
-  const [holidayFlags, setHolidayFlags] = useState<{ [key: string]: boolean }>(
-    {},
-  );
 
-  /** 強制平日標記（key: `${employeeId}__${date}`，value: 是否強制列為平日；補班日落在週末用） */
-  const [weekdayFlags, setWeekdayFlags] = useState<{ [key: string]: boolean }>(
-    {},
-  );
-
-  /** 記錄選擇狀態（key: index, value: isSelected） */
+  /** 記錄選擇狀態（key: `${employeeId}__${date}__${segment}`） */
   const [recordSelection, setRecordSelection] = useState<{
-    [key: number]: boolean;
+    [key: string]: boolean;
   }>({});
 
-  /** 加班原因編輯狀態（key: index, value: reason） */
-  const [editedReasons, setEditedReasons] = useState<{ [key: number]: string }>(
+  /** 加班原因編輯狀態（key: `${employeeId}__${date}__${segment}`） */
+  const [editedReasons, setEditedReasons] = useState<{ [key: string]: string }>(
     {},
   );
 
@@ -158,66 +148,53 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   const holidayWorkLocationRef = useRef<HTMLInputElement>(null);
 
   /**
-   * 當 Modal 開啟時，初始化狀態
+   * 當 Modal 開啟或 reports 變更時，初始化狀態
    */
   useEffect(() => {
     if (isOpen) {
-      // 先依強制標記重算，再做門檻過濾：
-      // - 「加到例假日加班」：平日以全日例假日重算（避免勞動節等平日時數為 0 被提前濾掉）。
-      // - 「加到平日加班」：週末補班日以平日 18:00 起算重算。
-      const recalculated = reports.map((report) => {
-        const key = `${report.employeeId}__${report.date}`;
-        if (holidayOverrides[key])
-          return recalculateOvertimeReport(report, true);
-        if (weekdayOverrides[key])
-          return recalculateOvertimeReport(report, false);
-        return report;
-      });
-
       // 過濾有完整刷卡且加班時數達門檻（>= 0.5 小時）的記錄；
       // 未達加班標準的日子（如未達 30 分鐘）不進入預覽，連帶不會被選取/匯出/列印。
-      const filtered = recalculated.filter(
+      const filtered = reports.filter(
         (r) => Boolean(r.clockIn && r.clockOut) && r.overtimeHours >= 0.5,
       );
       setFilteredReports(filtered);
 
       // 初始化記錄選擇狀態
-      const initialSelection: { [key: number]: boolean } = {};
-      filtered.forEach((report, index) => {
-        // 有請假但有打卡時間的記錄，預設不選中（需要用戶確認）
-        if (
-          report.attendanceType &&
-          report.attendanceType !== '空' &&
-          report.attendanceType !== ''
-        ) {
-          if (report.clockIn && report.clockOut) {
-            initialSelection[index] = false; // 預設不選中，需要用戶確認
-          } else {
-            initialSelection[index] = false; // 沒有打卡時間，不選中
+      setRecordSelection(prev => {
+        const newSelection = { ...prev };
+        filtered.forEach((report) => {
+          const key = `${report.employeeId}__${report.date}__${report.segment || '全'}`;
+          if (newSelection[key] === undefined) {
+            if (
+              report.attendanceType &&
+              report.attendanceType !== '空' &&
+              report.attendanceType !== ''
+            ) {
+              if (report.clockIn && report.clockOut) {
+                newSelection[key] = false; // 預設不選中，需要用戶確認
+              } else {
+                newSelection[key] = false; // 沒有打卡時間，不選中
+              }
+            } else {
+              newSelection[key] = true; // 正常上班日，預設選中
+            }
           }
-        } else {
-          initialSelection[index] = true; // 正常上班日，預設選中
-        }
+        });
+        return newSelection;
       });
-      setRecordSelection(initialSelection);
 
       // 初始化加班原因
-      const initialReasons: { [key: number]: string } = {};
-      filtered.forEach((report, index) => {
-        initialReasons[index] = report.overtimeReason || '';
+      setEditedReasons(prev => {
+        const newReasons = { ...prev };
+        filtered.forEach((report) => {
+          const key = `${report.employeeId}__${report.date}__${report.segment || '全'}`;
+          if (newReasons[key] === undefined) {
+            newReasons[key] = report.overtimeReason || '';
+          }
+        });
+        return newReasons;
       });
-      setEditedReasons(initialReasons);
 
-      // 依主列表強制標記 seed 旗標（key: `${employeeId}__${date}`）
-      const seededHolidayFlags: { [key: string]: boolean } = {};
-      const seededWeekdayFlags: { [key: string]: boolean } = {};
-      filtered.forEach((report) => {
-        const key = `${report.employeeId}__${report.date}`;
-        if (holidayOverrides[key]) seededHolidayFlags[key] = true;
-        if (weekdayOverrides[key]) seededWeekdayFlags[key] = true;
-      });
-      setHolidayFlags(seededHolidayFlags);
-      setWeekdayFlags(seededWeekdayFlags);
       setWorkLocation('');
       setRemarks(defaultWeekdayRemarks);         // 改吃傳入的預設平日備註
       setHolidayRemarks(defaultHolidayRemarks);  // 改吃傳入的預設假日備註
@@ -241,79 +218,51 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
 
   /**
    * 處理國定假日標記切換事件
-   * @param {number} index - 記錄索引
    * @param {string} employeeId - 員工編號
    * @param {string} date - 日期字串
    */
   const handleHolidayToggle = (
-    index: number,
     employeeId: string,
     date: string,
   ) => {
-    const key = `${employeeId}__${date}`;
-    const newIsHoliday = !holidayFlags[key];
-    setHolidayFlags((prev) => ({ ...prev, [key]: newIsHoliday }));
-
-    // 重新計算該記錄的加班時數和誤餐費
-    const updatedReports = [...filteredReports];
-    updatedReports[index] = recalculateOvertimeReport(
-      updatedReports[index],
-      newIsHoliday,
-    );
-    setFilteredReports(updatedReports);
-
     // 雙向同步回主列表的「加到例假日加班」標記
     onToggleHolidayOverride(employeeId, date);
   };
 
   /**
    * 處理「補班日改列平日加班」切換事件（週末記錄專用）
-   * @param {number} index - 記錄索引
    * @param {string} employeeId - 員工編號
    * @param {string} date - 日期字串
    */
   const handleWeekdayToggle = (
-    index: number,
     employeeId: string,
     date: string,
   ) => {
-    const key = `${employeeId}__${date}`;
-    const newForceWeekday = !weekdayFlags[key];
-    setWeekdayFlags((prev) => ({ ...prev, [key]: newForceWeekday }));
-
-    // 強制平日 → 以 18:00 起算重算；取消 → 回歸自然（週末＝例假日）
-    const updatedReports = [...filteredReports];
-    updatedReports[index] = recalculateOvertimeReport(
-      updatedReports[index],
-      !newForceWeekday,
-    );
-    setFilteredReports(updatedReports);
-
     // 雙向同步回主列表的「加到平日加班」標記
     onToggleWeekdayOverride(employeeId, date);
   };
 
   /**
    * 處理記錄選擇切換事件
-   * @param {number} index - 記錄索引
+   * @param {string} key - 記錄唯一鍵值
    */
-  const handleRecordSelection = (index: number) => {
-    setRecordSelection((prev) => ({ ...prev, [index]: !prev[index] }));
+  const handleRecordSelection = (key: string) => {
+    setRecordSelection((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   /**
    * 處理加班原因編輯事件
-   * @param {number} index - 記錄索引
+   * @param {string} key - 記錄唯一鍵值
    * @param {string} newReason - 新的加班原因
    */
-  const handleReasonChange = (index: number, newReason: string) => {
+  const handleReasonChange = (key: string, newReason: string) => {
     if (newReason.length > OVERTIME_REASON_MAX_LENGTH) {
       alert(
         `加班理由最多 ${OVERTIME_REASON_MAX_LENGTH} 字元（含中英文與符號）。`,
       );
       return;
     }
-    setEditedReasons((prev) => ({ ...prev, [index]: newReason }));
+    setEditedReasons((prev) => ({ ...prev, [key]: newReason }));
   };
 
   /**
@@ -322,12 +271,18 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
    */
   const getSelectedReports = () => {
     return filteredReports
-      .map((report, index) => ({
-        ...report,
-        overtimeReason: editedReasons[index] || report.overtimeReason,
-        isHoliday: isHolidayRecord(report),
-      }))
-      .filter((_, index) => recordSelection[index] === true);
+      .map((report) => {
+        const key = `${report.employeeId}__${report.date}__${report.segment || '全'}`;
+        return {
+          ...report,
+          overtimeReason: editedReasons[key] || report.overtimeReason,
+          isHoliday: isHolidayRecord(report),
+        };
+      })
+      .filter((report) => {
+        const key = `${report.employeeId}__${report.date}__${report.segment || '全'}`;
+        return recordSelection[key] === true;
+      });
   };
 
   /**
@@ -338,35 +293,36 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
    */
   const isHolidayRecord = (report: OvertimeReport): boolean => {
     const key = `${report.employeeId}__${report.date}`;
-    if (holidayFlags[key]) return true; // 強制例假日（國定假日落在平日）
-    if (weekdayFlags[key]) return false; // 強制平日（補班日落在週末）
-    return isNaturalHoliday(report.date); // 自然判斷（週六、週日）
+    if (holidayOverrides[key]) return true; // 強制例假日（國定假日落在平日）
+    if (weekdayOverrides[key]) return false; // 強制平日（補班日落在週末）
+    return report.isHoliday || false;
   };
 
   /**
-   * 分離平日與例假日記錄（附加 reportIndex 供後續使用）
+   * 分離平日與例假日記錄（附加 reportKey 供後續使用）
    */
-  const weekdayReports: Array<OvertimeReport & { reportIndex: number }> = [];
-  const holidayReports: Array<OvertimeReport & { reportIndex: number }> = [];
+  const weekdayReports: Array<OvertimeReport & { reportKey: string }> = [];
+  const holidayReports: Array<OvertimeReport & { reportKey: string }> = [];
 
-  filteredReports.forEach((report, index) => {
+  filteredReports.forEach((report) => {
+    const key = `${report.employeeId}__${report.date}__${report.segment || '全'}`;
     if (isHolidayRecord(report)) {
-      holidayReports.push({ ...report, reportIndex: index });
+      holidayReports.push({ ...report, reportKey: key });
     } else {
-      weekdayReports.push({ ...report, reportIndex: index });
+      weekdayReports.push({ ...report, reportKey: key });
     }
   });
 
   /**
    * 渲染表格區塊
    * @param {string} title - 表格標題
-   * @param {Array<OvertimeReport & { reportIndex: number }>} records - 加班記錄陣列（附加索引）
+   * @param {Array<OvertimeReport & { reportKey: string }>} records - 加班記錄陣列（附加索引）
    * @param {number} pageNumber - 頁碼
    * @returns {JSX.Element | null} 表格組件或 null
    */
   const renderTable = (
     title: string,
-    records: Array<OvertimeReport & { reportIndex: number }>,
+    records: Array<OvertimeReport & { reportKey: string }>,
     pageNumber: number,
   ) => {
     if (records.length === 0) return null;
@@ -381,6 +337,8 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
               <th>選擇</th>
               <th>假日↔平日</th>
               <th>日期</th>
+              <th>班表</th>
+              <th>段別</th>
               <th>考勤別</th>
               <th>上班時間</th>
               <th>下班時間</th>
@@ -392,7 +350,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
           </thead>
           <tbody>
             {records.map((report, rowIndex) => {
-              const index = report.reportIndex;
+              const key = report.reportKey;
               const isLeaveDay =
                 report.attendanceType &&
                 report.attendanceType !== '空' &&
@@ -402,11 +360,11 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
               const shouldHighlight = isLeaveDay && hasClockTime;
               // 選擇欄勾選且有完整打卡，並達到 0.5 小時門檻才可編輯
               const isOvertimeEditable =
-                recordSelection[index] &&
+                recordSelection[key] &&
                 hasClockTime &&
                 !isLeaveDay &&
                 !isUnderThreshold;
-              const reasonStateClass = !recordSelection[index]
+              const reasonStateClass = !recordSelection[key]
                 ? 'reason-unselected'
                 : isLeaveDay
                   ? 'reason-disabled-leave'
@@ -418,15 +376,15 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
 
               return (
                 <tr
-                  key={index}
+                  key={key}
                   className={shouldHighlight ? 'highlight-leave-day' : ''}
                 >
                   <td>{rowIndex + 1}</td>
                   <td>
                     <input
                       type="checkbox"
-                      checked={recordSelection[index] || false}
-                      onChange={() => handleRecordSelection(index)}
+                      checked={recordSelection[key] || false}
+                      onChange={() => handleRecordSelection(key)}
                     />
                   </td>
                   <td>
@@ -434,13 +392,12 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                       <input
                         type="checkbox"
                         checked={
-                          weekdayFlags[
+                          weekdayOverrides[
                             `${report.employeeId}__${report.date}`
                           ] || false
                         }
                         onChange={() =>
                           handleWeekdayToggle(
-                            index,
                             report.employeeId,
                             report.date,
                           )
@@ -451,13 +408,12 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                       <input
                         type="checkbox"
                         checked={
-                          holidayFlags[
+                          holidayOverrides[
                             `${report.employeeId}__${report.date}`
                           ] || false
                         }
                         onChange={() =>
                           handleHolidayToggle(
-                            index,
                             report.employeeId,
                             report.date,
                           )
@@ -467,6 +423,8 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                     )}
                   </td>
                   <td>{formatDate(report.date)}</td>
+                  <td>{report.shiftType === 'warehouse' ? '倉庫班' : '公司班'}</td>
+                  <td>{report.segment || '全'}</td>
                   <td>{report.attendanceType || '-'}</td>
                   <td>{report.clockIn}</td>
                   <td>{report.clockOut}</td>
@@ -476,9 +434,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                   <td>
                     <input
                       type="text"
-                      value={editedReasons[index] || ''}
+                      value={editedReasons[key] || ''}
                       onChange={(e) =>
-                        handleReasonChange(index, e.target.value)
+                        handleReasonChange(key, e.target.value)
                       }
                       placeholder={
                         isLeaveDay
@@ -518,7 +476,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
    * - 多位員工：以頓號串接，避免重複顯示
    */
   const buildEmployeeSummary = (
-    records: Array<OvertimeReport & { reportIndex: number }>,
+    records: Array<OvertimeReport & { reportKey: string }>,
   ): string => {
     const employeeSet = new Set<string>();
 
@@ -542,7 +500,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
    * - 若同區塊有多個月份，使用頓號串接
    */
   const buildYearMonthSummary = (
-    records: Array<OvertimeReport & { reportIndex: number }>,
+    records: Array<OvertimeReport & { reportKey: string }>,
   ): string => {
     const yearMonthSet = new Set<string>();
 
@@ -604,18 +562,18 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
 
     const collectIssuesBySection = (
       sectionName: '平日加班' | '例假日加班',
-      records: Array<OvertimeReport & { reportIndex: number }>,
+      records: Array<OvertimeReport & { reportKey: string }>,
     ) => {
       records.forEach((report, sectionIndex) => {
-        const recordIndex = report.reportIndex;
-        if (!recordSelection[recordIndex]) return;
+        const recordKey = report.reportKey;
+        if (!recordSelection[recordKey]) return;
 
         const itemNumber = sectionIndex + 1;
         const pageNumber =
           Math.floor(sectionIndex / PREVIEW_ITEMS_PER_PAGE) + 1;
         const locationText = `${sectionName} 第${pageNumber}頁 ITEM 第${itemNumber}筆`;
         const currentReason = (
-          editedReasons[recordIndex] ||
+          editedReasons[recordKey] ||
           report.overtimeReason ||
           ''
         ).trim();

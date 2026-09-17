@@ -83,6 +83,8 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
           <th>員工編號</th>
           <th>姓名</th>
           <th>日期</th>
+          <th>班表</th>
+          <th>段別</th>
           <th>加班原因</th>
           <th>上班時間</th>
           <th>下班時間</th>
@@ -119,6 +121,8 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
               <td>{report.employeeId}</td>
               <td>{report.name}</td>
               <td>{formatDate(report.date)}</td>
+              <td>{report.shiftType === 'warehouse' ? '倉庫班' : '公司班'}</td>
+              <td>{report.segment || '全'}</td>
               <td>
                 <input 
                   type="text" 

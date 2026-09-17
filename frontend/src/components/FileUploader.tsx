@@ -25,6 +25,10 @@ interface FileUploaderProps {
     rawTxtContent: string,
     fileType: 'txt' | 'csv'
   ) => void;
+  /** 全域班表 */
+  globalShift: 'company' | 'warehouse';
+  /** 全域班表變更回呼函數 */
+  onGlobalShiftChange: (shift: 'company' | 'warehouse') => void;
 }
 
 /**
@@ -32,7 +36,7 @@ interface FileUploaderProps {
  * @param {FileUploaderProps} props - 組件屬性
  * @returns {JSX.Element} 檔案上傳組件
  */
-const FileUploader: React.FC<FileUploaderProps> = ({ onFileProcessed }) => {
+const FileUploader: React.FC<FileUploaderProps> = ({ onFileProcessed, globalShift, onGlobalShiftChange }) => {
   /** 錯誤訊息狀態 */
   const [error, setError] = useState<string | null>(null);
   
@@ -184,12 +188,22 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileProcessed }) => {
           </button>
         </label>
         {file && !isProcessing && (
-          <button
-            onClick={handleRemoveFile}
-            style={{ marginLeft: '10px', padding: '10px 15px' }}
-          >
-            移除
-          </button>
+          <>
+            <button
+              onClick={handleRemoveFile}
+              style={{ marginLeft: '10px', padding: '10px 15px' }}
+            >
+              移除
+            </button>
+            <select
+              value={globalShift}
+              onChange={(e) => onGlobalShiftChange(e.target.value as 'company' | 'warehouse')}
+              style={{ marginLeft: '10px', padding: '10px' }}
+            >
+              <option value="company">公司班</option>
+              <option value="warehouse">倉庫班</option>
+            </select>
+          </>
         )}
         {isProcessing && <span style={{ marginLeft: '10px' }}>處理中...</span>}
       </div>

@@ -33,6 +33,23 @@ const HomePage: React.FC = () => {
   /** 忘記打卡補登狀態（key: `${employeeId}__${date}`） */
   const [punchOverrides, setPunchOverrides] = useState<Record<string, { clockIn?: string, clockOut?: string, reason?: string }>>({});
 
+  /**
+   * 「加到例假日加班」強制標記（key: `${employeeId}__${date}`，value: 是否強制列為例假日）。
+   * 適用於國定假日落在平日（如勞動節落在週五）但有加班，需以例假日全日規則申報。
+   * 由主列表與預覽 Modal 共用並雙向同步。
+   */
+  const [holidayOverrides, setHolidayOverrides] = useState<Record<string, boolean>>({});
+
+  /**
+   * 「加到平日加班」強制標記（key: `${employeeId}__${date}`，value: 是否強制列為平日）。
+   * 適用於補班日落在週末（如補班日落在週六）但有加班，需以平日 18:00 起算規則申報。
+   * 由主列表與預覽 Modal 共用並雙向同步。
+   */
+  const [weekdayOverrides, setWeekdayOverrides] = useState<Record<string, boolean>>({});
+
+  /** 全域班表設定 */
+  const [globalShift, setGlobalShift] = useState<'company' | 'warehouse'>('company');
+
   /** 處理忘記打卡時間與理由補登 */
   const handlePunchOverride = (employeeId: string, date: string, field: 'clockIn' | 'clockOut' | 'reason', value: string) => {
     const key = `${employeeId}__${date}`;
@@ -61,16 +78,16 @@ const HomePage: React.FC = () => {
   const calculatedReports = useMemo(
     () =>
       recordsWithPunchOverrides.length > 0
-        ? calculateOvertimeAndMealAllowance(recordsWithPunchOverrides)
+        ? calculateOvertimeAndMealAllowance(recordsWithPunchOverrides, holidayOverrides, weekdayOverrides, globalShift)
         : [],
-    [recordsWithPunchOverrides]
+    [recordsWithPunchOverrides, holidayOverrides, weekdayOverrides, globalShift]
   );
 
   /** 合併計算結果與使用者編輯的加班原因 */
   const overtimeReports = useMemo(
     () =>
       calculatedReports.map((report) => {
-        const key = `${report.employeeId}__${report.date}`;
+        const key = `${report.employeeId}__${report.date}__${report.segment || '全'}`;
         const overrideReason = reasonOverrides[key];
         
         const finalReason = overrideReason !== undefined ? overrideReason : report.overtimeReason;
@@ -96,24 +113,7 @@ const HomePage: React.FC = () => {
   /** 原始 TXT 內容（供列印原始資料使用） */
   const [rawTxtContent, setRawTxtContent] = useState<string>('');
 
-  /**
-   * 「加到例假日加班」強制標記（key: `${employeeId}__${date}`，value: 是否強制列為例假日）。
-   * 適用於國定假日落在平日（如勞動節落在週五）但有加班，需以例假日全日規則申報。
-   * 由主列表與預覽 Modal 共用並雙向同步。
-   */
-  const [holidayOverrides, setHolidayOverrides] = useState<Record<string, boolean>>({});
-
-  /**
-   * 「加到平日加班」強制標記（key: `${employeeId}__${date}`，value: 是否強制列為平日）。
-   * 適用於補班日落在週末（如補班日落在週六）但有加班，需以平日 18:00 起算規則申報。
-   * 由主列表與預覽 Modal 共用並雙向同步。
-   */
-  const [weekdayOverrides, setWeekdayOverrides] = useState<Record<string, boolean>>({});
-
-  /**
-   * 處理檔案上傳完成事件
-   * @param {AttendanceRecord[]} records - 解析後的出勤記錄陣列
-   */
+  /** 處理檔案上傳完成事件 */
   const handleFileProcessed = (
     records: AttendanceRecord[],
     uploadedRawTxtContent: string,
@@ -123,6 +123,7 @@ const HomePage: React.FC = () => {
     setReasonOverrides({});
     setHolidayOverrides({});
     setWeekdayOverrides({});
+    setGlobalShift('company');
     setPunchOverrides({});
     setRawTxtContent(fileType === 'txt' ? uploadedRawTxtContent : '');
   };
@@ -153,7 +154,7 @@ const HomePage: React.FC = () => {
     const targetReport = filteredReports[index];
     if (!targetReport) return;
 
-    const key = `${targetReport.employeeId}__${targetReport.date}`;
+    const key = `${targetReport.employeeId}__${targetReport.date}__${targetReport.segment || '全'}`;
     setReasonOverrides(prev => ({ ...prev, [key]: newReason }));
   };
 
@@ -241,7 +242,7 @@ const HomePage: React.FC = () => {
     });
 
     if (incompletePunches.length > 0) {
-      const errList = incompletePunches.map(r => ` - ${r.name} ${formatDate(r.date).split(' ')[0]}`).join('\n');
+      const errList = Array.from(new Set(incompletePunches.map(r => ` - ${r.name} ${formatDate(r.date).split(' ')[0]}`))).join('\n');
       alert(`您有缺卡記錄尚未補登完成！\n請確保缺卡記錄的「上班時間」、「下班時間」及「缺卡備註」皆已填寫。\n\n未完成名單：\n${errList}`);
       return;
     }
@@ -265,7 +266,7 @@ const HomePage: React.FC = () => {
     });
 
     if (missingOvertimeReasons.length > 0) {
-      const errList = missingOvertimeReasons.map(r => ` - ${r.name} ${formatDate(r.date).split(' ')[0]}`).join('\n');
+      const errList = Array.from(new Set(missingOvertimeReasons.map(r => ` - ${r.name} ${formatDate(r.date).split(' ')[0]} (${r.segment || '全'})`))).join('\n');
       alert(`您有加班記錄尚未填寫「加班原因」！\n請確保所有符合加班條件的記錄都已填寫加班原因。\n\n未填寫名單：\n${errList}`);
       return;
     }
@@ -348,7 +349,11 @@ const HomePage: React.FC = () => {
       <div className="mb-5 -mx-4 sm:-mx-5">
         <TopTitleNav />
       </div>
-      <FileUploader onFileProcessed={handleFileProcessed} />
+      <FileUploader 
+        onFileProcessed={handleFileProcessed}
+        globalShift={globalShift}
+        onGlobalShiftChange={setGlobalShift}
+      />
 
       {overtimeReports.length > 0 && (
         <>

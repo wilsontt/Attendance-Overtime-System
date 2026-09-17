@@ -15,6 +15,8 @@ export interface Employee {
   name: string;
 }
 
+export type ShiftType = 'company' | 'warehouse';
+
 /**
  * 出勤記錄介面
  * 
@@ -60,4 +62,8 @@ export interface OvertimeReport extends AttendanceRecord {
   overtimeReason: string;
   /** 是否為國定假日（用於調整計算規則） */
   isHoliday?: boolean;
+  /** 段別（早段、晚段、假日全段） */
+  segment?: '早' | '晚' | '假日全段';
+  /** 班別 */
+  shiftType?: ShiftType;
 }
