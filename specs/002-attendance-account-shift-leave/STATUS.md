@@ -1,6 +1,8 @@
 # 專案狀態：出勤記錄-擴充需求3
 
-**Feature Branch**: `002-attendance-account-shift-leave`（線 B 工作分支：`feature/002-line-b-backend-auth-leave`）
+**Spec ID**: `002-attendance-account-shift-leave`（規格目錄名；**不是** git 分支）
+**線 A Git**: 已合入 `main`（含日期欄段別 `d54f706`）
+**線 B Git**: `feature/002-line-b-backend-auth-leave`
 **Last Updated**: 2026-09-18
 
 ## 階段進度
@@ -29,6 +31,7 @@
 - [ ] **測試與驗證**: 部分（B1／B2 單元測試通過；整合測試待本機 Docker Postgres）
 
 ## 最近更新
+- 2026-09-18: 修正分支：`main` fast-forward 納入線 A 段別 commit；釐清 Spec ID ≠ git 分支；刪除本機殘留 `master`。
 - 2026-09-18: 完成 B2：班表／派班 CRUD、computation-context、Admin 班表頁；本機班表改標為除錯。
 - 2026-09-18: 完成 B1：Fastify/Prisma backend、登入／員工 API、前端登入閘道；Docker DB 需本機 daemon 後再 migrate／整合測。
 - 2026-09-18: 完成 B0 與 `tasks-line-b.md`；下一階段為 B1（backend scaffold + 登入／員工）。

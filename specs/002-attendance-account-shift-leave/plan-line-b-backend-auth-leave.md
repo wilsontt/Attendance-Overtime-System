@@ -1,6 +1,6 @@
 # 實作計畫：擴充需求 3 - 線 B (後端身分、假勤、匯入、班表 CRUD)
 
-**Branch**: `feature/002-line-b-backend-auth-leave` | **Date**: 2026-09-18 | **Spec**: [出勤記錄-擴充需求3_prd.md](./出勤記錄-擴充需求3_prd.md) | **Status**: Approved（B0 完成）
+**Git Branch**: `feature/002-line-b-backend-auth-leave` | **Spec ID**: `002-attendance-account-shift-leave` | **Date**: 2026-09-18 | **Spec**: [出勤記錄-擴充需求3_prd.md](./出勤記錄-擴充需求3_prd.md) | **Status**: Approved（B0 完成）
 **Input**: Feature specification from `specs/002-attendance-account-shift-leave/出勤記錄-擴充需求3_prd.md`（線 B：E3-4～9）
 **Depends on**: 線 A 已完成（計算兩列、班表手選、補班手勾、預覽／PDF／Excel）
 

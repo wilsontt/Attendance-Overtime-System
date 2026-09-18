@@ -1,8 +1,10 @@
 # PRD：出勤加班單系統 — 擴充需求 3
 
-**Feature Branch**: `002-attendance-account-shift-leave`
+**Spec ID**: `002-attendance-account-shift-leave`（規格目錄；非 git 分支）
+**Git（線 A）**: 已合入 `main`
+**Git（線 B）**: `feature/002-line-b-backend-auth-leave`
 **Created**: 2026-09-17
-**Status**: Approved (Line A Completed)
+**Status**: Approved (Line A Completed；Line B 進行中)
 
 | 項目 | 內容 |
 |------|------|
