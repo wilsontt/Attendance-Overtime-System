@@ -21,10 +21,10 @@
 
 ## B2 班表 + 派班 + 計算脈絡
 
-- [ ] Shift／ShiftAssignment CRUD（刪除／停用規則）
-- [ ] `GET /api/computation-context`
-- [ ] 前端：Admin 班表／派班頁；HomePage 改讀伺服器班（手選降級）
-- [ ] 整合測試：有引用不可刪、現職不可停
+- [x] Shift／ShiftAssignment CRUD（刪除／停用規則）
+- [x] `GET /api/computation-context`
+- [x] 前端：Admin 班表／派班頁；HomePage 本機班表標為除錯降級
+- [x] 單元測試：停用／刪除規則、日類型推導（整合測試待 Docker DB）
 
 ## B3 匯入 + 年假回沖
 

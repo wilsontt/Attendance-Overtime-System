@@ -3,6 +3,8 @@ import cookie from '@fastify/cookie';
 import { AppError, toErrorBody } from './lib/errors.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { employeeRoutes } from './modules/employee/employee.routes.js';
+import { shiftRoutes } from './modules/shift/shift.routes.js';
+import { computationRoutes } from './modules/computation/computation.routes.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -26,6 +28,8 @@ export async function buildApp() {
 
   await app.register(authRoutes);
   await app.register(employeeRoutes);
+  await app.register(shiftRoutes);
+  await app.register(computationRoutes);
 
   return app;
 }

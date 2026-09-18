@@ -22,13 +22,14 @@
 - [x] **Tasks 拆解**: 完成 (`tasks-line-b.md`)
 - [ ] **實作**: 進行中
   - [x] B1 Auth + 員工主檔（backend + LoginPage）
-  - [ ] B2 班表 + 派班
+  - [x] B2 班表 + 派班 + computation-context
   - [ ] B3 匯入 + 年假回沖
   - [ ] B4 行事曆 + 政府日曆
   - [ ] B5 詞庫 + Docker 銜接
-- [ ] **測試與驗證**: 部分（B1 單元測試通過；整合測試待本機 Docker Postgres）
+- [ ] **測試與驗證**: 部分（B1／B2 單元測試通過；整合測試待本機 Docker Postgres）
 
 ## 最近更新
+- 2026-09-18: 完成 B2：班表／派班 CRUD、computation-context、Admin 班表頁；本機班表改標為除錯。
 - 2026-09-18: 完成 B1：Fastify/Prisma backend、登入／員工 API、前端登入閘道；Docker DB 需本機 daemon 後再 migrate／整合測。
 - 2026-09-18: 完成 B0 與 `tasks-line-b.md`；下一階段為 B1（backend scaffold + 登入／員工）。
 - 2026-09-18: 完成 B0：OpenAPI 契約、data-model、research（政府日曆 dataset/14718、DB session）。

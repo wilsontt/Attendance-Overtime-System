@@ -199,9 +199,10 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileProcessed, globalShif
               value={globalShift}
               onChange={(e) => onGlobalShiftChange(e.target.value as 'company' | 'warehouse')}
               style={{ marginLeft: '10px', padding: '10px' }}
+              title="本機班表（除錯）。正式路徑請用伺服器派班＋computation-context。"
             >
-              <option value="company">公司班</option>
-              <option value="warehouse">倉庫班</option>
+              <option value="company">本機除錯：公司班</option>
+              <option value="warehouse">本機除錯：倉庫班</option>
             </select>
           </>
         )}
