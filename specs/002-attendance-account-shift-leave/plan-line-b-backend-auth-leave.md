@@ -1,6 +1,6 @@
 # 實作計畫：擴充需求 3 - 線 B (後端身分、假勤、匯入、班表 CRUD)
 
-**Branch**: `feature/002-line-b-backend-auth-leave` | **Date**: 2026-09-18 | **Spec**: [出勤記錄-擴充需求3_prd.md](./出勤記錄-擴充需求3_prd.md) | **Status**: Draft
+**Branch**: `feature/002-line-b-backend-auth-leave` | **Date**: 2026-09-18 | **Spec**: [出勤記錄-擴充需求3_prd.md](./出勤記錄-擴充需求3_prd.md) | **Status**: Approved（B0 完成）
 **Input**: Feature specification from `specs/002-attendance-account-shift-leave/出勤記錄-擴充需求3_prd.md`（線 B：E3-4～9）
 **Depends on**: 線 A 已完成（計算兩列、班表手選、補班手勾、預覽／PDF／Excel）
 
@@ -50,12 +50,21 @@ PRD §2.5 將 API／DB／PIN 儲存／政府日曆資料集標為設計待決。
 
 | Phase | 對應 E3 | 可驗收產出 |
 |-------|---------|------------|
-| **B0** Research／Design | §2.5 | `research.md`、`data-model.md`、`contracts/openapi.yaml`、seed Admin |
+| **B0** Design／契約 | §2.5 | 見下方 B0 子順序；完成後前後端依 OpenAPI 對齊 |
 | **B1** Auth + 員工主檔 | E3-4、E3-5 | 登入／登出；Admin CRUD 員工、PIN、年假額度 |
 | **B2** 班表 + 派班 | E3-1、E3-8 | 班表 CRUD（刪除／停用規則）；派班起迄；前端改讀伺服器班 |
 | **B3** 匯入 + 年假回沖 | E3-7、E3-4.2～4.5 | 本人限制、Admin 代匯、區間重匯交易、未知假別 |
 | **B4** 行事曆 + 政府日曆 | E3-6、E3-2 | 個人請假曆；國定／補班自動；失敗可手勾 |
 | **B5** 工作地點詞庫 + 銜接 | E3-9、§5.8 | 共用詞庫 API；預覽自動完成；Docker Compose 一鍵起 |
+
+### B0 子順序（OpenAPI 優先）
+
+大順序仍為 Plan 核准 → B0 → Tasks／B1+。B0 **內部**優先序如下（不必等 research 寫完才開契約）：
+
+1. **`contracts/openapi.yaml`**：先凍結 paths、schemas、錯誤碼，供前後端對齊；可匯入 Postman 當 Collection 骨架（尚無伺服器時僅契約／Mock，不作正式行為驗收）。
+2. **`data-model.md`**：與 OpenAPI schema 對齊（可與第 1 步同輪）；實體、重匯交易、約束寫清。
+3. **`research.md`**：補契約寫不死的細節（政府日曆資料集、session 實作選型等）。
+4. **seed Admin 規格**（可寫在 data-model 或 research）：預設 Admin、公司班、倉庫班。
 
 線 A 計算規則 **不在本 PLAN 重寫**；B2／B4 完成後，前端改以「歸屬日派班 + 伺服器日類型」呼叫既有 `calculateOvertimeAndMealAllowance`。
 
@@ -69,11 +78,11 @@ specs/002-attendance-account-shift-leave/
 ├── plan-line-a-shift-overtime.md          # 已完成
 ├── plan-line-b-backend-auth-leave.md      # 本文件
 ├── STATUS.md
-├── research.md                            # B0 產出
-├── data-model.md                          # B0 產出
 ├── contracts/
-│   └── openapi.yaml                       # B0 產出
-└── tasks-line-b.md                        # Plan 核准後以 /speckit.tasks 或手拆
+│   └── openapi.yaml                       # B0-1 優先產出
+├── data-model.md                          # B0-2（與 OpenAPI 對齊）
+├── research.md                            # B0-3（契約後補細節）
+└── tasks-line-b.md                        # B0 契約就緒後或並行拆解
 ```
 
 ### 原始碼（儲存庫根目錄）
@@ -214,11 +223,13 @@ docker-compose.yml              # api + db + 既有 attendance 前端映像
 
 ## 後續步驟（本 PLAN 核准後）
 
-1. 撰寫 `research.md`（政府日曆資料集鎖定、session 實作細節）。
-2. 撰寫 `data-model.md` + `contracts/openapi.yaml`。
-3. 拆 `tasks-line-b.md`（依 Phase B0～B5）。
-4. 更新 `STATUS.md`：Plan 定稿勾選；開始實作 B0。
-5. 主控 `README.md` 增加「擴充 3／線 B 後端依賴」段落。
+1. 更新 `STATUS.md`：Plan 定稿勾選；進入 B0。
+2. **B0-1** 撰寫 `contracts/openapi.yaml`（Auth／員工／匯入先寫完整；其餘端點骨架帶齊，可用 `x-phase` 標 B2～B5）。
+3. **B0-2** 撰寫 `data-model.md`，與 OpenAPI schema 對齊。
+4. **B0-3** 撰寫 `research.md`（政府日曆資料集、session 實作細節）。
+5. 拆 `tasks-line-b.md`（依 Phase B0～B5；契約穩定後再開 B1 實作）。
+6. 主控 `README.md` 增加「擴充 3／線 B 後端依賴」與契約路徑說明（實作 API 時同步即可）。
+7. B1+ 有可跑 API 後，再用 Postman 打真實端點；CI／回歸以後端整合測試為準。
 
 ## 驗收對照（線 B）
 

@@ -1,0 +1,1223 @@
+openapi: 3.0.3
+info:
+  title: 出勤加班單系統 API（擴充需求 3／線 B）
+  description: |
+    前後端對齊契約。瀏覽器經 Nginx 同源路徑為 `/attendance/api/...`；
+    本機直接打 Fastify 時 server 為 `http://localhost:3000`，path 仍為 `/api/...`。
+
+    Cookie 名稱：`attendance_session`（HttpOnly）。登入成功後後續請求自動帶入。
+
+    錯誤回應一律為 `ErrorResponse`。常用 `code`：
+    `UNAUTHORIZED`、`FORBIDDEN`、`VALIDATION_ERROR`、`NOT_FOUND`、
+    `LOGIN_LOCKED`、`IMPORT_NOT_SELF`、`UNKNOWN_LEAVE_TYPE`、
+    `SHIFT_IN_USE`、`SHIFT_HAS_ACTIVE_ASSIGNMENT`、`ADMIN_PROTECTED`。
+  version: 0.1.0
+  contact:
+    name: 出勤加班單系統
+
+servers:
+  - url: http://localhost:3000
+    description: 本機 Fastify（開發）
+  - url: /attendance
+    description: 經 Nginx 反代（與前端同源）
+
+tags:
+  - name: auth
+    description: 登入／登出／目前使用者（B1）
+  - name: admin-employees
+    description: Admin 員工與年假（B1）
+  - name: admin-shifts
+    description: Admin 班表與派班（B2）
+  - name: attendance
+    description: 出勤匯入與查詢（B3）
+  - name: leave-calendar
+    description: 請假行事曆與政府日曆（B4）
+  - name: work-locations
+    description: 工作地點共用詞庫（B5）
+  - name: computation-context
+    description: 前端加班計算用脈絡（B2／B4）
+
+paths:
+  /api/auth/login:
+    post:
+      tags: [auth]
+      summary: 登入
+      operationId: login
+      x-phase: B1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登入成功；Set-Cookie attendance_session
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: attendance_session=...; Path=/; HttpOnly; SameSite=Lax
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '423':
+          description: 登入鎖定（連續失敗）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                locked:
+                  value:
+                    code: LOGIN_LOCKED
+                    message: 登入嘗試過多，請稍後再試
+                    details: { retryAfterSeconds: 900 }
+
+  /api/auth/logout:
+    post:
+      tags: [auth]
+      summary: 登出
+      operationId: logout
+      x-phase: B1
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: 已清除 session
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/me:
+    get:
+      tags: [auth]
+      summary: 目前登入使用者
+      operationId: getMe
+      x-phase: B1
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/admin/employees:
+    get:
+      tags: [admin-employees]
+      summary: 員工列表
+      operationId: listEmployees
+      x-phase: B1
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/QueryActiveOnly'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Employee'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [admin-employees]
+      summary: 新增員工
+      operationId: createEmployee
+      x-phase: B1
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeCreateRequest'
+      responses:
+        '201':
+          description: 已建立
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/employees/{employeeId}:
+    parameters:
+      - $ref: '#/components/parameters/EmployeeIdPath'
+    get:
+      tags: [admin-employees]
+      summary: 員工詳情（含年假額度）
+      operationId: getEmployee
+      x-phase: B1
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [admin-employees]
+      summary: 更新員工（含 PIN、啟停、年假額度）
+      operationId: updateEmployee
+      x-phase: B1
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 非 Admin，或試圖停用／刪除受保護 Admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/admin/shifts:
+    get:
+      tags: [admin-shifts]
+      summary: 班表列表
+      operationId: listShifts
+      x-phase: B2
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: includeDisabled
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Shift'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [admin-shifts]
+      summary: 新增班表
+      operationId: createShift
+      x-phase: B2
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftWriteRequest'
+      responses:
+        '201':
+          description: 已建立
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shift'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/shifts/{shiftId}:
+    parameters:
+      - $ref: '#/components/parameters/ShiftIdPath'
+    patch:
+      tags: [admin-shifts]
+      summary: 更新／停用班表
+      operationId: updateShift
+      x-phase: B2
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftUpdateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shift'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 現職仍有派班，無法停用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                activeAssignment:
+                  value:
+                    code: SHIFT_HAS_ACTIVE_ASSIGNMENT
+                    message: 目前仍有員工派在此班，無法停用
+    delete:
+      tags: [admin-shifts]
+      summary: 刪除班表（僅無任何歷史引用時）
+      operationId: deleteShift
+      x-phase: B2
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: 已刪除
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 仍有派班或歷史計算引用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                inUse:
+                  value:
+                    code: SHIFT_IN_USE
+                    message: 班表已有引用，不可刪除，僅可停用
+
+  /api/admin/shift-assignments:
+    get:
+      tags: [admin-shifts]
+      summary: 派班列表
+      operationId: listShiftAssignments
+      x-phase: B2
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: employeeId
+          in: query
+          schema:
+            $ref: '#/components/schemas/EmployeeId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ShiftAssignment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [admin-shifts]
+      summary: 新增派班起迄
+      operationId: createShiftAssignment
+      x-phase: B2
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftAssignmentWriteRequest'
+      responses:
+        '201':
+          description: 已建立
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftAssignment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/shift-assignments/{assignmentId}:
+    parameters:
+      - $ref: '#/components/parameters/AssignmentIdPath'
+    patch:
+      tags: [admin-shifts]
+      summary: 更新派班起迄
+      operationId: updateShiftAssignment
+      x-phase: B2
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShiftAssignmentWriteRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShiftAssignment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [admin-shifts]
+      summary: 刪除派班區段
+      operationId: deleteShiftAssignment
+      x-phase: B2
+      security:
+        - sessionCookie: []
+      responses:
+        '204':
+          description: 已刪除
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/attendance/import:
+    post:
+      tags: [attendance]
+      summary: 匯入出勤檔（重匯＝區間回沖年假後整段覆蓋）
+      description: |
+        `multipart/form-data` 上傳 CSV 或 TXT。
+        員工：檔內任一員工編號 ≠ 登入者 → `403 IMPORT_NOT_SELF`。
+        Admin：依檔內編號寫入對應員工。
+        未知假別列會回傳於 `unknownLeaveTypes`，不阻擋寫入打卡列；不入請假台帳、不扣年假。
+      operationId: importAttendance
+      x-phase: B3
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: CSV 或 TXT 出勤檔
+      responses:
+        '200':
+          description: 匯入完成
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceImportResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 員工匯入非本人檔
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notSelf:
+                  value:
+                    code: IMPORT_NOT_SELF
+                    message: 僅能匯入本人出勤檔
+
+  /api/attendance:
+    get:
+      tags: [attendance]
+      summary: 查詢已匯入出勤列
+      operationId: listAttendance
+      x-phase: B3
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: employeeId
+          in: query
+          description: Admin 可指定；員工忽略此參數、固定本人
+          schema:
+            $ref: '#/components/schemas/EmployeeId'
+        - name: dateFrom
+          in: query
+          schema:
+            $ref: '#/components/schemas/IsoDate'
+        - name: dateTo
+          in: query
+          schema:
+            $ref: '#/components/schemas/IsoDate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AttendanceDay'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/computation-context:
+    get:
+      tags: [computation-context]
+      summary: 前端加班計算用：歸屬日對應班表與日類型
+      description: |
+        回傳指定員工、日期區間內每日的 `shift` 與 `dayType`，
+        供前端 `calculateOvertimeAndMealAllowance` 使用。不回傳加班時數。
+      operationId: getComputationContext
+      x-phase: B2
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: employeeId
+          in: query
+          description: Admin 可指定；員工固定本人
+          schema:
+            $ref: '#/components/schemas/EmployeeId'
+        - name: dateFrom
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/IsoDate'
+        - name: dateTo
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/IsoDate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputationContextResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/leave/calendar:
+    get:
+      tags: [leave-calendar]
+      summary: 請假＋國定／補班行事曆
+      operationId: getLeaveCalendar
+      x-phase: B4
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: employeeId
+          in: query
+          description: Admin 可指定；員工固定本人
+          schema:
+            $ref: '#/components/schemas/EmployeeId'
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 2026
+        - name: month
+          in: query
+          description: 1–12；省略則回整年
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveCalendarResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/gov-calendar/sync:
+    post:
+      tags: [leave-calendar]
+      summary: 手動觸發政府辦公日曆同步
+      operationId: syncGovCalendar
+      x-phase: B4
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                year:
+                  type: integer
+                  description: 省略則同步當前年與次年
+      responses:
+        '200':
+          description: 同步結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GovCalendarSyncResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '502':
+          description: 上游資料集失敗（系統仍允許手勾補班）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/work-locations:
+    get:
+      tags: [work-locations]
+      summary: 工作地點詞庫前綴搜尋
+      operationId: searchWorkLocations
+      x-phase: B5
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: 前綴；可為單一字元
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 40
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkLocationTerm'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [work-locations]
+      summary: 新增工作地點字串至共用詞庫
+      description: 已存在則回傳既有項（冪等），不報錯。
+      operationId: createWorkLocation
+      x-phase: B5
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+      responses:
+        '200':
+          description: 已存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkLocationTerm'
+        '201':
+          description: 新建
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkLocationTerm'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: attendance_session
+
+  parameters:
+    EmployeeIdPath:
+      name: employeeId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/EmployeeId'
+    ShiftIdPath:
+      name: shiftId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AssignmentIdPath:
+      name: assignmentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    QueryActiveOnly:
+      name: activeOnly
+      in: query
+      schema:
+        type: boolean
+        default: false
+
+  responses:
+    BadRequest:
+      description: 請求驗證失敗
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: 未登入或 session 失效
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            unauthorized:
+              value:
+                code: UNAUTHORIZED
+                message: 請先登入
+    Forbidden:
+      description: 已登入但無權限
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            forbidden:
+              value:
+                code: FORBIDDEN
+                message: 權限不足
+    NotFound:
+      description: 資源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            notFound:
+              value:
+                code: NOT_FOUND
+                message: 找不到資源
+
+  schemas:
+    EmployeeId:
+      type: string
+      pattern: '^\d{6}$'
+      example: '100057'
+
+    IsoDate:
+      type: string
+      format: date
+      example: '2026-03-25'
+
+    TimeHm:
+      type: string
+      pattern: '^\d{2}:\d{2}$'
+      example: '09:00'
+
+    Role:
+      type: string
+      enum: [employee, admin]
+
+    ShiftStatus:
+      type: string
+      enum: [active, disabled]
+
+    DayType:
+      type: string
+      enum: [weekday, rest_day, holiday, make_up]
+      description: |
+        weekday＝平日；rest_day＝休息日（非補班週六）；
+        holiday＝例假／國定；make_up＝補班（計算視同平日）。
+
+    LeaveType:
+      type: string
+      enum:
+        - 請年休假
+        - 病假
+        - 婚假
+        - 產假
+        - 育嬰假
+        - 事假
+        - 公假
+        - 喪假
+        - 空
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+    LoginRequest:
+      oneOf:
+        - type: object
+          required: [mode, employeeId, pin]
+          properties:
+            mode:
+              type: string
+              enum: [employee]
+            employeeId:
+              $ref: '#/components/schemas/EmployeeId'
+            pin:
+              type: string
+              pattern: '^\d{4}$'
+        - type: object
+          required: [mode, username, password, pin]
+          properties:
+            mode:
+              type: string
+              enum: [admin]
+            username:
+              type: string
+              minLength: 1
+            password:
+              type: string
+              minLength: 1
+            pin:
+              type: string
+              pattern: '^\d{4}$'
+
+    MeResponse:
+      type: object
+      required: [employeeId, name, role]
+      properties:
+        employeeId:
+          $ref: '#/components/schemas/EmployeeId'
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+
+    AnnualLeaveQuota:
+      type: object
+      required: [year, quotaDays, usedDays, remainingDays]
+      properties:
+        year:
+          type: integer
+          example: 2026
+        quotaDays:
+          type: number
+          format: double
+        usedDays:
+          type: number
+          format: double
+          description: 該曆年「請年休假」考勤數量加總
+        remainingDays:
+          type: number
+          format: double
+          description: quotaDays − usedDays，可為負
+
+    Employee:
+      type: object
+      required: [employeeId, name, role, isActive]
+      properties:
+        employeeId:
+          $ref: '#/components/schemas/EmployeeId'
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/Role'
+        isActive:
+          type: boolean
+
+    EmployeeDetail:
+      allOf:
+        - $ref: '#/components/schemas/Employee'
+        - type: object
+          properties:
+            quotas:
+              type: array
+              items:
+                $ref: '#/components/schemas/AnnualLeaveQuota'
+
+    EmployeeCreateRequest:
+      type: object
+      required: [employeeId, name, pin]
+      properties:
+        employeeId:
+          $ref: '#/components/schemas/EmployeeId'
+        name:
+          type: string
+          minLength: 1
+        pin:
+          type: string
+          pattern: '^\d{4}$'
+        isActive:
+          type: boolean
+          default: true
+        quotaYear:
+          type: integer
+          description: 建立時一併寫入的曆年；省略則用伺服器當前年
+        quotaDays:
+          type: number
+          format: double
+          default: 0
+
+    EmployeeUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        pin:
+          type: string
+          pattern: '^\d{4}$'
+        isActive:
+          type: boolean
+        password:
+          type: string
+          description: 僅 Admin 帳號可設／改密碼
+        quota:
+          type: object
+          required: [year, quotaDays]
+          properties:
+            year:
+              type: integer
+            quotaDays:
+              type: number
+              format: double
+
+    Shift:
+      type: object
+      required: [id, name, startTime, endTime, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: 公司班
+        startTime:
+          $ref: '#/components/schemas/TimeHm'
+        endTime:
+          $ref: '#/components/schemas/TimeHm'
+          description: 平日晚段加班起點
+        status:
+          $ref: '#/components/schemas/ShiftStatus'
+
+    ShiftWriteRequest:
+      type: object
+      required: [name, startTime, endTime]
+      properties:
+        name:
+          type: string
+        startTime:
+          $ref: '#/components/schemas/TimeHm'
+        endTime:
+          $ref: '#/components/schemas/TimeHm'
+
+    ShiftUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        startTime:
+          $ref: '#/components/schemas/TimeHm'
+        endTime:
+          $ref: '#/components/schemas/TimeHm'
+        status:
+          $ref: '#/components/schemas/ShiftStatus'
+
+    ShiftAssignment:
+      type: object
+      required: [id, employeeId, shiftId, effectiveFrom]
+      properties:
+        id:
+          type: string
+          format: uuid
+        employeeId:
+          $ref: '#/components/schemas/EmployeeId'
+        shiftId:
+          type: string
+          format: uuid
+        shiftName:
+          type: string
+        effectiveFrom:
+          $ref: '#/components/schemas/IsoDate'
+        effectiveTo:
+          allOf:
+            - $ref: '#/components/schemas/IsoDate'
+          nullable: true
+          description: null 表示尚無結束日
+
+    ShiftAssignmentWriteRequest:
+      type: object
+      required: [employeeId, shiftId, effectiveFrom]
+      properties:
+        employeeId:
+          $ref: '#/components/schemas/EmployeeId'
+        shiftId:
+          type: string
+          format: uuid
+        effectiveFrom:
+          $ref: '#/components/schemas/IsoDate'
+        effectiveTo:
+          allOf:
+            - $ref: '#/components/schemas/IsoDate'
+          nullable: true
+
+    AttendanceDay:
+      type: object
+      required:
+        - employeeId
+        - belongDate
+        - leaveQuantity
+        - unknownLeaveType
+      properties:
+        employeeId:
+          $ref: '#/components/schemas/EmployeeId'
+        name:
+          type: string
+        belongDate:
+          $ref: '#/components/schemas/IsoDate'
+        attendanceType:
+          type: string
+          nullable: true
+          description: 清單內假別或原始字串；空／空字串視同無假
+        leaveQuantity:
+          type: number
+          format: double
+        clockIn:
+          allOf:
+            - $ref: '#/components/schemas/TimeHm'
+          nullable: true
+        clockOut:
+          allOf:
+            - $ref: '#/components/schemas/TimeHm'
+          nullable: true
+        unknownLeaveType:
+          type: boolean
+          description: true＝不在假別清單，需 highlight
+
+    AttendanceImportResult:
+      type: object
+      required:
+        - employeeId
+        - dateFrom
+        - dateTo
+        - importedCount
+        - unknownLeaveTypes
+      properties:
+        employeeId:
+          $ref: '#/components/schemas/EmployeeId'
+        dateFrom:
+          $ref: '#/components/schemas/IsoDate'
+        dateTo:
+          $ref: '#/components/schemas/IsoDate'
+        importedCount:
+          type: integer
+        unknownLeaveTypes:
+          type: array
+          items:
+            type: string
+          description: 本次出現之不在清單假別名稱（去重）
+        quotaAfter:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnnualLeaveQuota'
+          description: 受影響曆年之年假額度快照
+
+    DayComputationContext:
+      type: object
+      required: [date, dayType]
+      properties:
+        date:
+          $ref: '#/components/schemas/IsoDate'
+        dayType:
+          $ref: '#/components/schemas/DayType'
+        shift:
+          allOf:
+            - $ref: '#/components/schemas/Shift'
+          nullable: true
+          description: 無派班時為 null；前端需提示
+
+    ComputationContextResponse:
+      type: object
+      required: [employeeId, dateFrom, dateTo, days]
+      properties:
+        employeeId:
+          $ref: '#/components/schemas/EmployeeId'
+        dateFrom:
+          $ref: '#/components/schemas/IsoDate'
+        dateTo:
+          $ref: '#/components/schemas/IsoDate'
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayComputationContext'
+
+    LeaveCalendarDay:
+      type: object
+      required: [date, dayType]
+      properties:
+        date:
+          $ref: '#/components/schemas/IsoDate'
+        dayType:
+          $ref: '#/components/schemas/DayType'
+        leaveType:
+          type: string
+          nullable: true
+        leaveQuantity:
+          type: number
+          format: double
+          nullable: true
+
+    LeaveCalendarResponse:
+      type: object
+      required: [employeeId, year, days]
+      properties:
+        employeeId:
+          $ref: '#/components/schemas/EmployeeId'
+        year:
+          type: integer
+        month:
+          type: integer
+          nullable: true
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeaveCalendarDay'
+
+    GovCalendarSyncResult:
+      type: object
+      required: [upsertedCount, years]
+      properties:
+        upsertedCount:
+          type: integer
+        years:
+          type: array
+          items:
+            type: integer
+        source:
+          type: string
+          description: 資料集識別或 URL
+
+    WorkLocationTerm:
+      type: object
+      required: [id, text, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+          maxLength: 40
+        createdAt:
+          type: string
+          format: date-time
