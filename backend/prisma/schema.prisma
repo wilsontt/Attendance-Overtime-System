@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  employee
+  admin
+}
+
+enum ShiftStatus {
+  active
+  disabled
+}
+
+enum GovDayType {
+  holiday
+  make_up
+  weekday
+}
+
+model User {
+  id                String    @id @default(uuid()) @db.Uuid
+  employeeId        String    @unique @map("employee_id") @db.Char(6)
+  name              String
+  role              UserRole
+  pinHash           String    @map("pin_hash")
+  passwordHash      String?   @map("password_hash")
+  isActive          Boolean   @default(true) @map("is_active")
+  isProtected       Boolean   @default(false) @map("is_protected")
+  failedLoginCount  Int       @default(0) @map("failed_login_count")
+  lockedUntil       DateTime? @map("locked_until") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sessions              Session[]
+  quotas                AnnualLeaveQuota[]
+  shiftAssignments      ShiftAssignment[]
+  attendanceDays        AttendanceDay[]
+  importBatchesAsOwner  AttendanceImportBatch[] @relation("ImportOwner")
+  importBatchesAsActor  AttendanceImportBatch[] @relation("ImportActor")
+  workLocationsCreated  WorkLocationTerm[]
+  auditLogs             AuditLog[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model AnnualLeaveQuota {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  year      Int
+  quotaDays Decimal  @map("quota_days") @db.Decimal(6, 2)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year])
+  @@map("annual_leave_quotas")
+}
+
+model Shift {
+  id        String      @id @default(uuid()) @db.Uuid
+  name      String      @unique
+  startTime String      @map("start_time") @db.Char(5)
+  endTime   String      @map("end_time") @db.Char(5)
+  status    ShiftStatus @default(active)
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  assignments ShiftAssignment[]
+
+  @@map("shifts")
+}
+
+model ShiftAssignment {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  shiftId       String    @map("shift_id") @db.Uuid
+  effectiveFrom DateTime  @map("effective_from") @db.Date
+  effectiveTo   DateTime? @map("effective_to") @db.Date
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shift Shift @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+
+  @@index([userId, effectiveFrom])
+  @@map("shift_assignments")
+}
+
+model AttendanceImportBatch {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  importedById   String   @map("imported_by") @db.Uuid
+  dateFrom       DateTime @map("date_from") @db.Date
+  dateTo         DateTime @map("date_to") @db.Date
+  sourceFilename String   @map("source_filename")
+  importedAt     DateTime @default(now()) @map("imported_at") @db.Timestamptz(6)
+
+  user       User            @relation("ImportOwner", fields: [userId], references: [id], onDelete: Cascade)
+  importedBy User            @relation("ImportActor", fields: [importedById], references: [id], onDelete: Restrict)
+  days       AttendanceDay[]
+
+  @@map("attendance_import_batches")
+}
+
+model AttendanceDay {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  belongDate        DateTime @map("belong_date") @db.Date
+  attendanceType    String?  @map("attendance_type")
+  leaveQuantity     Decimal  @default(0) @map("leave_quantity") @db.Decimal(6, 2)
+  clockIn           String?  @map("clock_in") @db.Char(5)
+  clockOut          String?  @map("clock_out") @db.Char(5)
+  unknownLeaveType  Boolean  @default(false) @map("unknown_leave_type")
+  importBatchId     String?  @map("import_batch_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user        User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  importBatch AttendanceImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, belongDate])
+  @@map("attendance_days")
+}
+
+model GovCalendarDay {
+  date     DateTime   @id @db.Date
+  dayType  GovDayType @map("day_type")
+  name     String?
+  syncedAt DateTime   @map("synced_at") @db.Timestamptz(6)
+
+  @@map("gov_calendar_days")
+}
+
+model WorkLocationTerm {
+  id        String   @id @default(uuid()) @db.Uuid
+  text      String   @unique @db.VarChar(40)
+  createdBy String?  @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  creator User? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@map("work_location_terms")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
+  action    String
+  payload   Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}

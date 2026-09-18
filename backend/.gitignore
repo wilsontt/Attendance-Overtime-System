@@ -1,0 +1,13 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Dependencies / build
+node_modules/
+dist/
+coverage/
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal

@@ -12,12 +12,12 @@
 
 ## B1 Auth + 員工主檔
 
-- [ ] 建立 `backend/`（Fastify 5、TypeScript、Prisma、Vitest）
-- [ ] Prisma schema（User、Session、AnnualLeaveQuota）+ migrate + seed Admin／兩班
-- [ ] `POST /api/auth/login`｜`logout`｜`GET /api/me`（Cookie session、bcrypt、鎖定）
-- [ ] Admin CRUD `/api/admin/employees`（PIN、年假額度、Admin 保護）
-- [ ] 整合測試：登入成功／失敗鎖定／非 Admin 403
-- [ ] 前端：LoginPage、路由閘道、API client
+- [x] 建立 `backend/`（Fastify 5、TypeScript、Prisma 6、Vitest）
+- [x] Prisma schema（完整線 B 模型）+ init migration + seed Admin／兩班
+- [x] `POST /api/auth/login`｜`logout`｜`GET /api/me`（Cookie session、bcrypt、鎖定）
+- [x] Admin CRUD `/api/admin/employees`（PIN、年假額度、Admin 保護）
+- [x] 單元測試：登入鎖定邏輯／密碼雜湊（整合測試待 Docker DB）
+- [x] 前端：LoginPage、App 登入閘道、API client、Vite proxy
 
 ## B2 班表 + 派班 + 計算脈絡
 

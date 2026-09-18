@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: attendance
+      POSTGRES_PASSWORD: attendance
+      POSTGRES_DB: attendance
+    ports:
+      - '5432:5432'
+    volumes:
+      - attendance_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U attendance -d attendance']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://attendance:attendance@db:5432/attendance?schema=public
+      PORT: '3000'
+      COOKIE_SECURE: 'false'
+      ADMIN_SEED_PASSWORD: ${ADMIN_SEED_PASSWORD:-ChangeMeAdmin!}
+      ADMIN_SEED_PIN: ${ADMIN_SEED_PIN:-0000}
+    ports:
+      - '3000:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  attendance_pg_data:

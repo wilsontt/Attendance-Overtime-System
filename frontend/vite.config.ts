@@ -38,6 +38,14 @@ export default defineConfig({
     host: '0.0.0.0', // 監聽所有網路介面
     port: 5173, // 可自訂埠號
     strictPort: false, // 如果埠號被占用，自動嘗試下一個
+    proxy: {
+      // 開發時把 API 轉到 Fastify（Cookie 同源 /attendance）
+      '/attendance/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/attendance/, ''),
+      },
+    },
   },
   test: {
     environment: 'jsdom',

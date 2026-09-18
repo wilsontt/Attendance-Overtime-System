@@ -102,6 +102,12 @@
 - 建置指令範例（在 `deploy/`）：`docker compose build --no-cache attendance`。
 - 若 `npm ci` 出現 `Exit handler never called` 或不明失敗，先確認 `package-lock.json` 有進 context；同一 Dockerfile 昨日能建、今日不能時，優先**重啟 Docker daemon 再 build**，不一定是 Dockerfile 錯誤。
 
+### 線 B 後端（開發中）
+
+- 契約：`specs/002-attendance-account-shift-leave/contracts/openapi.yaml`
+- 後端目錄：`backend/`（Fastify + Prisma + PostgreSQL）；本機可 `docker compose up -d db` 後依 `backend/README.md` 遷移／seed／啟動。
+- 前端開發透過 Vite proxy：`/attendance/api` → `http://localhost:3000/api`。
+
 ## 📖 使用說明
 
 ### 1. 準備資料檔案
