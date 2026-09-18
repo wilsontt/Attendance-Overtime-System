@@ -227,7 +227,7 @@
 | `0.standards/輸出列印字體放大設計.md` | 列印版面（兩列不改變頁列數限制） |
 | 政府資料開放平臺 — 行政機關辦公日曆 | 國定／補班資料來源（資料集 URL 於設計階段鎖定） |
 
-後續應新增（本 PRD 核准後）：`design.md`、`plan.md`（建議線 A／線 B 兩份或一份內分 Phase）。主控 `README.md` 應加「擴充 3／002」與後端依賴說明。
+後續文件：線 A PLAN 已完成（`plan-line-a-shift-overtime.md`）；線 B PLAN 見 `plan-line-b-backend-auth-leave.md`（核准後接 `research.md`／`data-model.md`／`contracts/`／`tasks-line-b.md`）。主控 `README.md` 應加「擴充 3／002」與後端依賴說明（線 B 實作時同步）。
 
 ---
 

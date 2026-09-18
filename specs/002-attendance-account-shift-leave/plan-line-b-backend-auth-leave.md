@@ -1,0 +1,234 @@
+# 實作計畫：擴充需求 3 - 線 B (後端身分、假勤、匯入、班表 CRUD)
+
+**Branch**: `feature/002-line-b-backend-auth-leave` | **Date**: 2026-09-18 | **Spec**: [出勤記錄-擴充需求3_prd.md](./出勤記錄-擴充需求3_prd.md) | **Status**: Draft
+**Input**: Feature specification from `specs/002-attendance-account-shift-leave/出勤記錄-擴充需求3_prd.md`（線 B：E3-4～9）
+**Depends on**: 線 A 已完成（計算兩列、班表手選、補班手勾、預覽／PDF／Excel）
+
+## 摘要
+
+將現況「純前端靜態站」升級為「前端 + API + 持久化」模組化單體：提供員工／Admin 登入、員工與年假主檔、班表 CRUD 與派班起迄、出勤匯入（本人限制／Admin 代匯／區間重匯回沖年假）、請假行事曆、政府辦公日曆抓取、以及工作地點共用詞庫。線 A 的加班計算與報表輸出維持在前端，改為讀取伺服器端的派班與日類型，不再依賴僅本機的全域班表選擇作為正式來源。
+
+## 技術背景（鎖定決策）
+
+PRD §2.5 將 API／DB／PIN 儲存／政府日曆資料集標為設計待決。本 PLAN **鎖定**下列選型，作為後續 `design.md`／`data-model.md`／`contracts/` 的輸入；若需改選，必須先改本 PLAN 再實作。
+
+| 項目 | 決策 | 理由 |
+|------|------|------|
+| 架構 | 模組化單體：`backend/` + 既有 `frontend/` | 符合 Constitution P10；單一部署單元即可 |
+| Runtime | Node.js 22（與現有 Dockerfile 一致） | 與前端同語系，降低維運分裂 |
+| API | Fastify 5 + TypeScript | 輕量、型別友善、適合內部工具規模 |
+| ORM／DB | Prisma + PostgreSQL 16 | 關聯資料（派班、匯入、年假）清楚；容器化成熟 |
+| 遷移 | Prisma Migrate | schema 變更可追溯 |
+| 驗證 | Session Cookie（HttpOnly、Secure、SameSite=Lax）+ `bcrypt` 雜湊 | PRD 明確排除 SSO；PIN／Admin 密碼不可明文 |
+| API 契約 | OpenAPI 3（`specs/.../contracts/openapi.yaml`） | 前後端對齊、可產生型別 |
+| 日曆資料 | 行政院人事行政總處／政府資料開放平臺「行政機關辦公日曆」；排程每日抓取 | PRD E3-6；失敗時仍允許手勾補班（E3-2.1） |
+| 部署 | Docker Compose：`frontend`(Nginx) + `api` + `db`；反向代理 `/attendance/api/` | 延續現有 `/attendance/` 路徑 |
+| 測試 | 後端：Vitest + Supertest；前端：既有 Vitest；匯入／年假：整合測試必過 | 對應 PRD 附錄 B 匯入／帳號項 |
+
+**刻意不做（本線）**：OIDC／企業 AD（PRD 範圍外）；跨日夜班；假別法定天數控管；加班原因常用清單。
+
+**Constitution 例外說明**：P2 模板提及 OIDC；本增量依 PRD「PIN 為識別碼、非 SSO」採自建帳密／PIN，並以雜湊、嘗試次數限制、稽核日誌滿足「設計即安全」精神。
+
+## 規範檢查 (Constitution Check)
+
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+
+- [x] **P1: SDD**：依 `出勤記錄-擴充需求3_prd.md` 線 B。
+- [x] **P2: Security by Design**：自建登入 + 雜湊 + RBAC（employee／admin）+ 匯入授權 + 稽核（登入失敗／帳號異動／重匯）；例外見上表。
+- [x] **P3: 可測試性**：附錄 B 匯入／帳號／班表／詞庫項可寫成自動化測試。
+- [x] **P4: 漸進交付**：下方 Phase B0～B5 各自可驗收。
+- [x] **P5: zh-TW**：文件與註解繁中。
+- [x] **P6～P7**：ESLint／審查；單元＋整合測試。
+- [x] **P8: UX**：Admin CRUD 採明確儲存／取消（非 auto-save）；沿用 `0.shared-ui` 頂欄。
+- [x] **P9: 效能**：單次匯入以一人一月為主；政府日曆離線快取，請求不即時打外網。
+- [x] **P10: 模組化單體**：後端依領域模組切分（auth、employee、shift、attendance、leave、calendar、workLocation）。
+- [x] **P11: 技術堆疊**：本 PLAN 鎖定表。
+- [x] **P12: 數據治理**：Prisma schema 為唯一結構來源；重匯為交易性覆蓋。
+- [x] **P13: 可觀測性**：結構化 log（requestId、actorId、action）；關鍵業務寫 `audit_log`。
+
+## 交付切分（Phase）
+
+| Phase | 對應 E3 | 可驗收產出 |
+|-------|---------|------------|
+| **B0** Research／Design | §2.5 | `research.md`、`data-model.md`、`contracts/openapi.yaml`、seed Admin |
+| **B1** Auth + 員工主檔 | E3-4、E3-5 | 登入／登出；Admin CRUD 員工、PIN、年假額度 |
+| **B2** 班表 + 派班 | E3-1、E3-8 | 班表 CRUD（刪除／停用規則）；派班起迄；前端改讀伺服器班 |
+| **B3** 匯入 + 年假回沖 | E3-7、E3-4.2～4.5 | 本人限制、Admin 代匯、區間重匯交易、未知假別 |
+| **B4** 行事曆 + 政府日曆 | E3-6、E3-2 | 個人請假曆；國定／補班自動；失敗可手勾 |
+| **B5** 工作地點詞庫 + 銜接 | E3-9、§5.8 | 共用詞庫 API；預覽自動完成；Docker Compose 一鍵起 |
+
+線 A 計算規則 **不在本 PLAN 重寫**；B2／B4 完成後，前端改以「歸屬日派班 + 伺服器日類型」呼叫既有 `calculateOvertimeAndMealAllowance`。
+
+## 專案結構
+
+### 文件（此功能）
+
+```text
+specs/002-attendance-account-shift-leave/
+├── 出勤記錄-擴充需求3_prd.md
+├── plan-line-a-shift-overtime.md          # 已完成
+├── plan-line-b-backend-auth-leave.md      # 本文件
+├── STATUS.md
+├── research.md                            # B0 產出
+├── data-model.md                          # B0 產出
+├── contracts/
+│   └── openapi.yaml                       # B0 產出
+└── tasks-line-b.md                        # Plan 核准後以 /speckit.tasks 或手拆
+```
+
+### 原始碼（儲存庫根目錄）
+
+```text
+backend/
+├── package.json
+├── prisma/
+│   ├── schema.prisma
+│   └── seed.ts                 # 預設 Admin、公司班、倉庫班
+├── src/
+│   ├── app.ts                  # Fastify 組裝
+│   ├── config.ts
+│   ├── plugins/                # auth、prisma、cors
+│   ├── modules/
+│   │   ├── auth/
+│   │   ├── employee/
+│   │   ├── shift/
+│   │   ├── attendance/         # 匯入、重匯交易
+│   │   ├── leave/              # 年假額度／已請
+│   │   ├── calendar/           # 請假視圖、政府日曆同步
+│   │   └── workLocation/
+│   └── lib/                    # hash、errors、audit
+└── tests/
+    ├── unit/
+    └── integration/            # 重匯年假、匯入授權
+
+frontend/                       # 既有；新增登入與 Admin 頁、API client
+├── src/
+│   ├── api/                    # fetch 封装、型別
+│   ├── pages/
+│   │   ├── LoginPage.tsx
+│   │   ├── AdminEmployeesPage.tsx
+│   │   ├── AdminShiftsPage.tsx
+│   │   └── LeaveCalendarPage.tsx
+│   └── ...既有 HomePage／PreviewModal（改讀 API）
+
+docker-compose.yml              # api + db + 既有 attendance 前端映像
+```
+
+**結構決策**：後端獨立 `backend/`，不把 API 塞進 `frontend/`；Nginx 將 `/attendance/api/` 反代至 Fastify，靜態前端路徑維持 `/attendance/`。
+
+## 資料模型（摘要，細節寫入 data-model.md）
+
+| 實體 | 關鍵欄位 | 規則 |
+|------|----------|------|
+| `User` | `employee_id` 6 碼 UK、`role` employee\|admin、`pin_hash`、`password_hash?`、`name`、`is_active` | Admin 不可刪／停；員工可停用 |
+| `AnnualLeaveQuota` | `employee_id`、`year`、`quota_days` | 曆年一筆；剩餘 = quota − 已請，可負 |
+| `Shift` | `name`、`start_time`、`end_time`、`status` active\|disabled | 預設公司／倉庫；有引用不可刪 |
+| `ShiftAssignment` | `employee_id`、`shift_id`、`effective_from`、`effective_to` | 計算用歸屬日落點 |
+| `AttendanceImportBatch` | `employee_id`、`date_from`、`date_to`、`imported_by`、`imported_at` | 重匯範圍依據 |
+| `AttendanceDay` | `employee_id`、`belong_date`、`attendance_type`、`leave_qty`、`clock_in`、`clock_out`、`raw_*` | 一天一列；重匯刪區間後整寫 |
+| `LeaveLedger` | 由 `AttendanceDay` 衍生或實體化 | 僅「請年休假」計入已請 |
+| `GovCalendarDay` | `date`、`day_type` holiday\|make_up\|workday | 補班→平日規則 |
+| `WorkLocationTerm` | `text` UK、`created_by`、`created_at` | 全員共用 |
+| `AuditLog` | `actor_id`、`action`、`payload`、`created_at` | 登入失敗、CRUD、重匯 |
+
+**重匯交易（必須同一 DB transaction）**：
+
+1. 計算檔內 `min(belong_date)～max(belong_date)`。
+2. 該員工該區間內既有「請年休假」考勤數量加回（沖銷已請）。
+3. 刪除該員工該區間 `AttendanceDay`（及相關 ledger）。
+4. 寫入新檔全部列。
+5. 依新列重算該曆年（跨年則多年）已請。
+
+## API 邊界（合約目錄細化）
+
+| Method | Path | 角色 | 行為 |
+|--------|------|------|------|
+| POST | `/api/auth/login` | public | 員工：編號+PIN；Admin：帳號+密碼+4碼 |
+| POST | `/api/auth/logout` | any | 清 session |
+| GET | `/api/me` | any | 目前使用者 |
+| CRUD | `/api/admin/employees` | admin | 員工／PIN／年假額度 |
+| CRUD | `/api/admin/shifts` | admin | 班表；刪除前檢查引用 |
+| CRUD | `/api/admin/shift-assignments` | admin | 派班起迄 |
+| POST | `/api/attendance/import` | employee\|admin | 員工驗證檔內編號＝本人；Admin 不限 |
+| GET | `/api/attendance` | employee\|admin | 查詢；Admin 可指定員工 |
+| GET | `/api/leave/calendar` | employee\|admin | 請假＋國定／補班 |
+| POST | `/api/admin/gov-calendar/sync` | admin | 手動觸發同步 |
+| GET/POST | `/api/work-locations` | any | 前綴搜尋；送出新字串入庫 |
+
+前端加班計算仍在瀏覽器；API 提供「該日 shift + day_type」供計算輸入，避免後端重寫線 A 公式（除非後續另開 PLAN）。
+
+## 前端銜接要點
+
+1. **登入閘道**：未登入不可進 HomePage；頂欄顯示姓名／角色與登出。
+2. **匯入**：`FileUploader` 改走 `POST /api/attendance/import`；錯誤顯示「非本人檔」「未知假別」等。
+3. **班表**：移除「僅本機全域班表」作為正式來源；改顯示伺服器派班結果（Admin 可調整派班）。線 A 手選可保留為除錯開關，預設關閉。
+4. **補班**：優先讀 `GovCalendarDay`；無資料時沿用現有「加到平日加班」勾選。
+5. **工作地點**：`PreviewModal` 改呼叫詞庫前綴 API；確認下載時若為新字串則 POST 入庫。
+6. **行事曆頁**：新頁；員工本人、Admin 可選員工。
+
+## 安全需求（實作必做）
+
+| 項目 | 規格 |
+|------|------|
+| PIN／密碼 | `bcrypt`（cost ≥ 10）；永不回傳雜湊 |
+| 登入鎖定 | 同一帳號連續失敗 5 次鎖 15 分鐘（可設定） |
+| Session | 伺服器端 session 表或簽章 cookie；逾時 8 小時 |
+| 授權 | 每個匯入／查詢檢查 `role` 與 `employee_id` |
+| Admin 保護 | DB 約束或應用層禁止 `DELETE`／`is_active=false` 對唯一 Admin |
+| 傳輸 | 正式環境 HTTPS；開發可用 HTTP |
+
+## 測試策略
+
+| 層級 | 必測案例（對應 PRD 附錄 B） |
+|------|---------------------------|
+| 單元 | 年假剩餘可負；跨年兩列分年；跨月同年 |
+| 整合 | 員工匯入他人檔 → 403；Admin 代匯成功 |
+| 整合 | 同區間完整檔重匯：錯列覆蓋、年假不雙扣 |
+| 整合 | 未知假別標記；有打卡仍可計算加班（前端） |
+| 整合 | 停用班：現職無人才能停；有歷史引用不可刪 |
+| 整合 | 工作地點新字入庫後，另一 session 可搜到 |
+| 前端 | 登入後才可上傳；詞庫自動完成 |
+
+## 部署與遷移
+
+1. 新增 `backend/Dockerfile`、根目錄 `docker-compose.yml`（db + api）。
+2. 調整企業入口 `deploy/` 與 Nginx：`/attendance/api/` → api:3000。
+3. 首次啟動：`prisma migrate deploy` + `seed`（Admin、兩班）。
+4. README／`frontend/README.md`／`CLAUDE.md` 補「線 B 需 API＋DB」說明。
+
+## 風險與緩解
+
+| 風險 | 緩解 |
+|------|------|
+| 政府日曆資料集 URL／欄位變更 | 同步失敗只記 log；UI 仍可手勾補班 |
+| 重匯殘缺檔清掉中間日 | 匯入前檢查提示「須完整區間檔」；文件與 Admin 作業說明 |
+| 線 A 手選班與伺服器派班不一致 | B2 後正式路徑只信伺服器；手選降級為開發旗標 |
+| Constitution OIDC 與 PRD PIN 衝突 | 本 PLAN 已記載例外；不實作 SSO |
+
+## Complexity Tracking
+
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| 自建 PIN／密碼而非 OIDC | PRD 明確排除 SSO，員工僅 6 碼+4 碼 PIN | OIDC 超出範圍且無企業 IdP 整合需求 |
+| 新增 PostgreSQL 服務 | 需跨裝置持久化帳號、匯入、詞庫、年假 | 純 localStorage 無法滿足「下月登入仍在」與 Admin 代操作 |
+
+## 後續步驟（本 PLAN 核准後）
+
+1. 撰寫 `research.md`（政府日曆資料集鎖定、session 實作細節）。
+2. 撰寫 `data-model.md` + `contracts/openapi.yaml`。
+3. 拆 `tasks-line-b.md`（依 Phase B0～B5）。
+4. 更新 `STATUS.md`：Plan 定稿勾選；開始實作 B0。
+5. 主控 `README.md` 增加「擴充 3／線 B 後端依賴」段落。
+
+## 驗收對照（線 B）
+
+- [ ] 員工：6 碼 + PIN 登入；Admin：帳密 + 4 碼；Admin 不可刪／停。
+- [ ] Admin 可維護員工、年假額度、班表、派班起迄。
+- [ ] 員工匯入他人編號檔被拒；Admin 可代匯。
+- [ ] 同區間完整檔重匯：覆蓋正確、年假不雙扣、剩餘可負。
+- [ ] 請年休假扣考勤數量；跨年分年、跨月同年。
+- [ ] 未知假別 highlight；有打卡仍算加班。
+- [ ] 停用班規則；歷史依派班起迄重算。
+- [ ] 政府日曆標國定／補班；失敗可手勾。
+- [ ] 工作地點共用詞庫，跨登入仍在。
+- [ ] Docker Compose 可啟動前端 + API + DB。
