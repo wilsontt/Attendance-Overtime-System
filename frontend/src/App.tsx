@@ -171,7 +171,7 @@ function App() {
 
       {/* 加班單主流程保持掛載，切換行事曆／Admin 回來時保留已上傳列表 */}
       <div className={shellView === 'home' ? undefined : 'hidden'} aria-hidden={shellView !== 'home'}>
-        <HomePage />
+        <HomePage loggedIn={Boolean(user)} />
       </div>
 
       {shellView === 'calendar' && user ? (

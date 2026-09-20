@@ -21,7 +21,7 @@ export function nextFailedLoginState(
 }
 
 export async function writeAudit(
-  db: PrismaClient,
+  db: PrismaClient | Prisma.TransactionClient,
   action: string,
   payload: Prisma.InputJsonValue,
   actorId?: string | null,

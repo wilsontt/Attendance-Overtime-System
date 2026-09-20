@@ -5,6 +5,7 @@ import { authRoutes } from './modules/auth/auth.routes.js';
 import { employeeRoutes } from './modules/employee/employee.routes.js';
 import { shiftRoutes } from './modules/shift/shift.routes.js';
 import { computationRoutes } from './modules/computation/computation.routes.js';
+import { attendanceRoutes } from './modules/attendance/attendance.routes.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -30,6 +31,7 @@ export async function buildApp() {
   await app.register(employeeRoutes);
   await app.register(shiftRoutes);
   await app.register(computationRoutes);
+  await app.register(attendanceRoutes);
 
   return app;
 }

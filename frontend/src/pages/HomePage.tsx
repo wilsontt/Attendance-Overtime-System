@@ -11,6 +11,7 @@
 
 import React, { useState, useMemo } from 'react';
 import FileUploader from '../components/FileUploader';
+import { ServerImportPanel } from '../components/ServerImportPanel';
 import AttendanceTable from '../components/AttendanceTable';
 import PreviewModal from '../components/PreviewModal';
 import type { AttendanceRecord, OvertimeReport } from '../types';
@@ -18,11 +19,16 @@ import { calculateOvertimeAndMealAllowance, isNaturalHoliday } from '../services
 import { generateExcelReport, generatePdfReport, printReport } from '../services/reportService';
 import { formatDate } from '../utils/dateFormatter';
 
+type HomePageProps = {
+  /** 已登入才顯示伺服器正式匯入 */
+  loggedIn?: boolean;
+};
+
 /**
  * HomePage 組件（加班單主內容；導覽列由 App 殼層提供）
  * @returns {JSX.Element} 首頁組件
  */
-const HomePage: React.FC = () => {
+const HomePage: React.FC<HomePageProps> = ({ loggedIn = false }) => {
   /** 原始出勤記錄（從檔案解析而來） */
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   
@@ -350,6 +356,7 @@ const HomePage: React.FC = () => {
         globalShift={globalShift}
         onGlobalShiftChange={setGlobalShift}
       />
+      <ServerImportPanel loggedIn={loggedIn} />
 
       {overtimeReports.length > 0 && (
         <>

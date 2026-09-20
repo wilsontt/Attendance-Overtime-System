@@ -29,11 +29,11 @@
 
 ## B3 匯入 + 年假回沖
 
-- [ ] 後端 TXT／CSV 解析 + `POST /api/attendance/import` 交易（**需 session**）
-- [ ] `GET /api/attendance`
-- [ ] 員工非本人 403；未知假別標記；年假加總／可負
-- [ ] 前端：本機公開上傳維持未登入可用；伺服器正式匯入另走 API（需登入）
-- [ ] 整合測試：重匯不雙扣、跨年分年
+- [x] 後端 TXT／CSV 解析 + `POST /api/attendance/import` 交易（**需 session**）
+- [x] `GET /api/attendance`
+- [x] 員工非本人 403；未知假別標記；年假加總／可負
+- [x] 前端：本機公開上傳維持；伺服器正式匯入面板（需登入）
+- [x] 單元測試：解析／未知假別／重匯年假語意（跨年分年）；整合測試待 Docker DB
 
 ## B4 行事曆 + 政府日曆
 

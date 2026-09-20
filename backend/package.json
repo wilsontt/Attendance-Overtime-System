@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
+    "@fastify/multipart": "^9.4.0",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
     "fastify": "^5.12.5"
