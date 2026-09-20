@@ -59,6 +59,7 @@ AuditLog（actor → User，可 null）
 規則：
 - 唯一受保護 Admin 至少一筆；應用層拒絕 `DELETE` 與 `is_active=false`。
 - PIN／密碼雜湊永不經 API 回傳。
+- **建立／重設 PIN（B6）**：後端隨機 4 碼；該次回應可含明文 `plainPin`（僅一次），之後不可再查。
 
 ### 4.2 Session（`sessions`）
 
