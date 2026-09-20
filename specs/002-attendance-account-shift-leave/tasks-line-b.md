@@ -15,11 +15,11 @@
 - [x] 建立 `backend/`（Fastify 5、TypeScript、Prisma 6、Vitest）
 - [x] Prisma schema（完整線 B 模型）+ init migration + seed Admin／兩班
 - [x] `POST /api/auth/login`｜`logout`｜`GET /api/me`（Cookie session、bcrypt、鎖定）
-- [x] Admin CRUD `/api/admin/employees`（PIN、年假額度、Admin 保護）
+- [x] Admin CRUD `/api/admin/employees`（年假額度、Admin 保護；舊版必填 pin → B6 移除）
 - [x] 單元測試：登入鎖定邏輯／密碼雜湊（整合測試用本機 SQLite）
 - [x] 前端：LoginPage、App lazy auth、API client、Vite proxy
 - [x] **規格變更已實作**：首頁公開；請假行事曆／Admin 才要 session（PRD §5.3.1）
-- [ ] **B6**：員工管理 UI＋隨機 PIN（見下方 B6）
+- [ ] **B6**：員工管理 UI＋圖形驗證碼登入（見下方 B6）
 
 ## B2 班表 + 派班 + 計算脈絡
 
@@ -50,13 +50,17 @@
 - [x] Docker Compose（api＋SQLite 掛卷；`--profile full` 含 web＋`/attendance/api/` 反代）；本機開發零 Docker
 - [x] README／CLAUDE／backend README 補線 B 依賴與契約路徑
 
-## B6 Admin UI 對齊（下一步｜2026-09-20 規格已定）
+## B6 Admin UI＋圖形驗證碼（下一步｜2026-09-20 規格已定）
+
+對齊教育訓練：登入用**圖形驗證碼**，不發放入庫 PIN。
 
 - [ ] 頂欄「Admin 管理」殼層：分頁或子選單 — **員工帳號**｜**班表與派班**｜**政府辦公日曆**
-- [ ] `AdminEmployeesPage`：列表／建立／停用／年假額度；建立與「重設 PIN」呼叫 API
-- [ ] 後端：建立／重設 PIN 改為**隨機 4 碼**（可選省略 body.pin）；回應含一次明文；OpenAPI／data-model 同步
-- [ ] 政府日曆：Admin 殼層內手動 sync＋顯示結果（請假行事曆頁可保留入口或改為連結）
-- [ ] 驗收：建員工 → 複製 PIN → 員工登入 → 正式匯入該編號不再「找不到員工」
+- [ ] `AdminEmployeesPage`：列表／建立／停用／年假額度（**無** PIN 欄／重設 PIN）
+- [ ] 後端：`GET /api/auth/captcha`；登入改 `captchaId`＋`captchaAnswer`；員工／Admin 皆驗證碼；Admin 另驗密碼；建立員工移除必填 `pin`
+- [ ] 前端 LoginPage：顯示驗證碼圖、可重新取圖；拿掉「4 碼 PIN」長期密鑰欄位語意
+- [ ] OpenAPI／data-model／seed 文件同步（`ADMIN_SEED_PIN` 不作為登入因子）
+- [ ] 政府日曆：Admin 殼層內手動 sync＋顯示結果
+- [ ] 驗收：建員工（無 PIN）→ 員工以編號＋圖形驗證碼登入 → 正式匯入該編號成功
 
 ## 完成定義（線 B）
 

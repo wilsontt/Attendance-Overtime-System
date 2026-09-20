@@ -23,12 +23,37 @@
 
 ---
 
-## 2. 密碼／PIN 雜湊
+## 2. 密碼與圖形驗證碼（對齊教育訓練）
+
+### 2.1 Admin 密碼
 
 - 演算法：`bcrypt`，cost **≥ 10**（建議 12）。
-- 員工：僅 PIN（4 碼）雜湊。**建立／重設時由後端隨機產生**（`crypto.randomInt(0, 10000)` 補零成 4 碼，對齊教育訓練「4 碼隨機」精神）；API 僅該次回傳明文欄位（如 `plainPin`），之後不可查。
-- Admin：`password_hash` + `pin_hash` 皆要驗證（PRD：帳密 + 4 碼）；seed 用 `ADMIN_SEED_PASSWORD`／`ADMIN_SEED_PIN`（僅 seed；不入庫明文）。
-- 環境變數：`SESSION_SECRET`（若需要）、`ADMIN_SEED_PASSWORD`、`ADMIN_SEED_PIN`。
+- **僅 Admin** 有 `password_hash`；登入時驗證密碼。
+- Seed：`ADMIN_SEED_PASSWORD`（僅 seed；不入庫明文）。**廢止**以入庫 PIN 作為登入第二因子。
+
+### 2.2 圖形驗證碼（員工與 Admin 共用）
+
+比照教育訓練 `GET captcha`＋登入帶 `captcha_id`／`answer`：
+
+| 項目 | 決策 |
+|------|------|
+| 產生 | `GET /api/auth/captcha` → `{ captchaId, image }`（PNG data URL） |
+| 內容 | 隨機 **4 位數字**；繪製為圖像 |
+| 暫存 | 行程內 Map：`captchaId → answer`；TTL 建議 5 分鐘 |
+| 員工登入 | `employeeId` + `captchaId` + `captchaAnswer`（免密碼、無入庫 PIN） |
+| Admin 登入 | `username` + `password` + `captchaId` + `captchaAnswer` |
+| 成功後 | 刪除該 `captchaId`（一次性） |
+| Bypass | 僅開發可選；正式禁止 |
+
+**不做**：員工入庫 PIN、建帳發 PIN、重設 PIN、Admin 登入再用入庫 4 碼 PIN。
+
+### 2.3 與舊實作差異（B1 → B6）
+
+| 舊（B1） | 新（B6） |
+|----------|----------|
+| 驗證 `users.pin_hash` | 驗證圖形驗證碼；Admin 另驗 `password_hash` |
+| `EmployeeCreate` 必填 `pin` | 建立員工不需 pin |
+| `ADMIN_SEED_PIN` 登入用 | 登入不使用（seed 可寫佔位雜湊以相容舊欄位） |
 
 ---
 
@@ -95,7 +120,7 @@ PRD §2.5：Admin 單檔含多名員工時，依檔內每個編號各自套用�
 
 - [x] seed Admin `employee_id` = `000000`（已寫入 seed／config）。
 - [x] 14718 同步路徑（B4 已實作；欄位 parsing 以 `govCalendarParse` 為準）。
-- [ ] B6：OpenAPI 員工建立／重設回應加 `plainPin`；前端 Admin 殼層。
+- [ ] B6：`GET /api/auth/captcha`＋登入改 captcha；拿掉員工 pin；前端 Admin 殼層＋LoginPage 圖形驗證碼。
 - [ ] Vite proxy 與 Cookie Path 在本機聯調一次（登入後正式匯入／員工 CRUD）。
 
 ---

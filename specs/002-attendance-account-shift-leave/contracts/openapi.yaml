@@ -7,6 +7,9 @@ info:
 
     Cookie 名稱：`attendance_session`（HttpOnly）。登入成功後後續請求自動帶入。
 
+    **登入驗證（2026-09-20｜對齊教育訓練）**：`GET /api/auth/captcha` 取圖形驗證碼；
+    員工＝編號＋驗證碼；Admin＝帳號＋密碼＋驗證碼。**不使用入庫 PIN。**
+
     **Auth 範圍（PRD §5.3.1｜2026-09-20）**：加班單主流程（上傳／計算／預覽／匯出）
     為前端公開能力，**不**經本 API 強制登入。本契約端點（行事曆、Admin、
     伺服器正式匯入、詞庫寫入等）仍需 session；`POST /api/attendance/import`
@@ -43,12 +46,29 @@ tags:
     description: 前端加班計算用脈絡（B2／B4）
 
 paths:
+  /api/auth/captcha:
+    get:
+      tags: [auth]
+      summary: 取得圖形驗證碼（對齊教育訓練）
+      operationId: getCaptcha
+      x-phase: B6
+      responses:
+        '200':
+          description: 驗證碼圖像與 id（短時效、一次性）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaptchaResponse'
+
   /api/auth/login:
     post:
       tags: [auth]
-      summary: 登入
+      summary: 登入（員工：編號＋驗證碼；Admin：帳號＋密碼＋驗證碼）
       operationId: login
       x-phase: B1
+      description: |
+        B6 起改為圖形驗證碼：須先呼叫 GET /api/auth/captcha。
+        舊版 body.pin（入庫 PIN）作廢。
       requestBody:
         required: true
         content:
@@ -193,7 +213,7 @@ paths:
           $ref: '#/components/responses/NotFound'
     patch:
       tags: [admin-employees]
-      summary: 更新員工（含 PIN、啟停、年假額度）
+      summary: 更新員工（啟停、年假額度、Admin 密碼）
       operationId: updateEmployee
       x-phase: B1
       security:
@@ -870,21 +890,37 @@ components:
           type: object
           additionalProperties: true
 
+    CaptchaResponse:
+      type: object
+      required: [captchaId, image]
+      properties:
+        captchaId:
+          type: string
+          format: uuid
+          description: 暫存鍵；登入時帶回
+        image:
+          type: string
+          description: data:image/png;base64,... 圖形驗證碼
+
     LoginRequest:
       oneOf:
         - type: object
-          required: [mode, employeeId, pin]
+          required: [mode, employeeId, captchaId, captchaAnswer]
           properties:
             mode:
               type: string
               enum: [employee]
             employeeId:
               $ref: '#/components/schemas/EmployeeId'
-            pin:
+            captchaId:
+              type: string
+              format: uuid
+            captchaAnswer:
               type: string
               pattern: '^\d{4}$'
+              description: 圖形驗證碼上的 4 位數字
         - type: object
-          required: [mode, username, password, pin]
+          required: [mode, username, password, captchaId, captchaAnswer]
           properties:
             mode:
               type: string
@@ -895,7 +931,10 @@ components:
             password:
               type: string
               minLength: 1
-            pin:
+            captchaId:
+              type: string
+              format: uuid
+            captchaAnswer:
               type: string
               pattern: '^\d{4}$'
 
@@ -954,16 +993,13 @@ components:
 
     EmployeeCreateRequest:
       type: object
-      required: [employeeId, name, pin]
+      required: [employeeId, name]
       properties:
         employeeId:
           $ref: '#/components/schemas/EmployeeId'
         name:
           type: string
           minLength: 1
-        pin:
-          type: string
-          pattern: '^\d{4}$'
         isActive:
           type: boolean
           default: true
@@ -980,9 +1016,6 @@ components:
       properties:
         name:
           type: string
-        pin:
-          type: string
-          pattern: '^\d{4}$'
         isActive:
           type: boolean
         password:

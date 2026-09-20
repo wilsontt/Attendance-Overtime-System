@@ -48,7 +48,7 @@ AuditLog（actor → User，可 null）
 | employee_id | char(6) | UK, `^\d{6}$` | 等於出勤檔員工編號；Admin 亦用 6 碼或固定碼（seed 定） |
 | name | text | not null | 顯示姓名 |
 | role | enum | `employee` \| `admin` | |
-| pin_hash | text | not null | bcrypt |
+| pin_hash | text | nullable／deprecated | **B6 起登入改圖形驗證碼**；欄位可留佔位或遷移為可空，**不再作為登入因子** |
 | password_hash | text | null | 僅 admin 必填 |
 | is_active | boolean | default true | Admin 禁止 false |
 | is_protected | boolean | default false | seed Admin = true；不可刪／停 |
@@ -58,8 +58,9 @@ AuditLog（actor → User，可 null）
 
 規則：
 - 唯一受保護 Admin 至少一筆；應用層拒絕 `DELETE` 與 `is_active=false`。
-- PIN／密碼雜湊永不經 API 回傳。
-- **建立／重設 PIN（B6）**：後端隨機 4 碼；該次回應可含明文 `plainPin`（僅一次），之後不可再查。
+- Admin `password_hash` 永不經 API 回傳。
+- **圖形驗證碼（B6）**：不存 users 表；`captchaId` 行程暫存。員工建立**不需** pin。
+- 舊 `pin_hash`：相容期可寫固定佔位雜湊；登入路徑不得再驗證此欄。
 
 ### 4.2 Session（`sessions`）
 
@@ -198,7 +199,7 @@ API `usedDays`／`remainingDays` 為查詢時計算。
 
 | 項目 | 值 |
 |------|-----|
-| Admin | `employee_id` 建議 `000000` 或文件化碼；`role=admin`；`is_protected=true`；初始 password／PIN 僅存於部署密文／`.env.example` 說明，禁止 commit 明文生產密碼 |
+| Admin | `employee_id` 建議 `000000`；`role=admin`；`is_protected=true`；初始 password 僅存於部署密文／`.env.example`；登入另需圖形驗證碼 |
 | 公司班 | name=公司班，09:00–18:00，active |
 | 倉庫班 | name=倉庫班，08:00–17:00，active |
 

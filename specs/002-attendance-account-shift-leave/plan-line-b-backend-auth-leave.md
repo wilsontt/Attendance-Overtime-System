@@ -12,7 +12,7 @@
 
 ## 技術背景（鎖定決策）
 
-PRD §2.5 將 API／DB／PIN 儲存／政府日曆資料集標為設計待決。本 PLAN **鎖定**下列選型，作為後續 `design.md`／`data-model.md`／`contracts/` 的輸入；若需改選，必須先改本 PLAN 再實作。
+PRD §2.5 將 API／DB／驗證碼／政府日曆資料集標為設計待決。本 PLAN **鎖定**下列選型，作為後續 `design.md`／`data-model.md`／`contracts/` 的輸入；若需改選，必須先改本 PLAN 再實作。
 
 | 項目 | 決策 | 理由 |
 |------|------|------|
@@ -21,22 +21,22 @@ PRD §2.5 將 API／DB／PIN 儲存／政府日曆資料集標為設計待決。
 | API | Fastify 5 + TypeScript | 輕量、型別友善、適合內部工具規模 |
 | ORM／DB | Prisma + **SQLite**（專案根 `data/attendance.db`；ds1 掛卷 `/data`） | 對齊教育訓練本機零 Docker；關聯仍由 Prisma 管理 |
 | 遷移 | Prisma Migrate | schema 變更可追溯 |
-| 驗證 | Session Cookie（HttpOnly、Secure、SameSite=Lax）+ `bcrypt` 雜湊 | PRD 明確排除 SSO；PIN／Admin 密碼不可明文 |
+| 驗證 | Session Cookie + Admin 密碼 `bcrypt` + **圖形驗證碼**（記憶體暫存 `captchaId`，對齊教育訓練） | PRD 排除 SSO；驗證碼不入庫；員工免長期 PIN |
 | API 契約 | OpenAPI 3（`specs/.../contracts/openapi.yaml`） | 前後端對齊、可產生型別 |
 | 日曆資料 | 行政院人事行政總處／政府資料開放平臺「行政機關辦公日曆」；排程每日抓取 | PRD E3-6；失敗時仍允許手勾補班（E3-2.1） |
 | 部署 | Docker Compose：`frontend`(Nginx) + `api`；SQLite 掛卷；反向代理 `/attendance/api/` | 延續現有 `/attendance/` 路徑；**無獨立 Postgres 服務** |
 | 測試 | 後端：Vitest + Supertest；前端：既有 Vitest；匯入／年假：整合測試必過 | 對應 PRD 附錄 B 匯入／帳號項 |
 
-**刻意不做（本線）**：OIDC／企業 AD（PRD 範圍外）；跨日夜班；假別法定天數控管；加班原因常用清單。
+**刻意不做（本線）**：OIDC／企業 AD（PRD 範圍外）；跨日夜班；假別法定天數控管；加班原因常用清單；**員工入庫 PIN／建帳發 PIN**。
 
-**Constitution 例外說明**：P2 模板提及 OIDC；本增量依 PRD「PIN 為識別碼、非 SSO」採自建帳密／PIN，並以雜湊、嘗試次數限制、稽核日誌滿足「設計即安全」精神。
+**Constitution 例外說明**：P2 模板提及 OIDC；本增量採自建帳號＋圖形驗證碼（比照教育訓練），Admin 密碼雜湊＋鎖定＋稽核滿足「設計即安全」精神。
 
 ## 規範檢查 (Constitution Check)
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 - [x] **P1: SDD**：依 `出勤記錄-擴充需求3_prd.md` 線 B。
-- [x] **P2: Security by Design**：自建登入 + 雜湊 + RBAC（employee／admin）+ 匯入授權 + 稽核（登入失敗／帳號異動／重匯）；例外見上表。
+- [x] **P2: Security by Design**：自建登入 + 圖形驗證碼 + Admin 密碼雜湊 + RBAC + 匯入授權 + 稽核；例外見上表。
 - [x] **P3: 可測試性**：附錄 B 匯入／帳號／班表／詞庫項可寫成自動化測試。
 - [x] **P4: 漸進交付**：下方 Phase B0～B6 各自可驗收。
 - [x] **P5: zh-TW**：文件與註解繁中。
@@ -53,12 +53,12 @@ PRD §2.5 將 API／DB／PIN 儲存／政府日曆資料集標為設計待決。
 | Phase | 對應 E3 | 可驗收產出 |
 |-------|---------|------------|
 | **B0** Design／契約 | §2.5 | 見下方 B0 子順序；完成後前後端依 OpenAPI 對齊 |
-| **B1** Auth + 員工主檔 | E3-4、E3-5 | 登入／登出；**lazy auth**（首頁公開）；Admin CRUD 員工 API、年假額度（PIN 隨機見 B6） |
+| **B1** Auth + 員工主檔 | E3-4、E3-5 | 登入／登出；**lazy auth**；Admin CRUD 員工 API、年假（舊版入庫 PIN 見 B6 改 captcha） |
 | **B2** 班表 + 派班 | E3-1、E3-8 | 班表 CRUD（刪除／停用規則）；派班起迄；已登入可讀伺服器班；**未登入用本機班表／手選** |
 | **B3** 匯入 + 年假回沖 | E3-7、E3-4.2～4.5 | 本機公開上傳維持；伺服器正式匯入：本人限制、Admin 代匯、區間重匯交易、未知假別 |
 | **B4** 行事曆 + 政府日曆 | E3-6、E3-2 | 首頁明確入口；未登入點入先登入；個人請假曆；國定／補班自 14718 自動＋手動 sync；失敗可手勾 |
 | **B5** 工作地點詞庫 + 銜接 | E3-9、§5.8 | 共用詞庫 API；預覽自動完成；Compose api＋**SQLite 掛卷**（無 Postgres） |
-| **B6** Admin UI 對齊（下一步） | E3-4～6、PRD §5.3／§5.9 | Admin 殼層：員工｜班表｜政府日曆；`AdminEmployeesPage`；建立／重設 **隨機 PIN**（一次明文）；OpenAPI 同步 |
+| **B6** Admin UI＋圖形驗證碼（下一步） | E3-4～6、PRD §5.3／§5.9 | Admin 殼層：員工｜班表｜政府日曆；`AdminEmployeesPage`（無發 PIN）；`GET /api/auth/captcha`＋登入改 captcha；OpenAPI 同步 |
 
 ### B0 子順序（OpenAPI 優先）
 
@@ -134,7 +134,7 @@ data/attendance.db              # 本機 SQLite（gitignore；僅 .gitkeep 進�
 
 | 實體 | 關鍵欄位 | 規則 |
 |------|----------|------|
-| `User` | `employee_id` 6 碼 UK、`role` employee\|admin、`pin_hash`、`password_hash?`、`name`、`is_active` | Admin 不可刪／停；員工可停用 |
+| `User` | `employee_id` 6 碼 UK、`role` employee\|admin、`password_hash?`（Admin）、`name`、`is_active`；`pin_hash` deprecated | Admin 不可刪／停；員工可停用；登入用圖形驗證碼 |
 | `AnnualLeaveQuota` | `employee_id`、`year`、`quota_days` | 曆年一筆；剩餘 = quota − 已請，可負 |
 | `Shift` | `name`、`start_time`、`end_time`、`status` active\|disabled | 預設公司／倉庫；有引用不可刪 |
 | `ShiftAssignment` | `employee_id`、`shift_id`、`effective_from`、`effective_to` | 計算用歸屬日落點 |
@@ -157,10 +157,11 @@ data/attendance.db              # 本機 SQLite（gitignore；僅 .gitkeep 進�
 
 | Method | Path | 角色 | 行為 |
 |--------|------|------|------|
-| POST | `/api/auth/login` | public | 員工：編號+PIN；Admin：帳號+密碼+4碼 |
+| POST | `/api/auth/login` | public | 員工：編號＋captcha；Admin：帳號＋密碼＋captcha |
+| GET | `/api/auth/captcha` | public | 圖形驗證碼（`captchaId` + image）；B6 |
 | POST | `/api/auth/logout` | any | 清 session |
 | GET | `/api/me` | any | 目前使用者 |
-| CRUD | `/api/admin/employees` | admin | 員工／PIN／年假額度 |
+| CRUD | `/api/admin/employees` | admin | 員工／年假額度（不含登入 PIN） |
 | CRUD | `/api/admin/shifts` | admin | 班表；刪除前檢查引用 |
 | CRUD | `/api/admin/shift-assignments` | admin | 派班起迄 |
 | POST | `/api/attendance/import` | employee\|admin | 員工驗證檔內編號＝本人；Admin 不限 |
@@ -180,13 +181,15 @@ data/attendance.db              # 本機 SQLite（gitignore；僅 .gitkeep 進�
 5. **補班／政府日曆**：優先讀 `GovCalendarDay`（啟動＋每日自動自 data.gov.tw/14718；Admin 可手動 sync）。無資料或未登入時沿用「加到平日加班」勾選。**本版不做**本機 CSV 上傳備援。
 6. **工作地點**：`PreviewModal` 呼叫詞庫前綴 API（需登入）；確認下載時若為新字串則 POST 入庫。
 7. **行事曆頁**：首頁明確入口；請假＋國定標示；員工本人、Admin 可選員工。
-8. **Admin 管理殼層（B6）**：頂欄「Admin 管理」下至少：**員工帳號**（列表／建立／停用／年假／重設 PIN）、**班表與派班**、**政府辦公日曆**（手動同步＋最近結果）。建立／重設 PIN 時後端隨機 4 碼，回應含一次明文 `plainPin`（或同等欄位），UI 醒目顯示並可複製；之後不可再查明文。
+8. **Admin 管理殼層（B6）**：頂欄「Admin 管理」下至少：**員工帳號**（列表／建立／停用／年假）、**班表與派班**、**政府辦公日曆**（手動同步＋最近結果）。**不發放 PIN**。
+9. **圖形驗證碼（B6）**：LoginPage 先取 captcha 圖像；員工僅編號＋答案；Admin 帳密＋密碼＋答案；對齊教育訓練。
 
 ## 安全需求（實作必做）
 
 | 項目 | 規格 |
 |------|------|
-| PIN／密碼 | `bcrypt`（cost ≥ 10）；永不回傳雜湊。員工 PIN **建立／重設時隨機產生**，僅該次 API／UI 回傳明文一次 |
+| Admin 密碼 | `bcrypt`（cost ≥ 10）；永不回傳雜湊。**僅 Admin 有密碼** |
+| 圖形驗證碼 | 4 碼數字圖像；`captchaId` 記憶體暫存＋短 TTL；驗證成功即刪；不入 `users` |
 | 登入鎖定 | 同一帳號連續失敗 5 次鎖 15 分鐘（可設定） |
 | Session | 伺服器端 session 表或簽章 cookie；逾時 8 小時 |
 | 授權 | 每個匯入／查詢檢查 `role` 與 `employee_id` |
@@ -219,13 +222,13 @@ data/attendance.db              # 本機 SQLite（gitignore；僅 .gitkeep 進�
 | 政府日曆資料集 URL／欄位變更 | 同步失敗只記 log；UI 仍可手勾補班 |
 | 重匯殘缺檔清掉中間日 | 匯入前檢查提示「須完整區間檔」；文件與 Admin 作業說明 |
 | 線 A 手選班與伺服器派班不一致 | B2 後正式路徑只信伺服器；手選降級為開發旗標 |
-| Constitution OIDC 與 PRD PIN 衝突 | 本 PLAN 已記載例外；不實作 SSO |
+| Constitution OIDC 與自建登入衝突 | 本 PLAN 已記載例外；不實作 SSO；採圖形驗證碼對齊教育訓練 |
 
 ## Complexity Tracking
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| 自建 PIN／密碼而非 OIDC | PRD 明確排除 SSO，員工僅 6 碼+4 碼 PIN | OIDC 超出範圍且無企業 IdP 整合需求 |
+| 自建登入＋圖形驗證碼而非 OIDC | PRD／教育訓練對齊；員工編號＋captcha；Admin 帳密＋密碼＋captcha | OIDC 超出範圍 |
 | 新增 SQLite 持久化（`data/attendance.db`） | 需跨裝置／重啟後仍保留帳號、匯入、詞庫、年假 | 純 localStorage 無法滿足「下月登入仍在」與 Admin 代操作 |
 
 ## 後續步驟（本 PLAN 核准後）
@@ -243,8 +246,8 @@ data/attendance.db              # 本機 SQLite（gitignore；僅 .gitkeep 進�
 - [ ] **未登入可進首頁**完成上傳／本機班表計算／預覽匯出（無整站登入閘道）。
 - [ ] 首頁有明確行事曆入口；未登入點入 → 登入 → 顯示行事曆。
 - [ ] Admin 維護／查詢需登入。
-- [ ] 員工：6 碼 + PIN 登入；Admin：帳密 + 密碼 + 4 碼；Admin 不可刪／停。
-- [ ] **Admin 管理**可維護：員工帳號（隨機 PIN 一次明文）、年假額度、班表、派班起迄、政府日曆手動同步。
+- [ ] 員工：6 碼 + 圖形驗證碼登入；Admin：帳號 + 密碼 + 圖形驗證碼；Admin 不可刪／停。
+- [ ] **Admin 管理**可維護：員工帳號（無發 PIN）、年假額度、班表、派班起迄、政府日曆手動同步。
 - [ ] 伺服器正式匯入：員工匯入他人編號檔被拒；Admin 可代匯（檔內員工須已建帳）。
 - [ ] 同區間完整檔重匯：覆蓋正確、年假不雙扣、剩餘可負。
 - [ ] 請年休假扣考勤數量；跨年分年、跨月同年。

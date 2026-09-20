@@ -16,7 +16,7 @@
    ```
 3. 開發伺服器：`npm run dev` → `http://localhost:3000`
 
-預設 Admin：`employeeId=000000`，密碼／PIN 見 `.env`（`ADMIN_SEED_PASSWORD`／`ADMIN_SEED_PIN`）。
+預設 Admin：`employeeId=000000`，密碼見 `.env`（`ADMIN_SEED_PASSWORD`）。登入另需**圖形驗證碼**（B6；對齊教育訓練）。`ADMIN_SEED_PIN` 僅舊 seed 相容，不作登入因子。
 
 ## Docker Compose（僅 ds1／正式）
 
