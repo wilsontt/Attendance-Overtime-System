@@ -16,16 +16,17 @@
 - [x] Prisma schema（完整線 B 模型）+ init migration + seed Admin／兩班
 - [x] `POST /api/auth/login`｜`logout`｜`GET /api/me`（Cookie session、bcrypt、鎖定）
 - [x] Admin CRUD `/api/admin/employees`（PIN、年假額度、Admin 保護）
-- [x] 單元測試：登入鎖定邏輯／密碼雜湊（整合測試待 Docker DB）
+- [x] 單元測試：登入鎖定邏輯／密碼雜湊（整合測試用本機 SQLite）
 - [x] 前端：LoginPage、App lazy auth、API client、Vite proxy
-- [x] **規格變更已實作**：首頁公開；請假行事曆／Admin 班表才要 session（PRD §5.3.1）
+- [x] **規格變更已實作**：首頁公開；請假行事曆／Admin 才要 session（PRD §5.3.1）
+- [ ] **B6**：員工管理 UI＋隨機 PIN（見下方 B6）
 
 ## B2 班表 + 派班 + 計算脈絡
 
 - [x] Shift／ShiftAssignment CRUD（刪除／停用規則）
 - [x] `GET /api/computation-context`
 - [x] 前端：Admin 班表／派班頁；HomePage 本機班表標為除錯降級
-- [x] 單元測試：停用／刪除規則、日類型推導（整合測試待 Docker DB）
+- [x] 單元測試：停用／刪除規則、日類型推導（整合用本機 SQLite）
 
 ## B3 匯入 + 年假回沖
 
@@ -33,7 +34,7 @@
 - [x] `GET /api/attendance`
 - [x] 員工非本人 403；未知假別標記；年假加總／可負
 - [x] 前端：本機公開上傳維持；伺服器正式匯入面板（需登入）
-- [x] 單元測試：解析／未知假別／重匯年假語意（跨年分年）；整合測試待 Docker DB
+- [x] 單元測試：解析／未知假別／重匯年假語意（跨年分年）；整合用本機 SQLite
 
 ## B4 行事曆 + 政府日曆
 
@@ -46,9 +47,17 @@
 
 - [x] `GET/POST /api/work-locations`
 - [x] PreviewModal 自動完成＋確認下載時入庫（需登入）
-- [x] Docker Compose（db + api；`--profile full` 含 web＋`/attendance/api/` 反代）
+- [x] Docker Compose（api＋SQLite 掛卷；`--profile full` 含 web＋`/attendance/api/` 反代）；本機開發零 Docker
 - [x] README／CLAUDE／backend README 補線 B 依賴與契約路徑
+
+## B6 Admin UI 對齊（下一步｜2026-09-20 規格已定）
+
+- [ ] 頂欄「Admin 管理」殼層：分頁或子選單 — **員工帳號**｜**班表與派班**｜**政府辦公日曆**
+- [ ] `AdminEmployeesPage`：列表／建立／停用／年假額度；建立與「重設 PIN」呼叫 API
+- [ ] 後端：建立／重設 PIN 改為**隨機 4 碼**（可選省略 body.pin）；回應含一次明文；OpenAPI／data-model 同步
+- [ ] 政府日曆：Admin 殼層內手動 sync＋顯示結果（請假行事曆頁可保留入口或改為連結）
+- [ ] 驗收：建員工 → 複製 PIN → 員工登入 → 正式匯入該編號不再「找不到員工」
 
 ## 完成定義（線 B）
 
-對照 PLAN「驗收對照（線 B）」全部勾選，且後端整合測試通過。
+對照 PLAN「驗收對照（線 B）」全部勾選；B6 完成後線 B 前端 Admin 缺口關閉。

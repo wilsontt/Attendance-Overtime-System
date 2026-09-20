@@ -26,9 +26,9 @@
 ## 2. 密碼／PIN 雜湊
 
 - 演算法：`bcrypt`，cost **≥ 10**（建議 12）。
-- 員工：僅 PIN（4 碼）雜湊。
-- Admin：`password_hash` + `pin_hash` 皆要驗證（PRD：帳密 + 4 碼）。
-- 環境變數：`SESSION_SECRET`、`ADMIN_SEED_PASSWORD`、`ADMIN_SEED_PIN`（僅 seed；不入庫明文）。
+- 員工：僅 PIN（4 碼）雜湊。**建立／重設時由後端隨機產生**（`crypto.randomInt(0, 10000)` 補零成 4 碼，對齊教育訓練「4 碼隨機」精神）；API 僅該次回傳明文欄位（如 `plainPin`），之後不可查。
+- Admin：`password_hash` + `pin_hash` 皆要驗證（PRD：帳密 + 4 碼）；seed 用 `ADMIN_SEED_PASSWORD`／`ADMIN_SEED_PIN`（僅 seed；不入庫明文）。
+- 環境變數：`SESSION_SECRET`（若需要）、`ADMIN_SEED_PASSWORD`、`ADMIN_SEED_PIN`。
 
 ---
 
@@ -39,7 +39,8 @@
 | 主來源 | [政府資料開放平臺 dataset/14718](https://data.gov.tw/dataset/14718)「中華民國政府行政機關辦公日曆表」（人事總處） |
 | 格式 | 逐年 CSV（含一般版與 Google 行事曆專用）；B4 實作時下載當前年／次年資源 URL 並快取 |
 | 備援結構參考 | [dataset/123662](https://data.gov.tw/dataset/123662)（新北彙整，欄位含 `date`／`isholiday`／`holidaycategory`）可作欄位映射參考，正式同步仍以 14718／人事總處為準 |
-| 排程 | 每日一次（cron 或容器 sidecar）；另提供 `POST /api/admin/gov-calendar/sync` |
+| 排程 | 每日一次（程序內 `setInterval`）；另提供 `POST /api/admin/gov-calendar/sync` |
+| 手動本機 CSV 上傳 | **本版不做**（PRD §5.5／§5.9）；外網失敗時靠手勾補班 |
 | 失敗策略 | 記 log + audit；**不**阻斷匯入／加班；UI 仍可手勾「加到平日加班」（E3-2.1） |
 
 **日類型推導（與 OpenAPI `DayType`）：**
@@ -90,11 +91,12 @@ PRD §2.5：Admin 單檔含多名員工時，依檔內每個編號各自套用�
 
 ---
 
-## 9. 待實作時再確認（不阻擋 B1）
+## 9. 待實作時再確認
 
-- [ ] 14718 當年 CSV 實際欄位名（放假／補班欄）——B4 下載樣本後補 parsing 對照表。
-- [ ] seed Admin 的 `employee_id` 最終碼（建議 `000000`）——部署文件寫死。
-- [ ] Vite proxy 與 Cookie Path 在本機聯調一次。
+- [x] seed Admin `employee_id` = `000000`（已寫入 seed／config）。
+- [x] 14718 同步路徑（B4 已實作；欄位 parsing 以 `govCalendarParse` 為準）。
+- [ ] B6：OpenAPI 員工建立／重設回應加 `plainPin`；前端 Admin 殼層。
+- [ ] Vite proxy 與 Cookie Path 在本機聯調一次（登入後正式匯入／員工 CRUD）。
 
 ---
 
