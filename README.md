@@ -105,7 +105,7 @@
 ### 線 B 後端（B0～B5）
 
 - 契約：`specs/002-attendance-account-shift-leave/contracts/openapi.yaml`
-- 規格目錄：`specs/002-attendance-account-shift-leave/`（PRD §5.3.1：**加班單主流程公開**；行事曆／Admin／正式匯入／詞庫需登入）
+- 規格目錄：`specs/002-attendance-account-shift-leave/`（PRD §5.3.1：**加班單主流程公開**；行事曆／Admin／寫入伺服器／詞庫需登入）
 - 後端目錄：`backend/`（Fastify + Prisma + PostgreSQL）
 
 **本機開發（不需 Docker）**
@@ -116,7 +116,7 @@
 
 **部署（ds1／正式）**：`docker compose build`／`--build`；API 掛 SQLite 目錄（`ATTENDANCE_DATA` 或 `./data` → 容器 `/data`）。詳見 `backend/README.md`。
 
-- 未登入仍可上傳 TXT／CSV 並以檔內員工編號＋本機班表／手選計算；伺服器正式匯入、行事曆、工作地點詞庫需 session
+- 未登入仍可上傳 TXT／CSV 並以檔內員工編號＋本機班表／手選計算；上傳可勾選「同時寫入伺服器」（預設勾選）；行事曆、補單匯入、工作地點詞庫需 session
 
 ## 📖 使用說明
 

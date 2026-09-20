@@ -175,8 +175,8 @@ data/attendance.db              # 本機 SQLite（gitignore；僅 .gitkeep 進�
 ## 前端銜接要點
 
 1. **Lazy auth（禁止整站閘道）**：未登入可進 HomePage 完成加班單主流程。點「行事曆」或 **Admin 管理** 時，若無 session 再導向 LoginPage；登入成功後進入目標頁。已登入時頂欄顯示姓名／角色與登出。
-2. **本機公開上傳**：`FileUploader` 維持未登入可上傳；依檔內員工編號辨識與計算。
-3. **伺服器正式匯入**：另走 `POST /api/attendance/import`（需 session）；錯誤顯示「非本人檔」「未知假別」等。匯入前員工帳號須已存在（Admin 於員工頁建立）。
+2. **本機上傳**：`FileUploader` 未登入可上傳；勾選「同時寫入伺服器」（預設勾選）→ 登入後同一檔呼叫 `POST /api/attendance/import`；失敗顯示原因、本機列表保留。
+3. **補單匯入**：首頁下方獨立面板，同 API（需 session）；錯誤顯示「非本人檔」「未知假別」等。匯入前員工帳號須已存在。
 4. **班表**：未登入＝本機班表／手選（正式公開路徑）。已登入可顯示伺服器派班結果（Admin 可調派班）；本機手選可保留為降級／除錯。
 5. **補班／政府日曆**：優先讀 `GovCalendarDay`（啟動＋每日自動自 data.gov.tw/14718；Admin 可手動 sync）。無資料或未登入時沿用「加到平日加班」勾選。**本版不做**本機 CSV 上傳備援。
 6. **工作地點**：`PreviewModal` 呼叫詞庫前綴 API（需登入）；確認下載時若為新字串則 POST 入庫。

@@ -2,7 +2,8 @@
  * 主應用程式組件
  *
  * 用途：共用導覽列殼層 + lazy auth。
- * 加班單／請假行事曆／Admin 皆在導覽列下方切換主內容（登入頁除外）。
+ * 加班單／請假行事曆／Admin 皆在導覽列下方切換主內容。
+ * 登入頁以全螢幕覆蓋顯示，底下殼層（含 HomePage）保持掛載，避免本機出勤列表被卸載。
  */
 
 import { useEffect, useState } from 'react';
@@ -23,6 +24,9 @@ function App() {
   const [view, setView] = useState<AppView>('home');
   const [loginIntent, setLoginIntent] = useState<LoginIntent | null>(null);
   const [authNotice, setAuthNotice] = useState('');
+  /** 未登入勾選「同時寫入伺服器」時暫存檔，登入後由 HomePage 自動匯入 */
+  const [pendingServerImportFile, setPendingServerImportFile] =
+    useState<File | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,21 +88,9 @@ function App() {
       setUser(null);
       setView('home');
       setLoginIntent(null);
+      setPendingServerImportFile(null);
     }
   };
-
-  if (view === 'login') {
-    return (
-      <LoginPage
-        intent={loginIntent}
-        onLoggedIn={handleLoggedIn}
-        onCancel={() => {
-          setLoginIntent(null);
-          setView('home');
-        }}
-      />
-    );
-  }
 
   const navButtonClass = (active: boolean) =>
     active
@@ -107,82 +99,109 @@ function App() {
 
   return (
     <div className="App relative min-h-screen">
-      <div className="mb-5 -mx-4 sm:-mx-5">
-        <TopTitleNav
-          actions={
-            <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
-              <button
-                type="button"
-                className={navButtonClass(shellView === 'home')}
-                onClick={() => setView('home')}
-              >
-                加班單
-              </button>
-              <button
-                type="button"
-                className={navButtonClass(shellView === 'calendar')}
-                onClick={() => requireSession('calendar')}
-              >
-                請假行事曆
-              </button>
-              <button
-                type="button"
-                className={navButtonClass(shellView === 'admin')}
-                onClick={() => requireSession('admin')}
-              >
-                Admin 管理
-              </button>
-              {user ? (
-                <>
-                  <span className="hidden sm:inline text-slate-600 max-w-[10rem] truncate">
-                    {user.employeeId} {user.name}
-                  </span>
-                  <button
-                    type="button"
-                    className="underline text-blue-700"
-                    onClick={() => {
-                      void handleLogout();
-                    }}
-                  >
-                    登出
-                  </button>
-                </>
-              ) : null}
-            </div>
-          }
+      {view === 'login' ? (
+        <LoginPage
+          intent={loginIntent}
+          onLoggedIn={handleLoggedIn}
+          onCancel={() => {
+            setLoginIntent(null);
+            setPendingServerImportFile(null);
+            setView('home');
+          }}
         />
-      </div>
-
-      {authNotice ? (
-        <div
-          className="mb-3 flex items-start justify-between gap-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
-          role="status"
-        >
-          <span>{authNotice}</span>
-          <button
-            type="button"
-            className="underline shrink-0"
-            onClick={() => setAuthNotice('')}
-          >
-            關閉
-          </button>
-        </div>
       ) : null}
 
       <div
-        className={shellView === 'home' ? undefined : 'hidden'}
-        aria-hidden={shellView !== 'home'}
+        className={view === 'login' ? 'hidden' : undefined}
+        aria-hidden={view === 'login'}
       >
-        <HomePage loggedIn={Boolean(user)} />
+        <div className="mb-5 -mx-4 sm:-mx-5">
+          <TopTitleNav
+            actions={
+              <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
+                <button
+                  type="button"
+                  className={navButtonClass(shellView === 'home')}
+                  onClick={() => setView('home')}
+                >
+                  加班單
+                </button>
+                <button
+                  type="button"
+                  className={navButtonClass(shellView === 'calendar')}
+                  onClick={() => requireSession('calendar')}
+                >
+                  請假行事曆
+                </button>
+                <button
+                  type="button"
+                  className={navButtonClass(shellView === 'admin')}
+                  onClick={() => requireSession('admin')}
+                >
+                  Admin 管理
+                </button>
+                {user ? (
+                  <>
+                    <span className="hidden sm:inline text-slate-600 max-w-[10rem] truncate">
+                      {user.employeeId} {user.name}
+                    </span>
+                    <button
+                      type="button"
+                      className="underline text-blue-700"
+                      onClick={() => {
+                        void handleLogout();
+                      }}
+                    >
+                      登出
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            }
+          />
+        </div>
+
+        {authNotice ? (
+          <div
+            className="mb-3 flex items-start justify-between gap-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            role="status"
+          >
+            <span>{authNotice}</span>
+            <button
+              type="button"
+              className="underline shrink-0"
+              onClick={() => setAuthNotice('')}
+            >
+              關閉
+            </button>
+          </div>
+        ) : null}
+
+        <div
+          className={shellView === 'home' ? undefined : 'hidden'}
+          aria-hidden={shellView !== 'home'}
+        >
+          <HomePage
+            loggedIn={Boolean(user)}
+            pendingServerImportFile={pendingServerImportFile}
+            onConsumePendingServerImport={() => setPendingServerImportFile(null)}
+            onRequestLoginForImport={(file) => {
+              setPendingServerImportFile(file);
+              setLoginIntent(null);
+              setAuthNotice('');
+              setView('login');
+            }}
+          />
+        </div>
+
+        {shellView === 'calendar' && user ? (
+          <LeaveCalendarPage user={user} />
+        ) : null}
+
+        {shellView === 'admin' && user?.role === 'admin' ? (
+          <AdminHubPage />
+        ) : null}
       </div>
-
-      {shellView === 'calendar' && user ? (
-        <LeaveCalendarPage user={user} />
-      ) : null}
-
-      {shellView === 'admin' && user?.role === 'admin' ? (
-        <AdminHubPage />
-      ) : null}
     </div>
   );
 }

@@ -9,8 +9,8 @@
  * 5. 將使用者最後確認的資料交給匯出服務
  */
 
-import React, { useState, useMemo } from 'react';
-import FileUploader from '../components/FileUploader';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import FileUploader, { type FileProcessedOptions } from '../components/FileUploader';
 import { ServerImportPanel } from '../components/ServerImportPanel';
 import AttendanceTable from '../components/AttendanceTable';
 import PreviewModal from '../components/PreviewModal';
@@ -18,17 +18,33 @@ import type { AttendanceRecord, OvertimeReport } from '../types';
 import { calculateOvertimeAndMealAllowance, isNaturalHoliday } from '../services/calculationService';
 import { generateExcelReport, generatePdfReport, printReport } from '../services/reportService';
 import { formatDate } from '../utils/dateFormatter';
+import { ApiError } from '../api/client';
+import {
+  importAttendanceFile,
+  type AttendanceImportResult,
+} from '../api/attendance';
 
 type HomePageProps = {
-  /** 已登入才顯示伺服器正式匯入 */
+  /** 已登入才顯示補單匯入、並可寫入伺服器 */
   loggedIn?: boolean;
+  /** App 保留的待寫入檔（登入頁會卸載 HomePage，故由 App 持有） */
+  pendingServerImportFile?: File | null;
+  /** 清除 App 上的待寫入檔 */
+  onConsumePendingServerImport?: () => void;
+  /** 未登入卻勾選同時寫入時，請求導向登入 */
+  onRequestLoginForImport?: (file: File) => void;
 };
 
 /**
  * HomePage 組件（加班單主內容；導覽列由 App 殼層提供）
  * @returns {JSX.Element} 首頁組件
  */
-const HomePage: React.FC<HomePageProps> = ({ loggedIn = false }) => {
+const HomePage: React.FC<HomePageProps> = ({
+  loggedIn = false,
+  pendingServerImportFile = null,
+  onConsumePendingServerImport,
+  onRequestLoginForImport,
+}) => {
   /** 原始出勤記錄（從檔案解析而來） */
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   
@@ -118,11 +134,54 @@ const HomePage: React.FC<HomePageProps> = ({ loggedIn = false }) => {
   /** 原始 TXT 內容（供列印原始資料使用） */
   const [rawTxtContent, setRawTxtContent] = useState<string>('');
 
+  /** 同時寫入伺服器的狀態訊息（成功／失敗皆不影響本機列表） */
+  const [serverSyncMessage, setServerSyncMessage] = useState('');
+  const [serverSyncError, setServerSyncError] = useState('');
+  const [serverSyncResult, setServerSyncResult] =
+    useState<AttendanceImportResult | null>(null);
+  const [serverSyncBusy, setServerSyncBusy] = useState(false);
+  const importingRef = useRef(false);
+
+  const runServerImport = async (file: File): Promise<void> => {
+    if (importingRef.current) return;
+    importingRef.current = true;
+    setServerSyncBusy(true);
+    setServerSyncError('');
+    setServerSyncMessage('');
+    setServerSyncResult(null);
+    try {
+      const result = await importAttendanceFile(file);
+      setServerSyncResult(result);
+      setServerSyncMessage(
+        `已寫入伺服器 ${result.employeeId}：${result.dateFrom}～${result.dateTo}，共 ${result.importedCount} 列`,
+      );
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setServerSyncError(`寫入伺服器失敗：${err.body.message}`);
+      } else {
+        setServerSyncError('寫入伺服器失敗：無法連線後端，請確認 API 已啟動（本機列表仍可計算／匯出）');
+      }
+    } finally {
+      setServerSyncBusy(false);
+      importingRef.current = false;
+    }
+  };
+
+  /** 登入後自動補寫先前勾選「同時寫入伺服器」的檔案 */
+  useEffect(() => {
+    if (!loggedIn || !pendingServerImportFile) return;
+    const file = pendingServerImportFile;
+    onConsumePendingServerImport?.();
+    void runServerImport(file);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 僅在 pending 檔就緒時觸發
+  }, [loggedIn, pendingServerImportFile]);
+
   /** 處理檔案上傳完成事件 */
   const handleFileProcessed = (
     records: AttendanceRecord[],
     uploadedRawTxtContent: string,
-    fileType: 'txt' | 'csv'
+    fileType: 'txt' | 'csv',
+    options: FileProcessedOptions
   ) => {
     setAttendanceRecords(records);
     setReasonOverrides({});
@@ -131,6 +190,21 @@ const HomePage: React.FC<HomePageProps> = ({ loggedIn = false }) => {
     setGlobalShift('company');
     setPunchOverrides({});
     setRawTxtContent(fileType === 'txt' ? uploadedRawTxtContent : '');
+    setServerSyncMessage('');
+    setServerSyncError('');
+    setServerSyncResult(null);
+
+    if (!options.alsoImportToServer || !options.file || records.length === 0) {
+      return;
+    }
+
+    if (!loggedIn) {
+      setServerSyncMessage('本機已載入；請登入後將自動寫入伺服器。');
+      onRequestLoginForImport?.(options.file);
+      return;
+    }
+
+    void runServerImport(options.file);
   };
 
   /**
@@ -356,6 +430,19 @@ const HomePage: React.FC<HomePageProps> = ({ loggedIn = false }) => {
         globalShift={globalShift}
         onGlobalShiftChange={setGlobalShift}
       />
+      {(serverSyncBusy || serverSyncMessage || serverSyncError || serverSyncResult) && (
+        <div className="mb-4 text-sm space-y-1">
+          {serverSyncBusy ? <p className="text-slate-600">正在寫入伺服器…</p> : null}
+          {serverSyncMessage ? <p className="text-green-700">{serverSyncMessage}</p> : null}
+          {serverSyncError ? <p className="text-red-600">{serverSyncError}</p> : null}
+          {serverSyncResult?.unknownLeaveTypes.length ? (
+            <p className="text-amber-800">
+              未知假別（已寫入打卡、未扣年假）：
+              {serverSyncResult.unknownLeaveTypes.join('、')}
+            </p>
+          ) : null}
+        </div>
+      )}
       <ServerImportPanel loggedIn={loggedIn} />
 
       {overtimeReports.length > 0 && (

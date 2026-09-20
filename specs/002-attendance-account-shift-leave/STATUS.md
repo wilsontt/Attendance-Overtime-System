@@ -26,6 +26,7 @@
   - [x] B1 Auth + 員工主檔（backend API；**員工 UI／圖形驗證碼 → B6**）
   - [x] B2 班表 + 派班 + computation-context
   - [x] B3 匯入 + 年假回沖（本機公開上傳維持；伺服器正式匯入需登入）
+  - [x] 本機上傳「同時寫入伺服器」勾選（預設勾選；失敗保留本機；補單面板）
   - [x] B4 行事曆 + 政府日曆（入口／登入流 + leave calendar API + gov sync 14718）
   - [x] B5 詞庫 + Compose（SQLite 掛卷）
   - [x] **B6** Admin UI＋圖形驗證碼（員工頁、Admin 殼層、captcha 登入、政府日曆納入 Admin）

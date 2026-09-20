@@ -1,6 +1,6 @@
 /**
- * 伺服器正式匯入（需已登入）：寫入出勤台帳並回沖區間年假。
- * 與本機公開上傳（僅前端計算）分開。
+ * 伺服器匯入（補單／重匯；需已登入）。
+ * 主路徑請用上方上傳並勾選「同時寫入伺服器」。
  */
 
 import { useId, useState, type ChangeEvent, type ReactElement } from 'react';
@@ -59,16 +59,16 @@ export function ServerImportPanel({
 
   return (
     <section className="mb-5 rounded border border-slate-300 bg-slate-50 p-4 space-y-2">
-      <h2 className="font-semibold text-slate-800">伺服器正式匯入</h2>
+      <h2 className="font-semibold text-slate-800">伺服器匯入（補單／重匯）</h2>
       <p className="text-sm text-slate-600">
-        寫入出勤台帳並依區間回沖年假（需登入）。本機上傳計算加班單請用上方檔案選擇，兩者分開。
+        當次上傳未勾選「同時寫入伺服器」、或需另檔重匯台帳時使用。寫入出勤台帳並依區間回沖年假（需登入）。
       </p>
       <div>
         <label
           htmlFor={inputId}
           className={`inline-block cursor-pointer rounded border border-blue-700 bg-white px-3 py-1.5 text-sm text-blue-700 ${busy ? 'opacity-60 pointer-events-none' : ''}`}
         >
-          {busy ? '匯入中…' : '選擇 CSV／TXT 正式匯入'}
+          {busy ? '匯入中…' : '選擇 CSV／TXT 補單匯入'}
         </label>
         <input
           id={inputId}
