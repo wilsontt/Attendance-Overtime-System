@@ -11,36 +11,18 @@
 
 import React, { useState, useMemo } from 'react';
 import FileUploader from '../components/FileUploader';
-import { TopTitleNav } from '../components/TopTitleNav';
 import AttendanceTable from '../components/AttendanceTable';
 import PreviewModal from '../components/PreviewModal';
-import type { MeResponse } from '../api/auth';
 import type { AttendanceRecord, OvertimeReport } from '../types';
 import { calculateOvertimeAndMealAllowance, isNaturalHoliday } from '../services/calculationService';
 import { generateExcelReport, generatePdfReport, printReport } from '../services/reportService';
 import { formatDate } from '../utils/dateFormatter';
 
-type HomePageProps = {
-  user: MeResponse | null;
-  authNotice?: string;
-  onOpenCalendar: () => void;
-  onOpenAdmin: () => void;
-  onLogout: () => void;
-  onDismissNotice?: () => void;
-};
-
 /**
- * HomePage 組件（公開主流程；身分入口由 props 注入）
+ * HomePage 組件（加班單主內容；導覽列由 App 殼層提供）
  * @returns {JSX.Element} 首頁組件
  */
-const HomePage: React.FC<HomePageProps> = ({
-  user,
-  authNotice = '',
-  onOpenCalendar,
-  onOpenAdmin,
-  onLogout,
-  onDismissNotice,
-}) => {
+const HomePage: React.FC = () => {
   /** 原始出勤記錄（從檔案解析而來） */
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   
@@ -363,61 +345,6 @@ const HomePage: React.FC<HomePageProps> = ({
 
   return (
     <div className="relative">
-      <div className="mb-5 -mx-4 sm:-mx-5">
-        <TopTitleNav
-          actions={
-            <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
-              <button
-                type="button"
-                className="rounded border border-blue-700 bg-white px-2 py-1 font-semibold text-blue-700 hover:bg-blue-50"
-                onClick={onOpenCalendar}
-              >
-                請假行事曆
-              </button>
-              <button
-                type="button"
-                className="rounded border border-slate-400 bg-white px-2 py-1 text-slate-700 hover:bg-slate-50"
-                onClick={onOpenAdmin}
-              >
-                Admin 班表
-              </button>
-              {user ? (
-                <>
-                  <span className="hidden sm:inline text-slate-600 max-w-[10rem] truncate">
-                    {user.employeeId} {user.name}
-                  </span>
-                  <button
-                    type="button"
-                    className="underline text-blue-700"
-                    onClick={() => {
-                      void onLogout();
-                    }}
-                  >
-                    登出
-                  </button>
-                </>
-              ) : null}
-            </div>
-          }
-        />
-      </div>
-      {authNotice ? (
-        <div
-          className="mb-3 flex items-start justify-between gap-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
-          role="status"
-        >
-          <span>{authNotice}</span>
-          {onDismissNotice ? (
-            <button
-              type="button"
-              className="underline shrink-0"
-              onClick={onDismissNotice}
-            >
-              關閉
-            </button>
-          ) : null}
-        </div>
-      ) : null}
       <FileUploader 
         onFileProcessed={handleFileProcessed}
         globalShift={globalShift}

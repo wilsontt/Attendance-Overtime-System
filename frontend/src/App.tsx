@@ -1,7 +1,8 @@
 /**
  * 主應用程式組件
  *
- * 用途：加班單主流程公開（lazy auth）；行事曆／Admin 才需登入（PRD §5.3.1）。
+ * 用途：共用導覽列殼層 + lazy auth。
+ * 加班單／請假行事曆／Admin 皆在導覽列下方切換主內容（登入頁除外）。
  */
 
 import { useEffect, useState } from 'react';
@@ -9,11 +10,13 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import AdminShiftsPage from './pages/AdminShiftsPage';
 import LeaveCalendarPage from './pages/LeaveCalendarPage';
+import { TopTitleNav } from './components/TopTitleNav';
 import { fetchMe, logout, type MeResponse } from './api/auth';
 import './App.css';
 
 type AppView = 'home' | 'login' | 'calendar' | 'admin-shifts';
 type LoginIntent = 'calendar' | 'admin-shifts';
+type ShellView = 'home' | 'calendar' | 'admin-shifts';
 
 function App() {
   const [user, setUser] = useState<MeResponse | null>(null);
@@ -35,6 +38,9 @@ function App() {
       cancelled = true;
     };
   }, []);
+
+  const shellView: ShellView =
+    view === 'login' ? 'home' : (view as ShellView);
 
   const requireSession = (intent: LoginIntent) => {
     setAuthNotice('');
@@ -94,30 +100,87 @@ function App() {
     );
   }
 
-  if (view === 'calendar' && user) {
-    return (
-      <LeaveCalendarPage
-        user={user}
-        onBack={() => setView('home')}
-        onLogout={handleLogout}
-      />
-    );
-  }
-
-  if (view === 'admin-shifts' && user?.role === 'admin') {
-    return <AdminShiftsPage onBack={() => setView('home')} />;
-  }
+  const navButtonClass = (active: boolean) =>
+    active
+      ? 'rounded border border-blue-800 bg-blue-700 px-2 py-1 font-semibold text-white'
+      : 'rounded border border-slate-400 bg-white px-2 py-1 text-slate-700 hover:bg-slate-50';
 
   return (
     <div className="App relative min-h-screen">
-      <HomePage
-        user={user}
-        authNotice={authNotice}
-        onOpenCalendar={() => requireSession('calendar')}
-        onOpenAdmin={() => requireSession('admin-shifts')}
-        onLogout={handleLogout}
-        onDismissNotice={() => setAuthNotice('')}
-      />
+      <div className="mb-5 -mx-4 sm:-mx-5">
+        <TopTitleNav
+          actions={
+            <div className="flex flex-wrap items-center justify-end gap-2 text-sm">
+              <button
+                type="button"
+                className={navButtonClass(shellView === 'home')}
+                onClick={() => setView('home')}
+              >
+                加班單
+              </button>
+              <button
+                type="button"
+                className={navButtonClass(shellView === 'calendar')}
+                onClick={() => requireSession('calendar')}
+              >
+                請假行事曆
+              </button>
+              <button
+                type="button"
+                className={navButtonClass(shellView === 'admin-shifts')}
+                onClick={() => requireSession('admin-shifts')}
+              >
+                Admin 管理
+              </button>
+              {user ? (
+                <>
+                  <span className="hidden sm:inline text-slate-600 max-w-[10rem] truncate">
+                    {user.employeeId} {user.name}
+                  </span>
+                  <button
+                    type="button"
+                    className="underline text-blue-700"
+                    onClick={() => {
+                      void handleLogout();
+                    }}
+                  >
+                    登出
+                  </button>
+                </>
+              ) : null}
+            </div>
+          }
+        />
+      </div>
+
+      {authNotice ? (
+        <div
+          className="mb-3 flex items-start justify-between gap-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+          role="status"
+        >
+          <span>{authNotice}</span>
+          <button
+            type="button"
+            className="underline shrink-0"
+            onClick={() => setAuthNotice('')}
+          >
+            關閉
+          </button>
+        </div>
+      ) : null}
+
+      {/* 加班單主流程保持掛載，切換行事曆／Admin 回來時保留已上傳列表 */}
+      <div className={shellView === 'home' ? undefined : 'hidden'} aria-hidden={shellView !== 'home'}>
+        <HomePage />
+      </div>
+
+      {shellView === 'calendar' && user ? (
+        <LeaveCalendarPage user={user} />
+      ) : null}
+
+      {shellView === 'admin-shifts' && user?.role === 'admin' ? (
+        <AdminShiftsPage />
+      ) : null}
     </div>
   );
 }

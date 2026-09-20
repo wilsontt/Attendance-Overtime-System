@@ -12,11 +12,7 @@ import {
   type ShiftAssignment,
 } from '../api/shifts';
 
-type AdminShiftsPageProps = {
-  onBack: () => void;
-};
-
-const AdminShiftsPage: React.FC<AdminShiftsPageProps> = ({ onBack }) => {
+const AdminShiftsPage: React.FC = () => {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [assignments, setAssignments] = useState<ShiftAssignment[]>([]);
   const [error, setError] = useState('');
@@ -61,13 +57,8 @@ const AdminShiftsPage: React.FC<AdminShiftsPageProps> = ({ onBack }) => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Admin：班表與派班</h1>
-        <button type="button" className="underline text-blue-700" onClick={onBack}>
-          回加班單
-        </button>
-      </div>
+    <div className="space-y-8">
+      <h1 className="text-xl font-bold">Admin：班表與派班</h1>
 
       {error ? <p className="text-red-600 text-sm">{error}</p> : null}
 
