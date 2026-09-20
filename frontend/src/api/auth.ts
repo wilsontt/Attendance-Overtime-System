@@ -6,9 +6,29 @@ export type MeResponse = {
   role: 'employee' | 'admin';
 };
 
+export type CaptchaResponse = {
+  captchaId: string;
+  image: string;
+};
+
 export type LoginRequest =
-  | { mode: 'employee'; employeeId: string; pin: string }
-  | { mode: 'admin'; username: string; password: string; pin: string };
+  | {
+      mode: 'employee';
+      employeeId: string;
+      captchaId: string;
+      captchaAnswer: string;
+    }
+  | {
+      mode: 'admin';
+      username: string;
+      password: string;
+      captchaId: string;
+      captchaAnswer: string;
+    };
+
+export async function fetchCaptcha(): Promise<CaptchaResponse> {
+  return apiFetch<CaptchaResponse>('/auth/captcha');
+}
 
 export async function fetchMe(): Promise<MeResponse> {
   return apiFetch<MeResponse>('/me');

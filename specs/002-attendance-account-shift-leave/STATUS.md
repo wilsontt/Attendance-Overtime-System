@@ -28,10 +28,11 @@
   - [x] B3 匯入 + 年假回沖（本機公開上傳維持；伺服器正式匯入需登入）
   - [x] B4 行事曆 + 政府日曆（入口／登入流 + leave calendar API + gov sync 14718）
   - [x] B5 詞庫 + Compose（SQLite 掛卷）
-  - [ ] **B6** Admin UI＋圖形驗證碼（員工頁、Admin 殼層、captcha 登入、政府日曆納入 Admin）
+  - [x] **B6** Admin UI＋圖形驗證碼（員工頁、Admin 殼層、captcha 登入、政府日曆納入 Admin）
 - [ ] **測試與驗證**: 部分（B1～B5 單元測試通過；整合可用本機 SQLite；B6 待做）
 
 ## 最近更新
+- 2026-09-20: **完成 B6**：圖形驗證碼登入、AdminHub（員工／班表／政府日曆）、員工建帳無 PIN。
 - 2026-09-20: **規格對齊 B6（圖形驗證碼）**：登入比照教育訓練 captcha（非入庫 PIN）；Admin＝員工＋班表＋政府日曆；政府日曆＝14718。下一步實作 B6。
 - 2026-09-20: （已撤銷）先前「建帳隨機 PIN 一次明文」敘述改為登入圖形驗證碼。
 - 2026-09-20: **DB 改 SQLite**：本機／ds1 對齊教育訓練（專案根 `data/attendance.db`；Compose 掛卷 `/data`）；移除 Postgres／本機 Docker DB 依賴。

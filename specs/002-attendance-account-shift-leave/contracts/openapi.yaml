@@ -900,7 +900,7 @@ components:
           description: 暫存鍵；登入時帶回
         image:
           type: string
-          description: data:image/png;base64,... 圖形驗證碼
+          description: data URL（SVG 或 PNG）圖形驗證碼
 
     LoginRequest:
       oneOf:

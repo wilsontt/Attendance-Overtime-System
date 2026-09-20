@@ -10,7 +10,6 @@ const ANNUAL_LEAVE_TYPE = '請年休假';
 export type EmployeeCreateBody = {
   employeeId: string;
   name: string;
-  pin: string;
   isActive?: boolean;
   quotaYear?: number;
   quotaDays?: number;
@@ -18,7 +17,6 @@ export type EmployeeCreateBody = {
 
 export type EmployeeUpdateBody = {
   name?: string;
-  pin?: string;
   isActive?: boolean;
   password?: string;
   quota?: { year: number; quotaDays: number };
@@ -30,11 +28,8 @@ function assertEmployeeId(employeeId: string): void {
   }
 }
 
-function assertPin(pin: string): void {
-  if (!/^\d{4}$/.test(pin)) {
-    throw new AppError(400, 'VALIDATION_ERROR', 'PIN 須為 4 位數字');
-  }
-}
+/** 登入改 captcha 後 pin_hash 僅佔位（schema 仍 not null） */
+const PIN_PLACEHOLDER = '__captcha_login_no_pin__';
 
 async function usedLeaveDays(userId: string, year: number): Promise<number> {
   const start = new Date(Date.UTC(year, 0, 1));
@@ -108,7 +103,6 @@ export async function createEmployee(
   body: EmployeeCreateBody,
 ) {
   assertEmployeeId(body.employeeId);
-  assertPin(body.pin);
   if (!body.name?.trim()) {
     throw new AppError(400, 'VALIDATION_ERROR', '姓名不可空白');
   }
@@ -122,7 +116,7 @@ export async function createEmployee(
 
   const year = body.quotaYear ?? new Date().getFullYear();
   const quotaDays = body.quotaDays ?? 0;
-  const pinHash = await hashSecret(body.pin);
+  const pinHash = await hashSecret(PIN_PLACEHOLDER);
 
   const user = await prisma.user.create({
     data: {
@@ -168,8 +162,6 @@ export async function updateEmployee(
     throw new AppError(403, 'ADMIN_PROTECTED', '受保護的 Admin 不可停用');
   }
 
-  if (body.pin) assertPin(body.pin);
-
   const data: Prisma.UserUpdateInput = {};
   if (body.name !== undefined) {
     if (!body.name.trim()) {
@@ -178,7 +170,6 @@ export async function updateEmployee(
     data.name = body.name.trim();
   }
   if (body.isActive !== undefined) data.isActive = body.isActive;
-  if (body.pin) data.pinHash = await hashSecret(body.pin);
   if (body.password !== undefined) {
     if (user.role !== 'admin') {
       throw new AppError(400, 'VALIDATION_ERROR', '僅 Admin 可設定密碼');

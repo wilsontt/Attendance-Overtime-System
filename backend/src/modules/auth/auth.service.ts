@@ -14,6 +14,7 @@ import {
 } from '../../lib/audit.js';
 import { verifySecret } from '../../lib/password.js';
 import { prisma } from '../../lib/prisma.js';
+import { consumeCaptcha } from './captcha.service.js';
 
 export type AuthUser = {
   id: string;
@@ -23,8 +24,19 @@ export type AuthUser = {
 };
 
 export type LoginBody =
-  | { mode: 'employee'; employeeId: string; pin: string }
-  | { mode: 'admin'; username: string; password: string; pin: string };
+  | {
+      mode: 'employee';
+      employeeId: string;
+      captchaId: string;
+      captchaAnswer: string;
+    }
+  | {
+      mode: 'admin';
+      username: string;
+      password: string;
+      captchaId: string;
+      captchaAnswer: string;
+    };
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -51,23 +63,31 @@ export async function login(
   const now = new Date();
   let user: User | null = null;
 
+  if (!body || typeof body !== 'object' || !('mode' in body)) {
+    throw new AppError(400, 'VALIDATION_ERROR', '登入欄位不完整');
+  }
+
   if (body.mode === 'employee') {
-    if (!/^\d{6}$/.test(body.employeeId) || !/^\d{4}$/.test(body.pin)) {
-      throw new AppError(400, 'VALIDATION_ERROR', '員工編號或 PIN 格式錯誤');
+    if (!/^\d{6}$/.test(body.employeeId)) {
+      throw new AppError(400, 'VALIDATION_ERROR', '員工編號格式錯誤');
     }
+    consumeCaptcha(body.captchaId, body.captchaAnswer);
     user = await prisma.user.findUnique({
       where: { employeeId: body.employeeId },
     });
-  } else {
-    if (!body.username || !body.password || !/^\d{4}$/.test(body.pin)) {
+  } else if (body.mode === 'admin') {
+    if (!body.username || !body.password) {
       throw new AppError(400, 'VALIDATION_ERROR', 'Admin 登入欄位不完整');
     }
+    consumeCaptcha(body.captchaId, body.captchaAnswer);
     user = await prisma.user.findFirst({
       where: {
         OR: [{ employeeId: body.username }, { name: body.username }],
         role: 'admin',
       },
     });
+  } else {
+    throw new AppError(400, 'VALIDATION_ERROR', '未知登入模式');
   }
 
   if (!user || !user.isActive) {
@@ -81,21 +101,22 @@ export async function login(
   if (isLoginLocked(user, now)) {
     const retryAfterSeconds = Math.max(
       1,
-      Math.ceil(((user.lockedUntil?.getTime() ?? now.getTime()) - now.getTime()) / 1000),
+      Math.ceil(
+        ((user.lockedUntil?.getTime() ?? now.getTime()) - now.getTime()) /
+          1000,
+      ),
     );
     throw new AppError(423, 'LOGIN_LOCKED', '登入嘗試過多，請稍後再試', {
       retryAfterSeconds,
     });
   }
 
-  let ok = await verifySecret(body.pin, user.pinHash);
-
+  let ok = true;
   if (body.mode === 'admin') {
     if (!user.passwordHash) {
       ok = false;
     } else {
-      const passwordOk = await verifySecret(body.password, user.passwordHash);
-      ok = ok && passwordOk;
+      ok = await verifySecret(body.password, user.passwordHash);
     }
   }
 
@@ -115,7 +136,7 @@ export async function login(
         retryAfterSeconds: LOCK_MINUTES * 60,
       });
     }
-    throw new AppError(401, 'UNAUTHORIZED', '帳號或驗證碼錯誤');
+    throw new AppError(401, 'UNAUTHORIZED', '帳號或密碼錯誤');
   }
 
   await prisma.user.update({
@@ -172,7 +193,9 @@ export async function resolveAuthUser(
 
   if (!session || session.expiresAt.getTime() <= Date.now()) {
     if (session) {
-      await prisma.session.delete({ where: { id: session.id } }).catch(() => undefined);
+      await prisma.session
+        .delete({ where: { id: session.id } })
+        .catch(() => undefined);
     }
     return null;
   }

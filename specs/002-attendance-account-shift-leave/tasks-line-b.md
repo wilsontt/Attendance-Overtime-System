@@ -19,7 +19,7 @@
 - [x] 單元測試：登入鎖定邏輯／密碼雜湊（整合測試用本機 SQLite）
 - [x] 前端：LoginPage、App lazy auth、API client、Vite proxy
 - [x] **規格變更已實作**：首頁公開；請假行事曆／Admin 才要 session（PRD §5.3.1）
-- [ ] **B6**：員工管理 UI＋圖形驗證碼登入（見下方 B6）
+- [x] **B6**：員工管理 UI＋圖形驗證碼登入（見下方 B6）
 
 ## B2 班表 + 派班 + 計算脈絡
 
@@ -54,13 +54,13 @@
 
 對齊教育訓練：登入用**圖形驗證碼**，不發放入庫 PIN。
 
-- [ ] 頂欄「Admin 管理」殼層：分頁或子選單 — **員工帳號**｜**班表與派班**｜**政府辦公日曆**
-- [ ] `AdminEmployeesPage`：列表／建立／停用／年假額度（**無** PIN 欄／重設 PIN）
-- [ ] 後端：`GET /api/auth/captcha`；登入改 `captchaId`＋`captchaAnswer`；員工／Admin 皆驗證碼；Admin 另驗密碼；建立員工移除必填 `pin`
-- [ ] 前端 LoginPage：顯示驗證碼圖、可重新取圖；拿掉「4 碼 PIN」長期密鑰欄位語意
-- [ ] OpenAPI／data-model／seed 文件同步（`ADMIN_SEED_PIN` 不作為登入因子）
-- [ ] 政府日曆：Admin 殼層內手動 sync＋顯示結果
-- [ ] 驗收：建員工（無 PIN）→ 員工以編號＋圖形驗證碼登入 → 正式匯入該編號成功
+- [x] 頂欄「Admin 管理」殼層：分頁或子選單 — **員工帳號**｜**班表與派班**｜**政府辦公日曆**
+- [x] `AdminEmployeesPage`：列表／建立／停用／年假額度（**無** PIN 欄／重設 PIN）
+- [x] 後端：`GET /api/auth/captcha`；登入改 `captchaId`＋`captchaAnswer`；員工／Admin 皆驗證碼；Admin 另驗密碼；建立員工移除必填 `pin`
+- [x] 前端 LoginPage：顯示驗證碼圖、可重新取圖；拿掉「4 碼 PIN」長期密鑰欄位語意
+- [x] OpenAPI／data-model／seed 文件同步（`ADMIN_SEED_PIN` 不作為登入因子）
+- [x] 政府日曆：Admin 殼層內手動 sync＋顯示結果
+- [x] 驗收：建員工（無 PIN）→ 員工以編號＋圖形驗證碼登入 → 正式匯入該編號成功
 
 ## 完成定義（線 B）
 

@@ -8,15 +8,15 @@
 import { useEffect, useState } from 'react';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
-import AdminShiftsPage from './pages/AdminShiftsPage';
+import AdminHubPage from './pages/AdminHubPage';
 import LeaveCalendarPage from './pages/LeaveCalendarPage';
 import { TopTitleNav } from './components/TopTitleNav';
 import { fetchMe, logout, type MeResponse } from './api/auth';
 import './App.css';
 
-type AppView = 'home' | 'login' | 'calendar' | 'admin-shifts';
-type LoginIntent = 'calendar' | 'admin-shifts';
-type ShellView = 'home' | 'calendar' | 'admin-shifts';
+type AppView = 'home' | 'login' | 'calendar' | 'admin';
+type LoginIntent = 'calendar' | 'admin';
+type ShellView = 'home' | 'calendar' | 'admin';
 
 function App() {
   const [user, setUser] = useState<MeResponse | null>(null);
@@ -45,12 +45,12 @@ function App() {
   const requireSession = (intent: LoginIntent) => {
     setAuthNotice('');
     if (user) {
-      if (intent === 'admin-shifts' && user.role !== 'admin') {
-        setAuthNotice('班表管理僅限 Admin 帳號。');
+      if (intent === 'admin' && user.role !== 'admin') {
+        setAuthNotice('Admin 管理僅限 Admin 帳號。');
         setView('home');
         return;
       }
-      setView(intent === 'calendar' ? 'calendar' : 'admin-shifts');
+      setView(intent === 'calendar' ? 'calendar' : 'admin');
       return;
     }
     setLoginIntent(intent);
@@ -61,11 +61,11 @@ function App() {
     setUser(me);
     const intent = loginIntent;
     setLoginIntent(null);
-    if (intent === 'admin-shifts') {
+    if (intent === 'admin') {
       if (me.role === 'admin') {
-        setView('admin-shifts');
+        setView('admin');
       } else {
-        setAuthNotice('班表管理僅限 Admin 帳號。');
+        setAuthNotice('Admin 管理僅限 Admin 帳號。');
         setView('home');
       }
       return;
@@ -127,8 +127,8 @@ function App() {
               </button>
               <button
                 type="button"
-                className={navButtonClass(shellView === 'admin-shifts')}
-                onClick={() => requireSession('admin-shifts')}
+                className={navButtonClass(shellView === 'admin')}
+                onClick={() => requireSession('admin')}
               >
                 Admin 管理
               </button>
@@ -169,8 +169,10 @@ function App() {
         </div>
       ) : null}
 
-      {/* 加班單主流程保持掛載，切換行事曆／Admin 回來時保留已上傳列表 */}
-      <div className={shellView === 'home' ? undefined : 'hidden'} aria-hidden={shellView !== 'home'}>
+      <div
+        className={shellView === 'home' ? undefined : 'hidden'}
+        aria-hidden={shellView !== 'home'}
+      >
         <HomePage loggedIn={Boolean(user)} />
       </div>
 
@@ -178,8 +180,8 @@ function App() {
         <LeaveCalendarPage user={user} />
       ) : null}
 
-      {shellView === 'admin-shifts' && user?.role === 'admin' ? (
-        <AdminShiftsPage />
+      {shellView === 'admin' && user?.role === 'admin' ? (
+        <AdminHubPage />
       ) : null}
     </div>
   );

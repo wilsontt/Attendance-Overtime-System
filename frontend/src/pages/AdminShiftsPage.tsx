@@ -58,7 +58,7 @@ const AdminShiftsPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-xl font-bold">Admin：班表與派班</h1>
+      <h2 className="text-lg font-bold text-slate-800">班表與派班</h2>
 
       {error ? <p className="text-red-600 text-sm">{error}</p> : null}
 

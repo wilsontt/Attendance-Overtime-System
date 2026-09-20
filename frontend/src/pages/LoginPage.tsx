@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
-import { login, type LoginRequest, type MeResponse } from '../api/auth';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  fetchCaptcha,
+  login,
+  type LoginRequest,
+  type MeResponse,
+} from '../api/auth';
 import { ApiError } from '../api/client';
 
-type LoginIntent = 'calendar' | 'admin-shifts';
+type LoginIntent = 'calendar' | 'admin';
 
 type LoginPageProps = {
   intent?: LoginIntent | null;
@@ -12,7 +17,7 @@ type LoginPageProps = {
 
 const intentHint = (intent: LoginIntent | null | undefined): string => {
   if (intent === 'calendar') return '登入後進入請假行事曆';
-  if (intent === 'admin-shifts') return '登入後進入 Admin 班表管理';
+  if (intent === 'admin') return '登入後進入 Admin 管理';
   return '請選擇員工或 Admin 登入';
 };
 
@@ -22,14 +27,31 @@ const LoginPage: React.FC<LoginPageProps> = ({
   onCancel,
 }) => {
   const [mode, setMode] = useState<'employee' | 'admin'>(
-    intent === 'admin-shifts' ? 'admin' : 'employee',
+    intent === 'admin' ? 'admin' : 'employee',
   );
   const [employeeId, setEmployeeId] = useState('');
   const [username, setUsername] = useState('000000');
   const [password, setPassword] = useState('');
-  const [pin, setPin] = useState('');
+  const [captchaId, setCaptchaId] = useState('');
+  const [captchaImage, setCaptchaImage] = useState('');
+  const [captchaAnswer, setCaptchaAnswer] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const reloadCaptcha = useCallback(async () => {
+    try {
+      const captcha = await fetchCaptcha();
+      setCaptchaId(captcha.captchaId);
+      setCaptchaImage(captcha.image);
+      setCaptchaAnswer('');
+    } catch {
+      setError('無法取得圖形驗證碼，請確認後端已啟動');
+    }
+  }, []);
+
+  useEffect(() => {
+    void reloadCaptcha();
+  }, [reloadCaptcha]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -38,8 +60,19 @@ const LoginPage: React.FC<LoginPageProps> = ({
     try {
       const body: LoginRequest =
         mode === 'employee'
-          ? { mode: 'employee', employeeId, pin }
-          : { mode: 'admin', username, password, pin };
+          ? {
+              mode: 'employee',
+              employeeId,
+              captchaId,
+              captchaAnswer,
+            }
+          : {
+              mode: 'admin',
+              username,
+              password,
+              captchaId,
+              captchaAnswer,
+            };
       const me = await login(body);
       onLoggedIn(me);
     } catch (err) {
@@ -48,6 +81,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
       } else {
         setError('無法連線後端 API，請確認已啟動 backend（:3000）');
       }
+      await reloadCaptcha();
     } finally {
       setSubmitting(false);
     }
@@ -56,7 +90,9 @@ const LoginPage: React.FC<LoginPageProps> = ({
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
       <form
-        onSubmit={handleSubmit}
+        onSubmit={(e) => {
+          void handleSubmit(e);
+        }}
         className="w-full max-w-md bg-white shadow-md rounded-lg p-6 space-y-4"
       >
         <h1 className="text-xl font-bold text-slate-800">出勤加班單系統登入</h1>
@@ -123,22 +159,46 @@ const LoginPage: React.FC<LoginPageProps> = ({
           </>
         )}
 
-        <label className="block text-sm">
-          4 碼 PIN
+        <div className="space-y-2">
+          <span className="block text-sm">圖形驗證碼</span>
+          <div className="flex flex-wrap items-center gap-3">
+            {captchaImage ? (
+              <img
+                src={captchaImage}
+                alt="圖形驗證碼"
+                className="h-[72px] w-[200px] border border-slate-300 bg-white"
+              />
+            ) : (
+              <div className="flex h-[72px] w-[200px] items-center justify-center border border-dashed border-slate-300 text-xs text-slate-500">
+                載入中…
+              </div>
+            )}
+            <button
+              type="button"
+              className="rounded border border-slate-300 px-3 py-1.5 text-sm"
+              onClick={() => {
+                void reloadCaptcha();
+              }}
+            >
+              重新取圖
+            </button>
+          </div>
           <input
-            className="mt-1 w-full border rounded px-3 py-2"
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
+            className="w-full border rounded px-3 py-2"
+            value={captchaAnswer}
+            onChange={(e) => setCaptchaAnswer(e.target.value)}
             maxLength={4}
+            inputMode="numeric"
+            placeholder="請輸入圖上 4 碼數字"
             required
           />
-        </label>
+        </div>
 
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || !captchaId}
           className="w-full bg-blue-700 text-white py-2 rounded disabled:opacity-60"
         >
           {submitting ? '登入中…' : '登入'}
