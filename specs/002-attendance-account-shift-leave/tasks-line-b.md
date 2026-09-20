@@ -44,10 +44,10 @@
 
 ## B5 詞庫 + 部署銜接
 
-- [ ] `GET/POST /api/work-locations`
-- [ ] PreviewModal 自動完成＋入庫
-- [ ] Docker Compose（db + api）+ Nginx `/attendance/api/`
-- [ ] README／CLAUDE 補線 B 依賴與契約路徑
+- [x] `GET/POST /api/work-locations`
+- [x] PreviewModal 自動完成＋確認下載時入庫（需登入）
+- [x] Docker Compose（db + api；`--profile full` 含 web＋`/attendance/api/` 反代）
+- [x] README／CLAUDE／backend README 補線 B 依賴與契約路徑
 
 ## 完成定義（線 B）
 

@@ -7,6 +7,7 @@ import { shiftRoutes } from './modules/shift/shift.routes.js';
 import { computationRoutes } from './modules/computation/computation.routes.js';
 import { attendanceRoutes } from './modules/attendance/attendance.routes.js';
 import { calendarRoutes } from './modules/calendar/calendar.routes.js';
+import { workLocationRoutes } from './modules/workLocation/workLocation.routes.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -34,6 +35,7 @@ export async function buildApp() {
   await app.register(computationRoutes);
   await app.register(attendanceRoutes);
   await app.register(calendarRoutes);
+  await app.register(workLocationRoutes);
 
   return app;
 }

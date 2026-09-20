@@ -417,6 +417,7 @@ const HomePage: React.FC<HomePageProps> = ({ loggedIn = false }) => {
             onPrint={handlePrint}
             defaultWeekdayRemarks={defaultWeekdayRemarks}
             defaultHolidayRemarks={defaultHolidayRemarks}
+            enableWorkLocationDictionary={loggedIn}
           />
         </>
       )}

@@ -31,5 +31,18 @@ services:
       db:
         condition: service_healthy
 
+  # 需在「企業入口網站」根目錄建置（含 0.shared-ui）：
+  #   docker compose -f 1.出勤加班單系統/docker-compose.yml up -d --build
+  # 或僅起 DB／API：docker compose up -d db api
+  web:
+    profiles: ['full']
+    build:
+      context: ..
+      dockerfile: 1.出勤加班單系統/Dockerfile.compose
+    ports:
+      - '8080:80'
+    depends_on:
+      - api
+
 volumes:
   attendance_pg_data:
