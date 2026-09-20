@@ -37,10 +37,10 @@
 
 ## B4 行事曆 + 政府日曆
 
-- [ ] 同步 dataset/14718 + 排程／手動 sync API
-- [ ] `GET /api/leave/calendar`
-- [ ] 前端：首頁明確「行事曆」入口；未登入點入 → LoginPage → LeaveCalendarPage
-- [ ] 補班優先 gov、失敗可手勾；同步失敗不阻斷主流程
+- [x] 同步 dataset/14718 + 啟動時／每日背景同步 + 手動 sync API
+- [x] `GET /api/leave/calendar`
+- [x] 前端 LeaveCalendarPage 接 API；Admin 可選員工、可手動同步
+- [x] 同步失敗不阻斷主流程（仍可手勾補班）；單元測試：CSV 對應／選年 URL
 
 ## B5 詞庫 + 部署銜接
 
