@@ -1,39 +1,24 @@
+# ds1／正式：僅 api（＋可選 web profile）。本機開發勿用此 compose 起 DB——用專案根 data/attendance.db + npm run dev。
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: attendance
-      POSTGRES_PASSWORD: attendance
-      POSTGRES_DB: attendance
-    ports:
-      - '5432:5432'
-    volumes:
-      - attendance_pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U attendance -d attendance']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgresql://attendance:attendance@db:5432/attendance?schema=public
+      # 容器內掛卷路徑（對齊教育訓練：/data/*.db）
+      DATABASE_URL: file:/data/attendance.db
       PORT: '3000'
       COOKIE_SECURE: 'false'
       ADMIN_SEED_PASSWORD: ${ADMIN_SEED_PASSWORD:-ChangeMeAdmin!}
       ADMIN_SEED_PIN: ${ADMIN_SEED_PIN:-0000}
     ports:
       - '3000:3000'
-    depends_on:
-      db:
-        condition: service_healthy
+    volumes:
+      # 本機驗證映像時掛專案 data/；ds1 請改 ${DATA_ROOT}/attendance:/data
+      - ${ATTENDANCE_DATA:-./data}:/data
 
   # 需在「企業入口網站」根目錄建置（含 0.shared-ui）：
-  #   docker compose -f 1.出勤加班單系統/docker-compose.yml up -d --build
-  # 或僅起 DB／API：docker compose up -d db api
+  #   docker compose -f 1.出勤加班單系統/docker-compose.yml --profile full up -d --build
   web:
     profiles: ['full']
     build:
@@ -43,6 +28,3 @@ services:
       - '8080:80'
     depends_on:
       - api
-
-volumes:
-  attendance_pg_data:

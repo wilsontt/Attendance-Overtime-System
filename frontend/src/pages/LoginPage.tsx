@@ -61,17 +61,27 @@ const LoginPage: React.FC<LoginPageProps> = ({
       >
         <h1 className="text-xl font-bold text-slate-800">出勤加班單系統登入</h1>
         <p className="text-sm text-slate-600">{intentHint(intent)}</p>
-        <div className="flex gap-2">
+        <div className="flex gap-2" role="group" aria-label="登入身分">
           <button
             type="button"
-            className={`flex-1 py-2 rounded border ${mode === 'employee' ? 'bg-slate-800 text-white' : 'bg-white'}`}
+            aria-pressed={mode === 'employee'}
+            className={
+              mode === 'employee'
+                ? 'flex-1 rounded border-2 border-slate-900 bg-slate-800 py-2 font-semibold text-white shadow-sm hover:border-slate-900 hover:bg-slate-900'
+                : 'flex-1 rounded border border-slate-300 bg-white py-2 text-slate-600 hover:bg-slate-50'
+            }
             onClick={() => setMode('employee')}
           >
             員工
           </button>
           <button
             type="button"
-            className={`flex-1 py-2 rounded border ${mode === 'admin' ? 'bg-slate-800 text-white' : 'bg-white'}`}
+            aria-pressed={mode === 'admin'}
+            className={
+              mode === 'admin'
+                ? 'flex-1 rounded border-2 border-slate-900 bg-slate-800 py-2 font-semibold text-white shadow-sm hover:border-slate-900 hover:bg-slate-900'
+                : 'flex-1 rounded border border-slate-300 bg-white py-2 text-slate-600 hover:bg-slate-50'
+            }
             onClick={() => setMode('admin')}
           >
             Admin

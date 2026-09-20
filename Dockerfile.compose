@@ -1,5 +1,6 @@
-# 本機 docker compose 用前端映像（build context = 企業入口網站根目錄）
-# docker compose build web
+# 部署用前端映像（ds1／正式；build context = 企業入口網站根目錄）
+# 開發請用 frontend/ npm run dev，不要建此映像
+# docker compose --profile full build web
 
 FROM node:22-alpine AS builder
 

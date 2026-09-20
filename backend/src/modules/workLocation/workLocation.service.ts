@@ -47,14 +47,15 @@ export async function searchWorkLocations(
     throw new AppError(400, 'VALIDATION_ERROR', `q 最多 ${MAX_LEN} 字`);
   }
   const take = Math.min(Math.max(limit, 1), 50);
+  const prefixLower = prefix.toLowerCase();
 
-  const rows = await prisma.workLocationTerm.findMany({
-    where: {
-      text: { startsWith: prefix, mode: 'insensitive' },
-    },
+  // SQLite 不支援 Prisma mode: 'insensitive'；詞庫量小，應用層前綴比對
+  const candidates = await prisma.workLocationTerm.findMany({
     orderBy: { text: 'asc' },
-    take,
   });
+  const rows = candidates
+    .filter((row) => row.text.toLowerCase().startsWith(prefixLower))
+    .slice(0, take);
 
   return { items: rows.map(toDto) };
 }

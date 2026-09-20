@@ -18,7 +18,7 @@ npx vitest run           # 執行全部測試（單次）
 ### 後端（`backend/`）
 
 ```bash
-docker compose up -d db  # 於專案根目錄起 Postgres
+# 本機開發：SQLite（專案根 data/attendance.db），不需 Docker
 npm run prisma:migrate && npm run prisma:seed
 npm run dev              # Fastify :3000
 npm test
@@ -26,6 +26,7 @@ npm test
 
 契約：`specs/002-attendance-account-shift-leave/contracts/openapi.yaml`。
 線 B：B1～B5（Auth、班表、匯入、行事曆、詞庫）；加班單主流程公開，身分功能 lazy auth。
+`docker compose build`／`--profile full` 僅供 **ds1／正式部署**（SQLite 掛卷 `/data`），非日常開發流程。
 
 ## 專案概述
 
@@ -124,6 +125,10 @@ PreviewModal 在開啟時以 `props.reports` 為初始值，建立自己的 stat
 `frontend/tests/` 使用 vitest + jsdom。`calculationService.test.ts` 涵蓋時間對齊邊界案例，修改計算規則必須通過全部測試。
 
 ## 部署
+
+**ds1／正式**才 `docker compose build`（或企業入口 `deploy/` 流程）。日常開發不建映像、不需 Docker。
+
+資料庫：**SQLite**（對齊教育訓練）。本機為專案根 `data/attendance.db`；容器掛卷 `${ATTENDANCE_DATA:-./data}:/data`，`DATABASE_URL=file:/data/attendance.db`。
 
 `Dockerfile` 多階段建置：Node 22 Alpine 建置器 → Nginx Alpine，於 `/attendance/` 路徑提供靜態 `dist/` 檔案（`vite.config.ts` 的 `base: '/attendance/'`）。
 - Build context 為企業入口網站根目錄；`COPY 0.shared-ui /app/frontend/0.shared-ui`

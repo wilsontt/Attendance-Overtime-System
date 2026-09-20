@@ -20,7 +20,30 @@ export async function buildApp() {
     if (error instanceof AppError) {
       return reply.status(error.statusCode).send(toErrorBody(error));
     }
+
+    const message =
+      error instanceof Error ? error.message : String(error);
+    const errorName =
+      error instanceof Error
+        ? error.name
+        : typeof error === 'object' &&
+            error !== null &&
+            'name' in error &&
+            typeof (error as { name: unknown }).name === 'string'
+          ? (error as { name: string }).name
+          : '';
+    const isDbUnreachable =
+      /Can't reach database server/i.test(message) ||
+      errorName === 'PrismaClientInitializationError';
+
     app.log.error(error);
+    if (isDbUnreachable) {
+      return reply.status(503).send({
+        code: 'VALIDATION_ERROR',
+        message:
+          '資料庫無法連線：請確認專案根 data/attendance.db 存在（開發：npm run prisma:migrate && npm run prisma:seed）',
+      });
+    }
     return reply.status(500).send({
       code: 'VALIDATION_ERROR',
       message: '伺服器內部錯誤',

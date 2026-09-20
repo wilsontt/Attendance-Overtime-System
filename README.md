@@ -107,14 +107,15 @@
 - 契約：`specs/002-attendance-account-shift-leave/contracts/openapi.yaml`
 - 規格目錄：`specs/002-attendance-account-shift-leave/`（PRD §5.3.1：**加班單主流程公開**；行事曆／Admin／正式匯入／詞庫需登入）
 - 後端目錄：`backend/`（Fastify + Prisma + PostgreSQL）
-- 本機只起 DB：`docker compose up -d db`，再依 `backend/README.md` 遷移／seed／`npm run dev`
-- 一鍵起 DB＋API：於本目錄 `docker compose up -d --build db api`（API `:3000`）
-- 含前端反代（需在企業入口根目錄，且有 `0.shared-ui`）：
-  ```bash
-  docker compose -f 1.出勤加班單系統/docker-compose.yml --profile full up -d --build
-  ```
-  瀏覽 `http://localhost:8080/attendance/`；API 經 `/attendance/api/` → `api:3000`
-- 前端開發 Vite proxy：`/attendance/api` → `http://localhost:3000/api`
+
+**本機開發（不需 Docker）**
+
+1. `backend/`：確認 `.env` 的 `DATABASE_URL="file:../../data/attendance.db"`（專案根 `data/attendance.db`）
+2. `npm run prisma:migrate && npm run prisma:seed && npm run dev`（`:3000`）
+3. `frontend/`：`npm run dev`（Vite；proxy `/attendance/api` → `http://localhost:3000/api`）
+
+**部署（ds1／正式）**：`docker compose build`／`--build`；API 掛 SQLite 目錄（`ATTENDANCE_DATA` 或 `./data` → 容器 `/data`）。詳見 `backend/README.md`。
+
 - 未登入仍可上傳 TXT／CSV 並以檔內員工編號＋本機班表／手選計算；伺服器正式匯入、行事曆、工作地點詞庫需 session
 
 ## 📖 使用說明

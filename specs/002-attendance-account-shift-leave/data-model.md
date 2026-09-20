@@ -7,6 +7,8 @@
 
 本文件與 OpenAPI schemas 對齊，供 Prisma `schema.prisma` 實作。表名採 snake_case；應用層 TypeScript 用 camelCase。
 
+**引擎**：SQLite（本機 `data/attendance.db`；ds1／正式掛卷 `/data/attendance.db`）。不使用 PostgreSQL 專用型別（`@db.Uuid`／`Timestamptz` 等已自 schema 移除）。
+
 ---
 
 ## 1. 目的

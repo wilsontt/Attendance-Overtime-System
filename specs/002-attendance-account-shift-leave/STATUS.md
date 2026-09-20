@@ -28,9 +28,10 @@
   - [x] B3 匯入 + 年假回沖（本機公開上傳維持；伺服器正式匯入需登入）
   - [x] B4 行事曆 + 政府日曆（入口／登入流 + leave calendar API + gov sync）
   - [x] B5 詞庫 + Docker 銜接
-- [ ] **測試與驗證**: 部分（B1～B5 單元測試通過；整合測試待本機 Docker Postgres）
+- [ ] **測試與驗證**: 部分（B1～B5 單元測試通過；整合測試可用本機 SQLite `data/attendance.db`）
 
 ## 最近更新
+- 2026-09-20: **DB 改 SQLite**：本機／ds1 對齊教育訓練（專案根 `data/attendance.db`；Compose 掛卷 `/data`）；移除 Postgres／本機 Docker DB 依賴。
 - 2026-09-20: 完成 B5：工作地點詞庫 API、PreviewModal 自動完成／入庫、Compose full profile（web＋API 反代）、文件更新。
 - 2026-09-20: 完成 B4：`GET /api/leave/calendar`、政府日曆 dataset/14718 同步（手動＋每日背景）、行事曆頁接 API。
 - 2026-09-20: PRD／PLAN／tasks 對齊 lazy auth：加班單主流程公開；Session 僅行事曆與 Admin；未登入用本機班表／檔內編號計算。

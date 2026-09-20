@@ -144,10 +144,7 @@ export async function importAttendanceFile(
   affectedYears.push(calendarYearOfIso(dateFrom), calendarYearOfIso(dateTo));
 
   const result = await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw(
-      Prisma.sql`SELECT id FROM users WHERE id = ${owner.id} FOR UPDATE`,
-    );
-
+    // SQLite 無 FOR UPDATE；以交易串行化重匯刪增即可
     await tx.attendanceDay.deleteMany({
       where: {
         userId: owner.id,

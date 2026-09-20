@@ -54,8 +54,8 @@
 
 | 環境 | 行為 |
 |------|------|
-| 開發 | Fastify `:3000`；Vite proxy `/attendance/api` → `http://localhost:3000/api`（B1 時加） |
-| 正式 | Nginx：`/attendance/` → 靜態；`/attendance/api/` → `api:3000/api/` |
+| 開發 | Fastify `:3000`；Vite proxy `/attendance/api` → `http://localhost:3000/api`；SQLite `data/attendance.db`（**不需 Docker**） |
+| 正式／ds1 | Nginx：`/attendance/` → 靜態；`/attendance/api/` → `api:3000/api/`；API 掛卷 `${DATA_ROOT}/attendance:/data`，`DATABASE_URL=file:/data/attendance.db` |
 | Cookie | `Path=/attendance` 或 `/`（與反代路徑一致）；`SameSite=Lax`；正式 `Secure` |
 
 ---

@@ -8,6 +8,11 @@
 dist/
 .env
 
+# SQLite（專案根 data/；保留 .gitkeep）
+/data/*.db
+/data/*.db-*
+/data/*.db.bak*
+
 # testing
 /coverage
 

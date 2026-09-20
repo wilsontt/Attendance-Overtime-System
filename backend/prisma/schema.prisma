@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -24,36 +24,36 @@ enum GovDayType {
 }
 
 model User {
-  id                String    @id @default(uuid()) @db.Uuid
-  employeeId        String    @unique @map("employee_id") @db.Char(6)
-  name              String
-  role              UserRole
-  pinHash           String    @map("pin_hash")
-  passwordHash      String?   @map("password_hash")
-  isActive          Boolean   @default(true) @map("is_active")
-  isProtected       Boolean   @default(false) @map("is_protected")
-  failedLoginCount  Int       @default(0) @map("failed_login_count")
-  lockedUntil       DateTime? @map("locked_until") @db.Timestamptz(6)
-  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id               String    @id @default(uuid())
+  employeeId       String    @unique @map("employee_id")
+  name             String
+  role             UserRole
+  pinHash          String    @map("pin_hash")
+  passwordHash     String?   @map("password_hash")
+  isActive         Boolean   @default(true) @map("is_active")
+  isProtected      Boolean   @default(false) @map("is_protected")
+  failedLoginCount Int       @default(0) @map("failed_login_count")
+  lockedUntil      DateTime? @map("locked_until")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  sessions              Session[]
-  quotas                AnnualLeaveQuota[]
-  shiftAssignments      ShiftAssignment[]
-  attendanceDays        AttendanceDay[]
-  importBatchesAsOwner  AttendanceImportBatch[] @relation("ImportOwner")
-  importBatchesAsActor  AttendanceImportBatch[] @relation("ImportActor")
-  workLocationsCreated  WorkLocationTerm[]
-  auditLogs             AuditLog[]
+  sessions             Session[]
+  quotas               AnnualLeaveQuota[]
+  shiftAssignments     ShiftAssignment[]
+  attendanceDays       AttendanceDay[]
+  importBatchesAsOwner AttendanceImportBatch[] @relation("ImportOwner")
+  importBatchesAsActor AttendanceImportBatch[] @relation("ImportActor")
+  workLocationsCreated WorkLocationTerm[]
+  auditLogs            AuditLog[]
 
   @@map("users")
 }
 
 model Session {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -62,12 +62,12 @@ model Session {
 }
 
 model AnnualLeaveQuota {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
   year      Int
-  quotaDays Decimal  @map("quota_days") @db.Decimal(6, 2)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  quotaDays Decimal  @map("quota_days")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -76,13 +76,13 @@ model AnnualLeaveQuota {
 }
 
 model Shift {
-  id        String      @id @default(uuid()) @db.Uuid
+  id        String      @id @default(uuid())
   name      String      @unique
-  startTime String      @map("start_time") @db.Char(5)
-  endTime   String      @map("end_time") @db.Char(5)
+  startTime String      @map("start_time")
+  endTime   String      @map("end_time")
   status    ShiftStatus @default(active)
-  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
 
   assignments ShiftAssignment[]
 
@@ -90,13 +90,13 @@ model Shift {
 }
 
 model ShiftAssignment {
-  id            String    @id @default(uuid()) @db.Uuid
-  userId        String    @map("user_id") @db.Uuid
-  shiftId       String    @map("shift_id") @db.Uuid
-  effectiveFrom DateTime  @map("effective_from") @db.Date
-  effectiveTo   DateTime? @map("effective_to") @db.Date
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id            String    @id @default(uuid())
+  userId        String    @map("user_id")
+  shiftId       String    @map("shift_id")
+  effectiveFrom DateTime  @map("effective_from")
+  effectiveTo   DateTime? @map("effective_to")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   shift Shift @relation(fields: [shiftId], references: [id], onDelete: Restrict)
@@ -106,13 +106,13 @@ model ShiftAssignment {
 }
 
 model AttendanceImportBatch {
-  id             String   @id @default(uuid()) @db.Uuid
-  userId         String   @map("user_id") @db.Uuid
-  importedById   String   @map("imported_by") @db.Uuid
-  dateFrom       DateTime @map("date_from") @db.Date
-  dateTo         DateTime @map("date_to") @db.Date
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  importedById   String   @map("imported_by")
+  dateFrom       DateTime @map("date_from")
+  dateTo         DateTime @map("date_to")
   sourceFilename String   @map("source_filename")
-  importedAt     DateTime @default(now()) @map("imported_at") @db.Timestamptz(6)
+  importedAt     DateTime @default(now()) @map("imported_at")
 
   user       User            @relation("ImportOwner", fields: [userId], references: [id], onDelete: Cascade)
   importedBy User            @relation("ImportActor", fields: [importedById], references: [id], onDelete: Restrict)
@@ -122,17 +122,17 @@ model AttendanceImportBatch {
 }
 
 model AttendanceDay {
-  id                String   @id @default(uuid()) @db.Uuid
-  userId            String   @map("user_id") @db.Uuid
-  belongDate        DateTime @map("belong_date") @db.Date
-  attendanceType    String?  @map("attendance_type")
-  leaveQuantity     Decimal  @default(0) @map("leave_quantity") @db.Decimal(6, 2)
-  clockIn           String?  @map("clock_in") @db.Char(5)
-  clockOut          String?  @map("clock_out") @db.Char(5)
-  unknownLeaveType  Boolean  @default(false) @map("unknown_leave_type")
-  importBatchId     String?  @map("import_batch_id") @db.Uuid
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  belongDate       DateTime @map("belong_date")
+  attendanceType   String?  @map("attendance_type")
+  leaveQuantity    Decimal  @default(0) @map("leave_quantity")
+  clockIn          String?  @map("clock_in")
+  clockOut         String?  @map("clock_out")
+  unknownLeaveType Boolean  @default(false) @map("unknown_leave_type")
+  importBatchId    String?  @map("import_batch_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   user        User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   importBatch AttendanceImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
@@ -142,19 +142,19 @@ model AttendanceDay {
 }
 
 model GovCalendarDay {
-  date     DateTime   @id @db.Date
+  date     DateTime   @id
   dayType  GovDayType @map("day_type")
   name     String?
-  syncedAt DateTime   @map("synced_at") @db.Timestamptz(6)
+  syncedAt DateTime   @map("synced_at")
 
   @@map("gov_calendar_days")
 }
 
 model WorkLocationTerm {
-  id        String   @id @default(uuid()) @db.Uuid
-  text      String   @unique @db.VarChar(40)
-  createdBy String?  @map("created_by") @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id        String   @id @default(uuid())
+  text      String   @unique
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
 
   creator User? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
 
@@ -162,11 +162,11 @@ model WorkLocationTerm {
 }
 
 model AuditLog {
-  id        String   @id @default(uuid()) @db.Uuid
-  actorId   String?  @map("actor_id") @db.Uuid
+  id        String   @id @default(uuid())
+  actorId   String?  @map("actor_id")
   action    String
   payload   Json
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at")
 
   actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
 

@@ -19,12 +19,12 @@ PRD §2.5 將 API／DB／PIN 儲存／政府日曆資料集標為設計待決。
 | 架構 | 模組化單體：`backend/` + 既有 `frontend/` | 符合 Constitution P10；單一部署單元即可 |
 | Runtime | Node.js 22（與現有 Dockerfile 一致） | 與前端同語系，降低維運分裂 |
 | API | Fastify 5 + TypeScript | 輕量、型別友善、適合內部工具規模 |
-| ORM／DB | Prisma + PostgreSQL 16 | 關聯資料（派班、匯入、年假）清楚；容器化成熟 |
+| ORM／DB | Prisma + **SQLite**（專案根 `data/attendance.db`；ds1 掛卷 `/data`） | 對齊教育訓練本機零 Docker；關聯仍由 Prisma 管理 |
 | 遷移 | Prisma Migrate | schema 變更可追溯 |
 | 驗證 | Session Cookie（HttpOnly、Secure、SameSite=Lax）+ `bcrypt` 雜湊 | PRD 明確排除 SSO；PIN／Admin 密碼不可明文 |
 | API 契約 | OpenAPI 3（`specs/.../contracts/openapi.yaml`） | 前後端對齊、可產生型別 |
 | 日曆資料 | 行政院人事行政總處／政府資料開放平臺「行政機關辦公日曆」；排程每日抓取 | PRD E3-6；失敗時仍允許手勾補班（E3-2.1） |
-| 部署 | Docker Compose：`frontend`(Nginx) + `api` + `db`；反向代理 `/attendance/api/` | 延續現有 `/attendance/` 路徑 |
+| 部署 | Docker Compose：`frontend`(Nginx) + `api`；SQLite 掛卷；反向代理 `/attendance/api/` | 延續現有 `/attendance/` 路徑；**無獨立 Postgres 服務** |
 | 測試 | 後端：Vitest + Supertest；前端：既有 Vitest；匯入／年假：整合測試必過 | 對應 PRD 附錄 B 匯入／帳號項 |
 
 **刻意不做（本線）**：OIDC／企業 AD（PRD 範圍外）；跨日夜班；假別法定天數控管；加班原因常用清單。
@@ -122,7 +122,7 @@ frontend/                       # 既有；新增登入與 Admin 頁、API clien
 │   │   └── LeaveCalendarPage.tsx
 │   └── ...既有 HomePage／PreviewModal（改讀 API）
 
-docker-compose.yml              # api + db + 既有 attendance 前端映像
+docker-compose.yml              # api（SQLite 掛卷）+ 可選 web；無 Postgres
 ```
 
 **結構決策**：後端獨立 `backend/`，不把 API 塞進 `frontend/`；Nginx 將 `/attendance/api/` 反代至 Fastify，靜態前端路徑維持 `/attendance/`。
@@ -203,10 +203,10 @@ docker-compose.yml              # api + db + 既有 attendance 前端映像
 
 ## 部署與遷移
 
-1. 新增 `backend/Dockerfile`、根目錄 `docker-compose.yml`（db + api）。
-2. 調整企業入口 `deploy/` 與 Nginx：`/attendance/api/` → api:3000。
-3. 首次啟動：`prisma migrate deploy` + `seed`（Admin、兩班）。
-4. README／`frontend/README.md`／`CLAUDE.md` 補「線 B 需 API＋DB」說明。
+1. 新增 `backend/Dockerfile`、根目錄 `docker-compose.yml`（api + SQLite 掛卷；本機開發零 Docker）。
+2. 調整企業入口 `deploy/` 與 Nginx：`/attendance/api/` → api:3000；ds1 掛 `${DATA_ROOT}/attendance:/data`。
+3. 首次啟動：`prisma migrate deploy` + `seed`（Admin、兩班）→ `data/attendance.db`。
+4. README／`frontend/README.md`／`CLAUDE.md` 補「線 B 需 API＋SQLite」說明。
 
 ## 風險與緩解
 
@@ -222,7 +222,7 @@ docker-compose.yml              # api + db + 既有 attendance 前端映像
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
 | 自建 PIN／密碼而非 OIDC | PRD 明確排除 SSO，員工僅 6 碼+4 碼 PIN | OIDC 超出範圍且無企業 IdP 整合需求 |
-| 新增 PostgreSQL 服務 | 需跨裝置持久化帳號、匯入、詞庫、年假 | 純 localStorage 無法滿足「下月登入仍在」與 Admin 代操作 |
+| 新增 SQLite 持久化（`data/attendance.db`） | 需跨裝置／重啟後仍保留帳號、匯入、詞庫、年假 | 純 localStorage 無法滿足「下月登入仍在」與 Admin 代操作 |
 
 ## 後續步驟（本 PLAN 核准後）
 
