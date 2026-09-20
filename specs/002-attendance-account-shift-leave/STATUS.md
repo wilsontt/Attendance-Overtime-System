@@ -23,14 +23,15 @@
   - [x] B0-3 `research.md`
 - [x] **Tasks 拆解**: 完成 (`tasks-line-b.md`)
 - [ ] **實作**: 進行中
-  - [x] B1 Auth + 員工主檔（backend + LoginPage）— **待改**：移除整站登入閘道，改 lazy auth
+  - [x] B1 Auth + 員工主檔（backend + LoginPage；**lazy auth 已改**：首頁公開）
   - [x] B2 班表 + 派班 + computation-context
   - [ ] B3 匯入 + 年假回沖（本機公開上傳維持；伺服器正式匯入需登入）
-  - [ ] B4 行事曆 + 政府日曆（首頁明確入口 + 點入才登入）
+  - [ ] B4 行事曆 + 政府日曆（入口與登入流已接；日曆資料 API 待做）
   - [ ] B5 詞庫 + Docker 銜接
 - [ ] **測試與驗證**: 部分（B1／B2 單元測試通過；整合測試待本機 Docker Postgres）
 
 ## 最近更新
+- 2026-09-20: 實作 lazy auth：移除整站登入閘道；首頁「請假行事曆」「Admin 班表」入口；登入後導向目標頁。
 - 2026-09-20: PRD／PLAN／tasks 對齊 lazy auth：加班單主流程公開；Session 僅行事曆與 Admin；未登入用本機班表／檔內編號計算。
 - 2026-09-18: 修正分支：`main` fast-forward 納入線 A 段別 commit；釐清 Spec ID ≠ git 分支；刪除本機殘留 `master`。
 - 2026-09-18: 完成 B2：班表／派班 CRUD、computation-context、Admin 班表頁；本機班表改標為除錯。

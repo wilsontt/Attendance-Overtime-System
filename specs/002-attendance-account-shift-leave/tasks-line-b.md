@@ -17,8 +17,8 @@
 - [x] `POST /api/auth/login`｜`logout`｜`GET /api/me`（Cookie session、bcrypt、鎖定）
 - [x] Admin CRUD `/api/admin/employees`（PIN、年假額度、Admin 保護）
 - [x] 單元測試：登入鎖定邏輯／密碼雜湊（整合測試待 Docker DB）
-- [x] 前端：LoginPage、App（**現況為整站閘道；待改 lazy auth**）、API client、Vite proxy
-- [ ] **規格變更待實作**：移除「未登入不可進 HomePage」；首頁公開；行事曆／Admin 才要 session（PRD §5.3.1）
+- [x] 前端：LoginPage、App lazy auth、API client、Vite proxy
+- [x] **規格變更已實作**：首頁公開；請假行事曆／Admin 班表才要 session（PRD §5.3.1）
 
 ## B2 班表 + 派班 + 計算脈絡
 

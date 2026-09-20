@@ -2,12 +2,28 @@ import React, { useState } from 'react';
 import { login, type LoginRequest, type MeResponse } from '../api/auth';
 import { ApiError } from '../api/client';
 
+type LoginIntent = 'calendar' | 'admin-shifts';
+
 type LoginPageProps = {
+  intent?: LoginIntent | null;
   onLoggedIn: (user: MeResponse) => void;
+  onCancel: () => void;
 };
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLoggedIn }) => {
-  const [mode, setMode] = useState<'employee' | 'admin'>('employee');
+const intentHint = (intent: LoginIntent | null | undefined): string => {
+  if (intent === 'calendar') return '登入後進入請假行事曆';
+  if (intent === 'admin-shifts') return '登入後進入 Admin 班表管理';
+  return '請選擇員工或 Admin 登入';
+};
+
+const LoginPage: React.FC<LoginPageProps> = ({
+  intent,
+  onLoggedIn,
+  onCancel,
+}) => {
+  const [mode, setMode] = useState<'employee' | 'admin'>(
+    intent === 'admin-shifts' ? 'admin' : 'employee',
+  );
   const [employeeId, setEmployeeId] = useState('');
   const [username, setUsername] = useState('000000');
   const [password, setPassword] = useState('');
@@ -44,6 +60,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoggedIn }) => {
         className="w-full max-w-md bg-white shadow-md rounded-lg p-6 space-y-4"
       >
         <h1 className="text-xl font-bold text-slate-800">出勤加班單系統登入</h1>
+        <p className="text-sm text-slate-600">{intentHint(intent)}</p>
         <div className="flex gap-2">
           <button
             type="button"
@@ -115,6 +132,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoggedIn }) => {
           className="w-full bg-blue-700 text-white py-2 rounded disabled:opacity-60"
         >
           {submitting ? '登入中…' : '登入'}
+        </button>
+        <button
+          type="button"
+          className="w-full border border-slate-300 py-2 rounded text-slate-700"
+          onClick={onCancel}
+        >
+          取消，回加班單首頁
         </button>
       </form>
     </div>
