@@ -7,6 +7,11 @@ info:
 
     Cookie 名稱：`attendance_session`（HttpOnly）。登入成功後後續請求自動帶入。
 
+    **Auth 範圍（PRD §5.3.1｜2026-09-20）**：加班單主流程（上傳／計算／預覽／匯出）
+    為前端公開能力，**不**經本 API 強制登入。本契約端點（行事曆、Admin、
+    伺服器正式匯入、詞庫寫入等）仍需 session；`POST /api/attendance/import`
+    為寫入伺服器台帳之用，與「未登入本機公開上傳」不同層。
+
     錯誤回應一律為 `ErrorResponse`。常用 `code`：
     `UNAUTHORIZED`、`FORBIDDEN`、`VALIDATION_ERROR`、`NOT_FOUND`、
     `LOGIN_LOCKED`、`IMPORT_NOT_SELF`、`UNKNOWN_LEAVE_TYPE`、

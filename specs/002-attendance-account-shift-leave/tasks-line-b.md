@@ -17,7 +17,8 @@
 - [x] `POST /api/auth/login`｜`logout`｜`GET /api/me`（Cookie session、bcrypt、鎖定）
 - [x] Admin CRUD `/api/admin/employees`（PIN、年假額度、Admin 保護）
 - [x] 單元測試：登入鎖定邏輯／密碼雜湊（整合測試待 Docker DB）
-- [x] 前端：LoginPage、App 登入閘道、API client、Vite proxy
+- [x] 前端：LoginPage、App（**現況為整站閘道；待改 lazy auth**）、API client、Vite proxy
+- [ ] **規格變更待實作**：移除「未登入不可進 HomePage」；首頁公開；行事曆／Admin 才要 session（PRD §5.3.1）
 
 ## B2 班表 + 派班 + 計算脈絡
 
@@ -28,18 +29,18 @@
 
 ## B3 匯入 + 年假回沖
 
-- [ ] 後端 TXT／CSV 解析 + `POST /api/attendance/import` 交易
+- [ ] 後端 TXT／CSV 解析 + `POST /api/attendance/import` 交易（**需 session**）
 - [ ] `GET /api/attendance`
 - [ ] 員工非本人 403；未知假別標記；年假加總／可負
-- [ ] 前端 FileUploader 改走 API
+- [ ] 前端：本機公開上傳維持未登入可用；伺服器正式匯入另走 API（需登入）
 - [ ] 整合測試：重匯不雙扣、跨年分年
 
 ## B4 行事曆 + 政府日曆
 
 - [ ] 同步 dataset/14718 + 排程／手動 sync API
 - [ ] `GET /api/leave/calendar`
-- [ ] 前端 LeaveCalendarPage；補班優先 gov、失敗可手勾
-- [ ] 同步失敗不阻斷主流程
+- [ ] 前端：首頁明確「行事曆」入口；未登入點入 → LoginPage → LeaveCalendarPage
+- [ ] 補班優先 gov、失敗可手勾；同步失敗不阻斷主流程
 
 ## B5 詞庫 + 部署銜接
 

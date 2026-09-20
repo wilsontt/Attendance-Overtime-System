@@ -3,7 +3,7 @@
 **Spec ID**: `002-attendance-account-shift-leave`（規格目錄名；**不是** git 分支）
 **線 A Git**: 已合入 `main`（含日期欄段別 `d54f706`）
 **線 B Git**: `feature/002-line-b-backend-auth-leave`
-**Last Updated**: 2026-09-18
+**Last Updated**: 2026-09-20
 
 ## 階段進度
 
@@ -15,22 +15,23 @@
 - [x] **測試與驗證**: 完成 (單元測試通過，UI 驗證完成)
 
 ### 線 B：後端身分、假勤、匯入、班表 CRUD (後端/全端)
-- [x] **PRD 定稿**: 完成 (`出勤記錄-擴充需求3_prd.md`)
-- [x] **Plan 定稿**: 完成 (`plan-line-b-backend-auth-leave.md`)
+- [x] **PRD 定稿**: 完成（含 2026-09-20 **lazy auth／公開主流程** 對齊，見 PRD §5.3.1）
+- [x] **Plan 定稿**: 完成 (`plan-line-b-backend-auth-leave.md`；已同步 lazy auth)
 - [x] **B0 Design／契約**（OpenAPI 優先）:
   - [x] B0-1 `contracts/openapi.yaml`
   - [x] B0-2 `data-model.md`
   - [x] B0-3 `research.md`
 - [x] **Tasks 拆解**: 完成 (`tasks-line-b.md`)
 - [ ] **實作**: 進行中
-  - [x] B1 Auth + 員工主檔（backend + LoginPage）
+  - [x] B1 Auth + 員工主檔（backend + LoginPage）— **待改**：移除整站登入閘道，改 lazy auth
   - [x] B2 班表 + 派班 + computation-context
-  - [ ] B3 匯入 + 年假回沖
-  - [ ] B4 行事曆 + 政府日曆
+  - [ ] B3 匯入 + 年假回沖（本機公開上傳維持；伺服器正式匯入需登入）
+  - [ ] B4 行事曆 + 政府日曆（首頁明確入口 + 點入才登入）
   - [ ] B5 詞庫 + Docker 銜接
 - [ ] **測試與驗證**: 部分（B1／B2 單元測試通過；整合測試待本機 Docker Postgres）
 
 ## 最近更新
+- 2026-09-20: PRD／PLAN／tasks 對齊 lazy auth：加班單主流程公開；Session 僅行事曆與 Admin；未登入用本機班表／檔內編號計算。
 - 2026-09-18: 修正分支：`main` fast-forward 納入線 A 段別 commit；釐清 Spec ID ≠ git 分支；刪除本機殘留 `master`。
 - 2026-09-18: 完成 B2：班表／派班 CRUD、computation-context、Admin 班表頁；本機班表改標為除錯。
 - 2026-09-18: 完成 B1：Fastify/Prisma backend、登入／員工 API、前端登入閘道；Docker DB 需本機 daemon 後再 migrate／整合測。

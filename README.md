@@ -105,8 +105,10 @@
 ### 線 B 後端（開發中）
 
 - 契約：`specs/002-attendance-account-shift-leave/contracts/openapi.yaml`
+- 規格：`specs/002-attendance-account-shift-leave/`（PRD §5.3.1：**加班單主流程公開**；行事曆／Admin 才需登入）
 - 後端目錄：`backend/`（Fastify + Prisma + PostgreSQL）；本機可 `docker compose up -d db` 後依 `backend/README.md` 遷移／seed／啟動。
 - 前端開發透過 Vite proxy：`/attendance/api` → `http://localhost:3000/api`。
+- 未登入仍可上傳 TXT／CSV 並以檔內員工編號＋本機班表／手選計算；伺服器正式匯入與行事曆另需 session。
 
 ## 📖 使用說明
 
