@@ -117,7 +117,7 @@
 **部署（ds1／正式）**：`docker compose build`／`--build`；API 掛 SQLite 目錄（`ATTENDANCE_DATA` 或 `./data` → 容器 `/data`）。詳見 `backend/README.md`。
 
 - 未登入仍可上傳 TXT／CSV 並以檔內員工編號＋本機班表／手選計算；上傳可勾選「同時寫入伺服器」（預設勾選）；行事曆（含假勤摘要）、補單匯入、工作地點詞庫需 session
-- Admin 員工列表顯示當前年假額度；員工／班表／派班列表使用 `@shared-ui/data-table` 的 `PaginatedDataTable`；派班列含員工姓名
+- Admin 員工列表顯示當前年假額度；員工／班表／派班列表使用 `@shared-ui/data-table` 的 `PaginatedDataTable`；派班列含員工姓名；員工／派班列表不含 Admin，且不可對 Admin 派班；行事曆 Admin 不預設查 000000
 
 ## 📖 使用說明
 

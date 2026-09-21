@@ -1,4 +1,5 @@
 import type { ShiftStatus } from '@prisma/client';
+import { ADMIN_EMPLOYEE_ID } from '../../config.js';
 import { AppError } from '../../lib/errors.js';
 import { writeAudit } from '../../lib/audit.js';
 import { prisma } from '../../lib/prisma.js';
@@ -164,9 +165,12 @@ function toAssignmentDto(row: {
 
 export async function listShiftAssignments(employeeId?: string) {
   const items = await prisma.shiftAssignment.findMany({
-    where: employeeId
-      ? { user: { employeeId } }
-      : undefined,
+    where: {
+      user: {
+        role: { not: 'admin' },
+        ...(employeeId ? { employeeId } : {}),
+      },
+    },
     include: { user: true, shift: true },
     orderBy: [{ effectiveFrom: 'desc' }],
   });
@@ -193,6 +197,9 @@ export async function createShiftAssignment(
     where: { employeeId: body.employeeId },
   });
   if (!user) throw new AppError(404, 'NOT_FOUND', '找不到員工');
+  if (user.role === 'admin' || user.employeeId === ADMIN_EMPLOYEE_ID) {
+    throw new AppError(400, 'VALIDATION_ERROR', '不可對 Admin／超管派班');
+  }
 
   const shift = await prisma.shift.findUnique({ where: { id: body.shiftId } });
   if (!shift) throw new AppError(404, 'NOT_FOUND', '找不到班表');
@@ -245,6 +252,9 @@ export async function updateShiftAssignment(
     where: { employeeId: body.employeeId },
   });
   if (!user) throw new AppError(404, 'NOT_FOUND', '找不到員工');
+  if (user.role === 'admin' || user.employeeId === ADMIN_EMPLOYEE_ID) {
+    throw new AppError(400, 'VALIDATION_ERROR', '不可對 Admin／超管派班');
+  }
 
   const shift = await prisma.shift.findUnique({ where: { id: body.shiftId } });
   if (!shift) throw new AppError(404, 'NOT_FOUND', '找不到班表');

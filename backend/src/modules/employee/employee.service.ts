@@ -102,7 +102,10 @@ async function currentYearQuotaFields(userId: string) {
 export async function listEmployees(activeOnly = false) {
   const year = currentQuotaYear();
   const users = await prisma.user.findMany({
-    where: activeOnly ? { isActive: true } : undefined,
+    where: {
+      role: { not: 'admin' },
+      ...(activeOnly ? { isActive: true } : {}),
+    },
     orderBy: { employeeId: 'asc' },
     include: {
       quotas: {

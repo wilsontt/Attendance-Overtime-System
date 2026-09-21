@@ -74,6 +74,17 @@
 - [x] 員工／班表／派班列表改用 `@shared-ui/data-table` 的 `PaginatedDataTable`
 - [x] OpenAPI：`Employee`／`ShiftAssignment` schema 同步
 
+## Admin／行事曆 UX（2026-09-21）
+
+補強 Admin 與請假行事曆操作邊界（非新 PRD 大段；OpenAPI 已註記）。
+
+- [x] 員工／派班列表排除 `role=admin`（含超管 000000）
+- [x] 派班 create／update 不可對 Admin／超管派班（400）
+- [x] 員工編輯改鎖定 Modal（僅取消／×；建立後不自動開編輯）
+- [x] 請假行事曆：Admin 不預設查 000000；員工編號未滿 6 碼不自動打 API
+- [x] 假勤摘要：年假卡片置頂（共 8 張）
+- [x] OpenAPI：員工／派班列表與派班寫入描述同步
+
 ## B7 假勤摘要（2026-09-21）
 
 對齊 PRD §5.5.1／§7.8；凍結來源 E3-4.4～4.5、E3-6。未出現假別顯示 0；未知假別不另列。

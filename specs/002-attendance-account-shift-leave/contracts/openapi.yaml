@@ -137,7 +137,8 @@ paths:
   /api/admin/employees:
     get:
       tags: [admin-employees]
-      summary: 員工列表
+      summary: 員工列表（不含 Admin）
+      description: 回傳一般員工帳號；role=admin（含固定超管 000000）不列入。
       operationId: listEmployees
       x-phase: B1
       security:
@@ -146,7 +147,7 @@ paths:
         - $ref: '#/components/parameters/QueryActiveOnly'
       responses:
         '200':
-          description: OK
+          description: OK（不含 Admin）
           content:
             application/json:
               schema:
@@ -375,7 +376,8 @@ paths:
   /api/admin/shift-assignments:
     get:
       tags: [admin-shifts]
-      summary: 派班列表
+      summary: 派班列表（不含 Admin）
+      description: 回傳一般員工派班列；Admin／超管使用者的派班不列入。
       operationId: listShiftAssignments
       x-phase: B2
       security:
@@ -387,7 +389,7 @@ paths:
             $ref: '#/components/schemas/EmployeeId'
       responses:
         '200':
-          description: OK
+          description: OK（不含 Admin）
           content:
             application/json:
               schema:
@@ -405,6 +407,7 @@ paths:
     post:
       tags: [admin-shifts]
       summary: 新增派班起迄
+      description: 不可對 role=admin 或超管員工編號（000000）派班；違反時回 400。
       operationId: createShiftAssignment
       x-phase: B2
       security:
@@ -435,6 +438,7 @@ paths:
     patch:
       tags: [admin-shifts]
       summary: 更新派班起迄
+      description: 不可將派班改指到 role=admin 或超管員工編號（000000）；違反時回 400。
       operationId: updateShiftAssignment
       x-phase: B2
       security:

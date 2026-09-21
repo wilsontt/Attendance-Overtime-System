@@ -29,11 +29,16 @@ const DAY_TYPE_LABEL: Record<LeaveCalendarDay['dayType'], string> = {
   make_up: '補班',
 };
 
+const EMPLOYEE_ID_PATTERN = /^\d{6}$/;
+
 function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
   const now = new Date();
+  const isAdmin = user.role === 'admin';
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const [employeeId, setEmployeeId] = useState(user.employeeId);
+  const [employeeId, setEmployeeId] = useState(
+    isAdmin ? '' : user.employeeId,
+  );
   const [days, setDays] = useState<LeaveCalendarDay[]>([]);
   const [summary, setSummary] = useState<LeaveSummaryResponse | null>(null);
   const [error, setError] = useState('');
@@ -45,8 +50,7 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
     setLoading(true);
     setError('');
     try {
-      const employeeQuery =
-        user.role === 'admin' ? employeeId : undefined;
+      const employeeQuery = isAdmin ? employeeId : undefined;
       const [calendar, leaveSummary] = await Promise.all([
         fetchLeaveCalendar({
           year,
@@ -67,11 +71,24 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
     } finally {
       setLoading(false);
     }
-  }, [year, month, employeeId, user.employeeId, user.role]);
+  }, [year, month, employeeId, isAdmin]);
 
   useEffect(() => {
+    if (isAdmin) {
+      return;
+    }
     void reload();
-  }, [reload]);
+  }, [isAdmin, reload]);
+
+  const onQuery = () => {
+    if (isAdmin && !EMPLOYEE_ID_PATTERN.test(employeeId)) {
+      setDays([]);
+      setSummary(null);
+      setError('請輸入員工編號後按查詢');
+      return;
+    }
+    void reload();
+  };
 
   const onSync = async () => {
     setSyncing(true);
@@ -82,7 +99,9 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
       setInfo(
         `已同步政府日曆：${result.years.join('、')} 年，寫入 ${result.upsertedCount} 筆`,
       );
-      await reload();
+      if (!isAdmin || EMPLOYEE_ID_PATTERN.test(employeeId)) {
+        await reload();
+      }
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -109,10 +128,10 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
           <h1 className="text-xl font-bold text-slate-800">請假行事曆</h1>
           <p className="text-sm text-slate-600">
             {user.employeeId} {user.name}（
-            {user.role === 'admin' ? 'Admin' : '員工'}）
+            {isAdmin ? 'Admin' : '員工'}）
           </p>
         </div>
-        {user.role === 'admin' ? (
+        {isAdmin ? (
           <button
             type="button"
             className="rounded border border-slate-400 bg-white px-3 py-1.5 text-sm disabled:opacity-60"
@@ -147,7 +166,7 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
             onChange={(e) => setMonth(Number(e.target.value))}
           />
         </label>
-        {user.role === 'admin' ? (
+        {isAdmin ? (
           <label className="text-sm">
             員工編號
             <input
@@ -161,9 +180,7 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
         <button
           type="button"
           className="rounded bg-blue-700 text-white px-3 py-1.5 text-sm"
-          onClick={() => {
-            void reload();
-          }}
+          onClick={onQuery}
         >
           查詢
         </button>
@@ -178,20 +195,23 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
           <h2 className="font-semibold text-slate-800">
             {summary.year} 年假勤摘要（民國 {summary.year - 1911} 年）
           </h2>
-          <p className="text-sm text-slate-700">
-            年假：額度 {summary.annualLeave.quotaDays}、已請{' '}
-            {summary.annualLeave.usedDays}、剩餘{' '}
-            <span
-              className={
-                summary.annualLeave.remainingDays < 0
-                  ? 'text-red-700 font-semibold'
-                  : undefined
-              }
-            >
-              {summary.annualLeave.remainingDays}
-            </span>
-          </p>
           <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+            <div className="rounded bg-slate-50 px-2 py-1">
+              <dt className="text-slate-500">年假</dt>
+              <dd className="font-medium">
+                額度 {summary.annualLeave.quotaDays}／已請{' '}
+                {summary.annualLeave.usedDays}／剩餘{' '}
+                <span
+                  className={
+                    summary.annualLeave.remainingDays < 0
+                      ? 'text-red-700 font-semibold'
+                      : undefined
+                  }
+                >
+                  {summary.annualLeave.remainingDays}
+                </span>
+              </dd>
+            </div>
             {summary.leaveTotals.map((item) => (
               <div key={item.leaveType} className="rounded bg-slate-50 px-2 py-1">
                 <dt className="text-slate-500">{item.leaveType}</dt>
@@ -220,8 +240,11 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
             {notableDays.length === 0 && !loading ? (
               <tr>
                 <td className="p-3 text-slate-500" colSpan={5}>
-                  本月尚無請假或國定／補班標示。若政府日曆未同步，Admin
-                  可按上方同步；失敗時加班單仍可手勾「加到平日加班」。
+                  {isAdmin && !EMPLOYEE_ID_PATTERN.test(employeeId)
+                    ? error
+                      ? '—'
+                      : '請輸入員工編號後按查詢。'
+                    : '本月尚無請假或國定／補班標示。若政府日曆未同步，Admin 可按上方同步；失敗時加班單仍可手勾「加到平日加班」。'}
                 </td>
               </tr>
             ) : (

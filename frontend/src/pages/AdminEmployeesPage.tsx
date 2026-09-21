@@ -33,11 +33,15 @@ const AdminEmployeesPage: React.FC = () => {
   const [editQuotaYear, setEditQuotaYear] = useState(new Date().getFullYear());
   const [editQuotaDays, setEditQuotaDays] = useState(0);
 
+  const closeEditModal = useCallback(() => {
+    setSelected(null);
+  }, []);
+
   const reload = useCallback(async () => {
     setError('');
     try {
       const result = await listEmployees(false);
-      setItems(result.items);
+      setItems(result.items.filter((row) => row.role !== 'admin'));
     } catch (err) {
       setError(err instanceof ApiError ? err.body.message : '載入員工失敗');
     }
@@ -77,7 +81,6 @@ const AdminEmployeesPage: React.FC = () => {
       setEmployeeId('');
       setName('');
       await reload();
-      setSelected(created);
     } catch (err) {
       setError(err instanceof ApiError ? err.body.message : '建立失敗');
     }
@@ -242,75 +245,104 @@ const AdminEmployeesPage: React.FC = () => {
       </div>
 
       {selected ? (
-        <form
-          onSubmit={(e) => {
-            void onSaveDetail(e);
-          }}
-          className="rounded border bg-white p-4 space-y-3"
-        >
-          <h3 className="font-semibold">
-            編輯 {selected.employeeId}（{selected.role}）
-          </h3>
-          <label className="block text-sm">
-            姓名
-            <input
-              className="mt-1 w-full max-w-sm border rounded px-2 py-1"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              required
-            />
-          </label>
-          <div className="flex flex-wrap gap-3 items-end">
-            <label className="text-sm">
-              年假年度
-              <input
-                type="number"
-                className="mt-1 block border rounded px-2 py-1 w-24"
-                value={editQuotaYear}
-                onChange={(e) => setEditQuotaYear(Number(e.target.value))}
-              />
-            </label>
-            <label className="text-sm">
-              年假額度
-              <input
-                type="number"
-                step="0.5"
-                className="mt-1 block border rounded px-2 py-1 w-24"
-                value={editQuotaDays}
-                onChange={(e) => setEditQuotaDays(Number(e.target.value))}
-              />
-            </label>
-          </div>
-          {selected.quotas.length > 0 ? (
-            <ul className="text-xs text-slate-600 space-y-1">
-              {selected.quotas.map((q) => (
-                <li key={q.year}>
-                  {q.year}：額度 {q.quotaDays}／已請 {q.usedDays}／剩餘{' '}
-                  {q.remainingDays}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="submit"
-              className="rounded bg-slate-800 px-3 py-2 text-sm text-white"
-            >
-              儲存
-            </button>
-            {selected.role !== 'admin' ? (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="employee-edit-title"
+            className="mx-4 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-lg"
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4">
+              <h3
+                id="employee-edit-title"
+                className="text-lg font-semibold text-slate-800"
+              >
+                編輯 {selected.employeeId}（{selected.role}）
+              </h3>
               <button
                 type="button"
-                className="rounded border border-slate-400 px-3 py-2 text-sm"
-                onClick={() => {
-                  void onToggleActive();
-                }}
+                className="flex h-8 w-8 items-center justify-center text-3xl leading-none text-slate-500 hover:text-slate-800"
+                aria-label="關閉"
+                onClick={closeEditModal}
               >
-                {selected.isActive ? '停用' : '啟用'}
+                ×
               </button>
-            ) : null}
+            </div>
+            <form
+              onSubmit={(e) => {
+                void onSaveDetail(e);
+              }}
+              className="space-y-3 overflow-y-auto px-5 py-4"
+            >
+              <label className="block text-sm">
+                姓名
+                <input
+                  className="mt-1 w-full border rounded px-2 py-1"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  required
+                />
+              </label>
+              <div className="flex flex-wrap gap-3 items-end">
+                <label className="text-sm">
+                  年假年度
+                  <input
+                    type="number"
+                    className="mt-1 block border rounded px-2 py-1 w-24"
+                    value={editQuotaYear}
+                    onChange={(e) => setEditQuotaYear(Number(e.target.value))}
+                  />
+                </label>
+                <label className="text-sm">
+                  年假額度
+                  <input
+                    type="number"
+                    step="0.5"
+                    className="mt-1 block border rounded px-2 py-1 w-24"
+                    value={editQuotaDays}
+                    onChange={(e) => setEditQuotaDays(Number(e.target.value))}
+                  />
+                </label>
+              </div>
+              {selected.quotas.length > 0 ? (
+                <ul className="text-xs text-slate-600 space-y-1">
+                  {selected.quotas.map((q) => (
+                    <li key={q.year}>
+                      {q.year}：額度 {q.quotaDays}／已請 {q.usedDays}／剩餘{' '}
+                      {q.remainingDays}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+                <button
+                  type="submit"
+                  className="rounded bg-slate-800 px-3 py-2 text-sm text-white"
+                >
+                  儲存
+                </button>
+                {selected.role !== 'admin' ? (
+                  <button
+                    type="button"
+                    className="rounded border border-slate-400 px-3 py-2 text-sm"
+                    onClick={() => {
+                      void onToggleActive();
+                    }}
+                  >
+                    {selected.isActive ? '停用' : '啟用'}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="rounded border border-slate-400 px-3 py-2 text-sm"
+                  onClick={closeEditModal}
+                >
+                  取消
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
+        </div>
       ) : null}
     </div>
   );

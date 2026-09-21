@@ -31,10 +31,12 @@
   - [x] B5 詞庫 + Compose（SQLite 掛卷）
   - [x] **B6** Admin UI＋圖形驗證碼（員工頁、Admin 殼層、captcha 登入、政府日曆納入 Admin）
   - [x] **Admin UX 微調**：員工列表當前年假額度、儲存／啟停後關閉編輯區、派班顯示姓名、PaginatedDataTable
+  - [x] **Admin／行事曆 UX**：列表排除 Admin、不可對 Admin 派班、員工編輯鎖定 Modal、行事曆不預設 000000、年假卡片置頂
   - [x] **B7** 假勤摘要（PRD §5.5.1：年假餘額＋各假別已請含 0；行事曆同入口）
 - [ ] **測試與驗證**: 部分（B1～B7 單元／建置；瀏覽器端對端待確認）
 
 ## 最近更新
+- 2026-09-21: **Admin／行事曆 UX**：員工／派班列表排除 Admin；create／update 不可對 Admin 派班；員工編輯改鎖定 Modal（取消／×；建立後不自動開編輯）；請假行事曆 Admin 不預設查 000000、未滿 6 碼不自動 API；假勤摘要年假卡片置頂（共 8 張）。OpenAPI 已同步。
 - 2026-09-21: **Admin UX 微調**：員工列表帶 `quotaYear`／`quotaDays`；儲存／啟停後關閉編輯區；派班列表顯示 `employeeName`；員工／班表／派班改用 `@shared-ui/data-table` 的 `PaginatedDataTable`。
 - 2026-09-21: **完成 B7**：`GET /api/leave/summary`、行事曆頁假勤摘要（未出現假別顯示 0、未知不另列）。
 - 2026-09-21: **PRD／PLAN 對齊假勤摘要（B7）**：§5.5.1／§7.8；凍結來源 E3-4.4～4.5、E3-6；下一步實作。
