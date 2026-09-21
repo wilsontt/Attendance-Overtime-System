@@ -23,6 +23,13 @@ import {
   REPORT_WORK_LOCATION_MAX_CHARS,
 } from '../services/reportService';
 import { formatReportDateWithSegment } from '../utils/reportDateFormatter';
+import {
+  hasLeaveType,
+  isFullDayLeave,
+  lookupKeyedValue,
+  reportSegmentKey,
+  resolveEditedReason,
+} from '../utils/previewModalHelpers';
 import { upsertWorkLocation } from '../api/workLocations';
 import { WorkLocationInput } from './WorkLocationInput';
 import './PreviewModal.css';
@@ -152,60 +159,65 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   /** 例假日加班工作地點輸入框（無平日加班時的聚焦備援） */
   const holidayWorkLocationRef = useRef<HTMLInputElement>(null);
 
+  /** 追蹤 isOpen 邊緣，避免 reports 重算時清空已填工作地點／備註 */
+  const wasOpenRef = useRef(false);
+
   /**
-   * 當 Modal 開啟或 reports 變更時，初始化狀態
+   * Modal 開啟或 reports 變更時同步過濾列與選取／原因；
+   * 工作地點與備註僅在「剛開啟」時初始化，切換平假日不清空。
    */
   useEffect(() => {
-    if (isOpen) {
-      // 過濾有完整刷卡且加班時數達門檻（>= 0.5 小時）的記錄；
-      // 未達加班標準的日子（如未達 30 分鐘）不進入預覽，連帶不會被選取/匯出/列印。
-      const filtered = reports.filter(
-        (r) => Boolean(r.clockIn && r.clockOut) && r.overtimeHours >= 0.5,
-      );
-      setFilteredReports(filtered);
+    if (!isOpen) {
+      wasOpenRef.current = false;
+      return;
+    }
 
-      // 初始化記錄選擇狀態
-      setRecordSelection(prev => {
-        const newSelection = { ...prev };
-        filtered.forEach((report) => {
-          const key = `${report.employeeId}__${report.date}__${report.segment || '全'}`;
-          if (newSelection[key] === undefined) {
-            if (
-              report.attendanceType &&
-              report.attendanceType !== '空' &&
-              report.attendanceType !== ''
-            ) {
-              if (report.clockIn && report.clockOut) {
-                newSelection[key] = false; // 預設不選中，需要用戶確認
-              } else {
-                newSelection[key] = false; // 沒有打卡時間，不選中
-              }
-            } else {
-              newSelection[key] = true; // 正常上班日，預設選中
-            }
-          }
-        });
-        return newSelection;
+    const justOpened = !wasOpenRef.current;
+    wasOpenRef.current = true;
+
+    const filtered = reports.filter(
+      (r) => Boolean(r.clockIn && r.clockOut) && r.overtimeHours >= 0.5,
+    );
+    setFilteredReports(filtered);
+
+    setRecordSelection((prev) => {
+      const newSelection: { [key: string]: boolean } = {};
+      filtered.forEach((report) => {
+        const key = reportSegmentKey(report);
+        const migrated = lookupKeyedValue(prev, report);
+        if (migrated !== undefined) {
+          newSelection[key] = migrated;
+          return;
+        }
+        if (hasLeaveType(report)) {
+          newSelection[key] = false;
+        } else {
+          newSelection[key] = true;
+        }
       });
+      return newSelection;
+    });
 
-      // 初始化加班原因
-      setEditedReasons(prev => {
-        const newReasons = { ...prev };
-        filtered.forEach((report) => {
-          const key = `${report.employeeId}__${report.date}__${report.segment || '全'}`;
-          if (newReasons[key] === undefined) {
-            newReasons[key] = report.overtimeReason || '';
-          }
-        });
-        return newReasons;
+    setEditedReasons((prev) => {
+      const newReasons: { [key: string]: string } = {};
+      filtered.forEach((report) => {
+        const key = reportSegmentKey(report);
+        const migrated = lookupKeyedValue(prev, report);
+        if (migrated !== undefined) {
+          newReasons[key] = migrated;
+        } else {
+          newReasons[key] = report.overtimeReason || '';
+        }
       });
+      return newReasons;
+    });
 
+    if (justOpened) {
       setWorkLocation('');
-      setRemarks(defaultWeekdayRemarks);         // 改吃傳入的預設平日備註
-      setHolidayRemarks(defaultHolidayRemarks);  // 改吃傳入的預設假日備註
+      setHolidayWorkLocation('');
+      setRemarks(defaultWeekdayRemarks);
+      setHolidayRemarks(defaultHolidayRemarks);
 
-      // 開啟後將游標停在平日加班工作地點（無平日加班時退而聚焦例假日）。
-      // 以 setTimeout 等待 DOM 完成渲染後再聚焦。
       setTimeout(() => {
         if (weekdayWorkLocationRef.current) {
           weekdayWorkLocationRef.current.focus();
@@ -214,8 +226,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
         }
       }, 0);
     }
-    // 不將 holidayOverrides 納入依賴：僅在開啟當下讀取快照，
-    // 避免 Modal 開啟中由預覽端切換假日造成 effect 重跑而清空已填輸入。
+    // default*Remarks 僅在剛開啟時讀取快照
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, reports]);
 
@@ -277,15 +288,18 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   const getSelectedReports = () => {
     return filteredReports
       .map((report) => {
-        const key = `${report.employeeId}__${report.date}__${report.segment || '全'}`;
+        const key = reportSegmentKey(report);
         return {
           ...report,
-          overtimeReason: editedReasons[key] || report.overtimeReason,
+          overtimeReason: resolveEditedReason(
+            editedReasons[key],
+            report.overtimeReason,
+          ),
           isHoliday: isHolidayRecord(report),
         };
       })
       .filter((report) => {
-        const key = `${report.employeeId}__${report.date}__${report.segment || '全'}`;
+        const key = reportSegmentKey(report);
         return recordSelection[key] === true;
       });
   };
@@ -310,7 +324,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   const holidayReports: Array<OvertimeReport & { reportKey: string }> = [];
 
   filteredReports.forEach((report) => {
-    const key = `${report.employeeId}__${report.date}__${report.segment || '全'}`;
+    const key = reportSegmentKey(report);
     if (isHolidayRecord(report)) {
       holidayReports.push({ ...report, reportKey: key });
     } else {
@@ -356,22 +370,20 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
           <tbody>
             {records.map((report, rowIndex) => {
               const key = report.reportKey;
-              const isLeaveDay =
-                report.attendanceType &&
-                report.attendanceType !== '空' &&
-                report.attendanceType !== '';
+              const leaveLabeled = hasLeaveType(report);
+              const fullLeave = isFullDayLeave(report);
               const hasClockTime = Boolean(report.clockIn && report.clockOut);
               const isUnderThreshold = report.overtimeHours < 0.5;
-              const shouldHighlight = isLeaveDay && hasClockTime;
-              // 選擇欄勾選且有完整打卡，並達到 0.5 小時門檻才可編輯
+              const shouldHighlight = leaveLabeled && hasClockTime;
+              // 全天請假鎖定原因；部分請假仍可編輯（達門檻且勾選）
               const isOvertimeEditable =
                 recordSelection[key] &&
                 hasClockTime &&
-                !isLeaveDay &&
+                !fullLeave &&
                 !isUnderThreshold;
               const reasonStateClass = !recordSelection[key]
                 ? 'reason-unselected'
-                : isLeaveDay
+                : fullLeave
                   ? 'reason-disabled-leave'
                   : !hasClockTime
                     ? 'reason-disabled-missing-clock'
@@ -439,12 +451,12 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                   <td>
                     <input
                       type="text"
-                      value={editedReasons[key] || ''}
+                      value={editedReasons[key] ?? ''}
                       onChange={(e) =>
                         handleReasonChange(key, e.target.value)
                       }
                       placeholder={
-                        isLeaveDay
+                        fullLeave
                           ? `請${report.attendanceType}`
                           : isUnderThreshold
                             ? '未達30分鐘'
@@ -531,16 +543,21 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
     isValid: boolean;
     errorMessage: string;
   } => {
-    // 驗證平日加班工作地點
-    if (weekdayReports.length > 0 && !workLocation.trim()) {
+    const hasSelectedWeekday = weekdayReports.some(
+      (r) => recordSelection[r.reportKey] === true,
+    );
+    const hasSelectedHoliday = holidayReports.some(
+      (r) => recordSelection[r.reportKey] === true,
+    );
+
+    if (hasSelectedWeekday && !workLocation.trim()) {
       return {
         isValid: false,
         errorMessage: '請輸入平日加班的工作地點',
       };
     }
 
-    // 驗證例假日加班工作地點
-    if (holidayReports.length > 0 && !holidayWorkLocation.trim()) {
+    if (hasSelectedHoliday && !holidayWorkLocation.trim()) {
       return {
         isValid: false,
         errorMessage: '請輸入例假日加班的工作地點',
@@ -577,10 +594,9 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
         const pageNumber =
           Math.floor(sectionIndex / PREVIEW_ITEMS_PER_PAGE) + 1;
         const locationText = `${sectionName} 第${pageNumber}頁 ITEM 第${itemNumber}筆`;
-        const currentReason = (
-          editedReasons[recordKey] ||
-          report.overtimeReason ||
-          ''
+        const currentReason = resolveEditedReason(
+          editedReasons[recordKey],
+          report.overtimeReason || '',
         ).trim();
 
         // 需要填寫加班原因的條件：有完整刷卡且加班時數 >= 0.5 小時

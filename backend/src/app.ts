@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
+import rateLimit from '@fastify/rate-limit';
 import { AppError, toErrorBody } from './lib/errors.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { employeeRoutes } from './modules/employee/employee.routes.js';
@@ -15,6 +16,11 @@ export async function buildApp() {
   });
 
   await app.register(cookie);
+  await app.register(rateLimit, {
+    global: true,
+    max: 300,
+    timeWindow: '1 minute',
+  });
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof AppError) {
@@ -52,7 +58,17 @@ export async function buildApp() {
 
   app.get('/api/health', async () => ({ ok: true }));
 
-  await app.register(authRoutes);
+  // 登入／驗證碼較嚴格，降低刷碼與暴力嘗試
+  await app.register(
+    async (authScope) => {
+      await authScope.register(rateLimit, {
+        max: 30,
+        timeWindow: '1 minute',
+      });
+      await authScope.register(authRoutes);
+    },
+  );
+
   await app.register(employeeRoutes);
   await app.register(shiftRoutes);
   await app.register(computationRoutes);

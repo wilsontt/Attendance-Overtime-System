@@ -17,7 +17,7 @@ import PreviewModal from '../components/PreviewModal';
 import type { AttendanceRecord, OvertimeReport } from '../types';
 import { calculateOvertimeAndMealAllowance, isNaturalHoliday } from '../services/calculationService';
 import { generateExcelReport, generatePdfReport, printReport } from '../services/reportService';
-import { formatDate } from '../utils/dateFormatter';
+import { formatDate, parseAttendanceDate } from '../utils/dateFormatter';
 import { ApiError } from '../api/client';
 import {
   importAttendanceFile,
@@ -214,12 +214,24 @@ const HomePage: React.FC<HomePageProps> = ({
   const filteredReports = useMemo(() => {
     return overtimeReports.filter(report => {
       const matchesName = filterName ? report.name.includes(filterName) : true;
-      
-      const reportDate = new Date(report.date);
-      const matchesStartDate = filterStartDate ? reportDate >= new Date(filterStartDate) : true;
-      const matchesEndDate = filterEndDate ? reportDate <= new Date(filterEndDate) : true;
 
-      return matchesName && matchesStartDate && matchesEndDate;
+      if (!filterStartDate && !filterEndDate) {
+        return matchesName;
+      }
+
+      const reportDate = parseAttendanceDate(report.date);
+      if (!reportDate) return false;
+
+      if (filterStartDate) {
+        const start = parseAttendanceDate(filterStartDate);
+        if (!start || reportDate < start) return false;
+      }
+      if (filterEndDate) {
+        const end = parseAttendanceDate(filterEndDate);
+        if (!end || reportDate > end) return false;
+      }
+
+      return matchesName;
     });
   }, [overtimeReports, filterName, filterStartDate, filterEndDate]);
 

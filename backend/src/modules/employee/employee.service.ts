@@ -31,6 +31,15 @@ function assertEmployeeId(employeeId: string): void {
 /** 登入改 captcha 後 pin_hash 僅佔位（schema 仍 not null） */
 const PIN_PLACEHOLDER = '__captcha_login_no_pin__';
 
+/** 受保護 Admin 僅本人可改密碼 */
+export function canChangeAdminPassword(
+  actorId: string,
+  target: { id: string; isProtected: boolean },
+): boolean {
+  if (!target.isProtected) return true;
+  return actorId === target.id;
+}
+
 async function usedLeaveDays(userId: string, year: number): Promise<number> {
   const start = new Date(Date.UTC(year, 0, 1));
   const end = new Date(Date.UTC(year, 11, 31));
@@ -213,6 +222,16 @@ export async function updateEmployee(
   if (body.password !== undefined) {
     if (user.role !== 'admin') {
       throw new AppError(400, 'VALIDATION_ERROR', '僅 Admin 可設定密碼');
+    }
+    if (user.isProtected && !canChangeAdminPassword(actor.id, user)) {
+      throw new AppError(
+        403,
+        'ADMIN_PROTECTED',
+        '受保護的 Admin 不可由他人變更密碼',
+      );
+    }
+    if (typeof body.password !== 'string' || body.password.length < 8) {
+      throw new AppError(400, 'VALIDATION_ERROR', '密碼至少 8 字元');
     }
     data.passwordHash = await hashSecret(body.password);
   }

@@ -37,6 +37,7 @@
 - [ ] **測試與驗證**: 部分（B1～B7 單元／建置；瀏覽器端對端待確認）
 
 ## 最近更新
+- 2026-09-21: **Code review 修復**：員工模式拒登 Admin；captcha 改七段 path（無明文數字）；全天請假時數 0；民國年日期篩選；PreviewModal 切假日保留輸入／部分請假可編原因／選取後才驗工作地點；登入 rate limit；受保護 Admin 密碼僅本人可改；前端 401 清 session。
 - 2026-09-21: **請假行事曆月表／明細改用共用 DataTable**：假勤摘要維持 8 卡片；月表與假別明細 Modal 用 `PaginatedDataTable`（`@shared-ui/data-table`）。
 - 2026-09-21: **假勤摘要卡片明細 Modal**：行事曆頁 8 張摘要卡片可點開該假別曆年明細（鎖定式 Modal；沿用 `GET /api/attendance`；年假過濾「請年休假」；僅 `leaveQuantity>0`；無資料提示）。PRD §5.5.1／§7.8、OpenAPI `getLeaveSummary` 說明已對齊。
 - 2026-09-21: **Admin／行事曆 UX**：員工／派班列表排除 Admin；create／update 不可對 Admin 派班；員工編輯改鎖定 Modal（取消／×；建立後不自動開編輯）；請假行事曆 Admin 不預設查 000000、未滿 6 碼不自動 API；假勤摘要年假卡片置頂（共 8 張）。OpenAPI 已同步。

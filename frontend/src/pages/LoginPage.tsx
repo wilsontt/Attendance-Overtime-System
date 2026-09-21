@@ -30,7 +30,7 @@ const LoginPage: React.FC<LoginPageProps> = ({
     intent === 'admin' ? 'admin' : 'employee',
   );
   const [employeeId, setEmployeeId] = useState('');
-  const [username, setUsername] = useState('000000');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [captchaId, setCaptchaId] = useState('');
   const [captchaImage, setCaptchaImage] = useState('');

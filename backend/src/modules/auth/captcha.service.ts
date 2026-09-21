@@ -10,21 +10,60 @@ type CaptchaEntry = {
 
 const store = new Map<string, CaptchaEntry>();
 
+/**
+ * 七段顯示器 segment 順序：a(上) b(右上) c(右下) d(下) e(左下) f(左上) g(中)
+ * 座標相對 digit 原點 (0,0)，寬 20、高 32。
+ */
+const SEGMENTS: Record<string, string> = {
+  a: 'M2,2 H18 V5 H2 Z',
+  b: 'M15,3 H18 V15 H15 Z',
+  c: 'M15,17 H18 V29 H15 Z',
+  d: 'M2,27 H18 V30 H2 Z',
+  e: 'M2,17 H5 V29 H2 Z',
+  f: 'M2,3 H5 V15 H2 Z',
+  g: 'M2,14.5 H18 V17.5 H2 Z',
+};
+
+const DIGIT_SEGMENTS: Record<string, string[]> = {
+  '0': ['a', 'b', 'c', 'd', 'e', 'f'],
+  '1': ['b', 'c'],
+  '2': ['a', 'b', 'g', 'e', 'd'],
+  '3': ['a', 'b', 'g', 'c', 'd'],
+  '4': ['f', 'g', 'b', 'c'],
+  '5': ['a', 'f', 'g', 'c', 'd'],
+  '6': ['a', 'f', 'g', 'e', 'c', 'd'],
+  '7': ['a', 'b', 'c'],
+  '8': ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+  '9': ['a', 'b', 'c', 'd', 'f', 'g'],
+};
+
 function purgeExpired(now = Date.now()): void {
   for (const [id, entry] of store) {
     if (entry.expiresAt <= now) store.delete(id);
   }
 }
 
+function digitPaths(digit: string, offsetX: number, fill: string): string {
+  const segs = DIGIT_SEGMENTS[digit] ?? DIGIT_SEGMENTS['0']!;
+  return segs
+    .map((name) => {
+      const d = SEGMENTS[name]!;
+      return `<path transform="translate(${offsetX},20)" d="${d}" fill="${fill}"/>`;
+    })
+    .join('');
+}
+
+/**
+ * 以七段 path 繪製驗證碼（不含 <text> 數字明文，避免 base64 直接解出答案）。
+ */
 function buildSvg(answer: string): string {
   const colors = ['#dc2626', '#16a34a', '#2563eb', '#ea580c'];
-  const chars = answer.split('');
-  const texts = chars
+  const digits = answer.split('');
+  const digitSvg = digits
     .map((ch, i) => {
       const x = 28 + i * 42;
-      const y = 48 + (i % 2 === 0 ? -4 : 4);
       const fill = colors[i % colors.length] ?? '#111';
-      return `<text x="${x}" y="${y}" font-size="40" font-family="Arial, Helvetica, sans-serif" font-weight="700" fill="${fill}">${ch}</text>`;
+      return digitPaths(ch, x, fill);
     })
     .join('');
   const noise = Array.from({ length: 5 }, () => {
@@ -34,7 +73,7 @@ function buildSvg(answer: string): string {
     const y2 = randomInt(0, 72);
     return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#e5e7eb" stroke-width="2"/>`;
   }).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="72" viewBox="0 0 200 72"><rect width="200" height="72" fill="#fff"/>${noise}${texts}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="72" viewBox="0 0 200 72"><rect width="200" height="72" fill="#fff"/>${noise}${digitSvg}</svg>`;
 }
 
 export type CaptchaPayload = {

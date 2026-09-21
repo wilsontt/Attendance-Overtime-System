@@ -20,6 +20,16 @@ describe('captcha service', () => {
     expect(payload.image.startsWith('data:image/svg+xml;base64,')).toBe(true);
   });
 
+  it('image 解碼後不得含答案明文（不可直接 regex 取出）', () => {
+    for (let i = 0; i < 8; i++) {
+      const payload = createCaptcha();
+      const b64 = payload.image.replace(/^data:image\/svg\+xml;base64,/, '');
+      const svg = Buffer.from(b64, 'base64').toString('utf8');
+      expect(svg).not.toMatch(/<text[^>]*>\d<\/text>/);
+      expect(svg).not.toMatch(/>\d{4}</);
+    }
+  });
+
   it('consumeCaptcha 正確答案通過且一次性', () => {
     putCaptchaForTests('cid-1', '1234');
     consumeCaptcha('cid-1', '1234');

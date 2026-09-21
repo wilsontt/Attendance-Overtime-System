@@ -37,11 +37,12 @@
 
 | 項目 | 決策 |
 |------|------|
-| 產生 | `GET /api/auth/captcha` → `{ captchaId, image }`（PNG data URL） |
+| 產生 | `GET /api/auth/captcha` → `{ captchaId, image }`（SVG data URL；七段 **path**，答案不入 `<text>`） |
 | 內容 | 隨機 **4 位數字**；繪製為圖像 |
 | 暫存 | 行程內 Map：`captchaId → answer`；TTL 建議 5 分鐘 |
-| 員工登入 | `employeeId` + `captchaId` + `captchaAnswer`（免密碼、無入庫 PIN） |
+| 員工登入 | `employeeId` + `captchaId` + `captchaAnswer`（免密碼、無入庫 PIN；**`role=admin` 禁止走此通道**） |
 | Admin 登入 | `username` + `password` + `captchaId` + `captchaAnswer` |
+| Rate limit | 全站 300/min；auth 路由 30/min |
 | 成功後 | 刪除該 `captchaId`（一次性） |
 | Bypass | 僅開發可選；正式禁止 |
 

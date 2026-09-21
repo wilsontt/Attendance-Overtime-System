@@ -117,10 +117,9 @@ const FileUploader: React.FC<FileUploaderProps> = ({
               const attendanceType = row[3] || '空';
 
               if (!allowedAttendanceTypes.includes(attendanceType)) {
-                setError(
-                  `CSV 檔案中包含不合法的考勤別: ${attendanceType}。請確認考勤別為 ${allowedAttendanceTypes.filter((t) => t !== '').join(', ')} 之一。`
+                throw new Error(
+                  `CSV 檔案中包含不合法的考勤別: ${attendanceType}。請確認考勤別為 ${allowedAttendanceTypes.filter((t) => t !== '').join(', ')} 之一。`,
                 );
-                return null;
               }
 
               return {

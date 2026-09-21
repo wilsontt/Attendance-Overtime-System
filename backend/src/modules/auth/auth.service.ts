@@ -52,6 +52,15 @@ function toMe(user: Pick<User, 'employeeId' | 'name' | 'role'>) {
   };
 }
 
+/**
+ * 員工登入通道不可用於 Admin（須走帳密＋驗證碼，避免繞過密碼）。
+ */
+export function isEmployeeLoginAllowed(
+  user: Pick<User, 'role'>,
+): boolean {
+  return user.role !== 'admin';
+}
+
 function sessionExpiry(now = new Date()): Date {
   return new Date(now.getTime() + SESSION_TTL_HOURS * 60 * 60 * 1000);
 }
@@ -90,7 +99,11 @@ export async function login(
     throw new AppError(400, 'VALIDATION_ERROR', '未知登入模式');
   }
 
-  if (!user || !user.isActive) {
+  if (
+    !user ||
+    !user.isActive ||
+    (body.mode === 'employee' && !isEmployeeLoginAllowed(user))
+  ) {
     await writeAudit(prisma, 'login_failed', {
       mode: body.mode,
       reason: 'not_found_or_inactive',
@@ -177,7 +190,12 @@ export async function logout(
   if (sessionId) {
     await prisma.session.deleteMany({ where: { id: sessionId } });
   }
-  reply.clearCookie(SESSION_COOKIE, { path: '/' });
+  reply.clearCookie(SESSION_COOKIE, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isCookieSecure(),
+  });
 }
 
 export async function resolveAuthUser(

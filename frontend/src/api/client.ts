@@ -16,6 +16,9 @@ export class ApiError extends Error {
   }
 }
 
+/** Session 失效時由 apiFetch 廣播，App 清除登入 UI 態 */
+export const AUTH_SESSION_EXPIRED_EVENT = 'attendance:auth-session-expired';
+
 const API_BASE = `${import.meta.env.BASE_URL.replace(/\/?$/, '')}/api`;
 
 export async function apiFetch<T>(
@@ -30,6 +33,10 @@ export async function apiFetch<T>(
       ...init?.headers,
     },
   });
+
+  if (response.status === 401) {
+    window.dispatchEvent(new Event(AUTH_SESSION_EXPIRED_EVENT));
+  }
 
   if (response.status === 204) {
     return undefined as T;

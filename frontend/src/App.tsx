@@ -6,13 +6,14 @@
  * 登入頁以全螢幕覆蓋顯示，底下殼層（含 HomePage）保持掛載，避免本機出勤列表被卸載。
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import AdminHubPage from './pages/AdminHubPage';
 import LeaveCalendarPage from './pages/LeaveCalendarPage';
 import { TopTitleNav } from './components/TopTitleNav';
 import { fetchMe, logout, type MeResponse } from './api/auth';
+import { AUTH_SESSION_EXPIRED_EVENT } from './api/client';
 import './App.css';
 
 type AppView = 'home' | 'login' | 'calendar' | 'admin';
@@ -27,6 +28,8 @@ function App() {
   /** 未登入勾選「同時寫入伺服器」時暫存檔，登入後由 HomePage 自動匯入 */
   const [pendingServerImportFile, setPendingServerImportFile] =
     useState<File | null>(null);
+  const userRef = useRef(user);
+  userRef.current = user;
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +43,22 @@ function App() {
     })();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const onExpired = () => {
+      // 未登入時 /api/me 401 不應當成「過期」提示
+      if (!userRef.current) return;
+      setUser(null);
+      setView('home');
+      setLoginIntent(null);
+      setPendingServerImportFile(null);
+      setAuthNotice('登入已過期，請重新登入。');
+    };
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, onExpired);
+    return () => {
+      window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, onExpired);
     };
   }, []);
 

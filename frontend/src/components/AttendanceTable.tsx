@@ -131,10 +131,10 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({ reports, onReasonChan
                   placeholder={
                     isFullLeave
                       ? `請${report.attendanceType}`
-                      : isUnderThreshold
-                        ? '未達30分鐘'
-                        : !hasClockTime
-                          ? '缺少刷卡時間'
+                      : !hasClockTime
+                        ? '缺少刷卡時間'
+                        : isUnderThreshold
+                          ? '未達30分鐘'
                           : '請輸入原因'
                   }
                   className={`reason-input ${reasonStateClass}`}

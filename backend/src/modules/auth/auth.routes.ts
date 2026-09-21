@@ -19,7 +19,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post('/api/auth/logout', async (request, reply) => {
-    await requireAuth(request);
+    // 允許過期／無效 session 仍清 Cookie（不要求 requireAuth）
     await logout(request, reply);
     return reply.status(204).send();
   });

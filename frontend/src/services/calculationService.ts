@@ -161,6 +161,27 @@ export const calculateOvertimeAndMealAllowance = (
     const clockInMinutes = parseTime(record.clockIn);
     const clockOutMinutes = parseTime(record.clockOut);
 
+    const isFullLeave = Boolean(
+      record.attendanceType &&
+        record.attendanceType !== '空' &&
+        record.attendanceType !== '' &&
+        record.leaveQuantity != null &&
+        record.leaveQuantity >= 1,
+    );
+
+    // 全天請假：不計算加班／誤餐，原因顯示請假別
+    if (isFullLeave) {
+      return [{
+        ...record,
+        overtimeHours: 0,
+        mealAllowance: 0,
+        overtimeRange: '',
+        overtimeReason: `請${record.attendanceType}`,
+        isHoliday,
+        shiftType,
+      }];
+    }
+
     // 如果沒有打卡時間，無法計算加班
     if (clockInMinutes === null || clockOutMinutes === null || clockInMinutes >= clockOutMinutes) {
       return [{

@@ -1,4 +1,4 @@
-import { apiFetch, ApiError } from './client';
+import { apiFetch, ApiError, AUTH_SESSION_EXPIRED_EVENT } from './client';
 
 export type AttendanceDay = {
   employeeId: string;
@@ -41,6 +41,10 @@ export async function importAttendanceFile(
     credentials: 'include',
     body,
   });
+
+  if (response.status === 401) {
+    window.dispatchEvent(new Event(AUTH_SESSION_EXPIRED_EVENT));
+  }
 
   const data: unknown = await response.json().catch(() => ({
     code: 'VALIDATION_ERROR',

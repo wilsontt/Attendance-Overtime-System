@@ -8,6 +8,7 @@ services:
       # 容器內掛卷路徑（對齊教育訓練：/data/*.db）
       DATABASE_URL: file:/data/attendance.db
       PORT: '3000'
+      # 正式 HTTPS 請改 COOKIE_SECURE=true，並覆寫 ADMIN_SEED_PASSWORD
       COOKIE_SECURE: 'false'
       ADMIN_SEED_PASSWORD: ${ADMIN_SEED_PASSWORD:-ChangeMeAdmin!}
       ADMIN_SEED_PIN: ${ADMIN_SEED_PIN:-0000}

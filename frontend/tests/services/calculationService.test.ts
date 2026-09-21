@@ -121,4 +121,44 @@ describe('calculateOvertimeAndMealAllowance', () => {
       expect(result[0].mealAllowance).toBe(50);
     });
   });
+
+  describe('全天請假', () => {
+    it('leaveQuantity >= 1 時加班時數強制為 0（即使有打卡）', () => {
+      const records: AttendanceRecord[] = [
+        {
+          employeeId: 'emp001',
+          name: '測試員工',
+          date: '2025-10-06',
+          clockIn: '09:00',
+          clockOut: '20:00',
+          attendanceType: '請年休假',
+          leaveQuantity: 1,
+        },
+      ];
+      const result = calculateOvertimeAndMealAllowance(records);
+      expect(result).toHaveLength(1);
+      expect(result[0].overtimeHours).toBe(0);
+      expect(result[0].mealAllowance).toBe(0);
+      expect(result[0].overtimeRange).toBe('');
+      expect(result[0].overtimeReason).toBe('請請年休假');
+    });
+
+    it('部分請假 leaveQuantity < 1 仍可計算加班', () => {
+      const records: AttendanceRecord[] = [
+        {
+          employeeId: 'emp001',
+          name: '測試員工',
+          date: '2025-10-06',
+          clockIn: '09:00',
+          clockOut: '19:30',
+          attendanceType: '事假',
+          leaveQuantity: 0.5,
+        },
+      ];
+      const result = calculateOvertimeAndMealAllowance(records);
+      expect(result).toHaveLength(1);
+      expect(result[0].overtimeHours).toBe(1.5);
+      expect(result[0].mealAllowance).toBe(50);
+    });
+  });
 });

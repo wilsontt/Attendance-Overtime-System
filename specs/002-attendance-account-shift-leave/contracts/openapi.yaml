@@ -8,7 +8,8 @@ info:
     Cookie 名稱：`attendance_session`（HttpOnly）。登入成功後後續請求自動帶入。
 
     **登入驗證（2026-09-20｜對齊教育訓練）**：`GET /api/auth/captcha` 取圖形驗證碼；
-    員工＝編號＋驗證碼；Admin＝帳號＋密碼＋驗證碼。**不使用入庫 PIN。**
+    員工＝編號＋驗證碼（**不可**以員工模式登入 `role=admin`）；Admin＝帳號＋密碼＋驗證碼。**不使用入庫 PIN。**
+    驗證碼圖像為七段 path SVG（答案不入 `<text>` 明文）。登入／captcha 具 rate limit。
 
     **Auth 範圍（PRD §5.3.1｜2026-09-20）**：加班單主流程（上傳／計算／預覽／匯出）
     為前端公開能力，**不**經本 API 強制登入。本契約端點（行事曆、Admin、
