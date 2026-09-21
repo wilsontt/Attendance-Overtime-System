@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  employee
+  admin
+}
+
+enum ShiftStatus {
+  active
+  disabled
+}
+
+enum GovDayType {
+  holiday
+  make_up
+  weekday
+}
+
+model User {
+  id               String    @id @default(uuid())
+  employeeId       String    @unique @map("employee_id")
+  name             String
+  role             UserRole
+  pinHash          String    @map("pin_hash")
+  passwordHash     String?   @map("password_hash")
+  isActive         Boolean   @default(true) @map("is_active")
+  isProtected      Boolean   @default(false) @map("is_protected")
+  failedLoginCount Int       @default(0) @map("failed_login_count")
+  lockedUntil      DateTime? @map("locked_until")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  sessions             Session[]
+  quotas               AnnualLeaveQuota[]
+  shiftAssignments     ShiftAssignment[]
+  attendanceDays       AttendanceDay[]
+  importBatchesAsOwner AttendanceImportBatch[] @relation("ImportOwner")
+  importBatchesAsActor AttendanceImportBatch[] @relation("ImportActor")
+  workLocationsCreated WorkLocationTerm[]
+  auditLogs            AuditLog[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model AnnualLeaveQuota {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  year      Int
+  quotaDays Decimal  @map("quota_days")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year])
+  @@map("annual_leave_quotas")
+}
+
+model Shift {
+  id        String      @id @default(uuid())
+  name      String      @unique
+  startTime String      @map("start_time")
+  endTime   String      @map("end_time")
+  status    ShiftStatus @default(active)
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  assignments ShiftAssignment[]
+
+  @@map("shifts")
+}
+
+model ShiftAssignment {
+  id            String    @id @default(uuid())
+  userId        String    @map("user_id")
+  shiftId       String    @map("shift_id")
+  effectiveFrom DateTime  @map("effective_from")
+  effectiveTo   DateTime? @map("effective_to")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shift Shift @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+
+  @@index([userId, effectiveFrom])
+  @@map("shift_assignments")
+}
+
+model AttendanceImportBatch {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  importedById   String   @map("imported_by")
+  dateFrom       DateTime @map("date_from")
+  dateTo         DateTime @map("date_to")
+  sourceFilename String   @map("source_filename")
+  importedAt     DateTime @default(now()) @map("imported_at")
+
+  user       User            @relation("ImportOwner", fields: [userId], references: [id], onDelete: Cascade)
+  importedBy User            @relation("ImportActor", fields: [importedById], references: [id], onDelete: Restrict)
+  days       AttendanceDay[]
+
+  @@map("attendance_import_batches")
+}
+
+model AttendanceDay {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  belongDate       DateTime @map("belong_date")
+  attendanceType   String?  @map("attendance_type")
+  leaveQuantity    Decimal  @default(0) @map("leave_quantity")
+  clockIn          String?  @map("clock_in")
+  clockOut         String?  @map("clock_out")
+  unknownLeaveType Boolean  @default(false) @map("unknown_leave_type")
+  importBatchId    String?  @map("import_batch_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user        User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  importBatch AttendanceImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, belongDate])
+  @@map("attendance_days")
+}
+
+model GovCalendarDay {
+  date     DateTime   @id
+  dayType  GovDayType @map("day_type")
+  name     String?
+  syncedAt DateTime   @map("synced_at")
+
+  @@map("gov_calendar_days")
+}
+
+model WorkLocationTerm {
+  id        String   @id @default(uuid())
+  text      String   @unique
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  creator User? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@map("work_location_terms")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String?  @map("actor_id")
+  action    String
+  payload   Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}

@@ -1,0 +1,25 @@
+# 部署用前端映像（ds1／正式；build context = 企業入口網站根目錄）
+# 開發請用 frontend/ npm run dev，不要建此映像
+# docker compose --profile full build web
+
+FROM node:22-alpine AS builder
+
+ENV NPM_CONFIG_UPDATE_NOTIFIER=false \
+  NPM_CONFIG_FUND=false \
+  NPM_CONFIG_AUDIT=false
+
+WORKDIR /app/frontend
+
+COPY 1.出勤加班單系統/frontend/package*.json ./
+RUN npm --version && npm ci --no-audit --no-fund
+
+COPY 1.出勤加班單系統/frontend/ ./
+COPY 0.shared-ui /app/frontend/0.shared-ui
+
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/frontend/dist /usr/share/nginx/html/attendance
+COPY 1.出勤加班單系統/nginx/compose.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

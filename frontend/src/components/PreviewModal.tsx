@@ -23,6 +23,8 @@ import {
   REPORT_WORK_LOCATION_MAX_CHARS,
 } from '../services/reportService';
 import { formatReportDateWithSegment } from '../utils/reportDateFormatter';
+import { upsertWorkLocation } from '../api/workLocations';
+import { WorkLocationInput } from './WorkLocationInput';
 import './PreviewModal.css';
 
 const OVERTIME_REASON_MAX_LENGTH = 200;
@@ -93,6 +95,8 @@ interface PreviewModalProps {
   defaultWeekdayRemarks: string;
   /** 預設例假日加班備註（包含補登理由） */
   defaultHolidayRemarks: string;
+  /** 已登入時啟用工作地點共用詞庫（自動完成＋確認下載時入庫） */
+  enableWorkLocationDictionary?: boolean;
 }
 
 /**
@@ -114,6 +118,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   onPrint,
   defaultWeekdayRemarks,
   defaultHolidayRemarks,
+  enableWorkLocationDictionary = false,
 }) => {
   /** 過濾出有完整上下班刷卡時間的記錄 */
   const [filteredReports, setFilteredReports] = useState<OvertimeReport[]>([]);
@@ -680,15 +685,36 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   };
 
   /**
+   * 確認下載／列印前：若已登入，將新工作地點寫入共用詞庫（失敗不阻斷下載）。
+   */
+  const persistWorkLocations = async (): Promise<void> => {
+    if (!enableWorkLocationDictionary) return;
+    const texts = [workLocation, holidayWorkLocation]
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const unique = [...new Set(texts)];
+    await Promise.all(
+      unique.map(async (text) => {
+        try {
+          await upsertWorkLocation(text);
+        } catch {
+          // 詞庫入庫失敗不阻擋報表輸出
+        }
+      }),
+    );
+  };
+
+  /**
    * 處理下載 Excel 事件（含驗證）
    */
-  const handleDownloadExcel = () => {
+  const handleDownloadExcel = async () => {
     const validation = validateAll();
     if (!validation.isValid) {
       alert(validation.errorMessage);
       return;
     }
 
+    await persistWorkLocations();
     const selected = getSelectedReports();
     const selectedWeekday = selected.filter((r) => !isHolidayRecord(r));
     const selectedHoliday = selected.filter((r) => isHolidayRecord(r));
@@ -705,13 +731,14 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   /**
    * 處理下載 PDF 事件（含驗證）
    */
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     const validation = validateAll();
     if (!validation.isValid) {
       alert(validation.errorMessage);
       return;
     }
 
+    await persistWorkLocations();
     const selected = getSelectedReports();
     const selectedWeekday = selected.filter((r) => !isHolidayRecord(r));
     const selectedHoliday = selected.filter((r) => isHolidayRecord(r));
@@ -728,13 +755,14 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   /**
    * 處理列印事件（含驗證）
    */
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const validation = validateAll();
     if (!validation.isValid) {
       alert(validation.errorMessage);
       return;
     }
 
+    await persistWorkLocations();
     const selected = getSelectedReports();
     const selectedWeekday = selected.filter((r) => !isHolidayRecord(r));
     const selectedHoliday = selected.filter((r) => isHolidayRecord(r));
@@ -986,16 +1014,13 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                   <label className="label-left">
                     工作地點：<span className="required">*</span>
                   </label>
-                  <input
-                    type="text"
-                    ref={weekdayWorkLocationRef}
+                  <WorkLocationInput
+                    inputRef={weekdayWorkLocationRef}
                     value={workLocation}
                     maxLength={REPORT_WORK_LOCATION_MAX_CHARS}
-                    onChange={(e) =>
-                      setWorkLocation(
-                        normalizeWorkLocationInput(e.target.value),
-                      )
-                    }
+                    normalize={normalizeWorkLocationInput}
+                    dictionaryEnabled={enableWorkLocationDictionary}
+                    onChange={setWorkLocation}
                     placeholder="請輸入工作地點"
                   />
                 </div>
@@ -1045,16 +1070,13 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                     工作地點：<span className="required">*</span>
                   </label>
                   <div className="input-with-copy">
-                    <input
-                      type="text"
-                      ref={holidayWorkLocationRef}
+                    <WorkLocationInput
+                      inputRef={holidayWorkLocationRef}
                       value={holidayWorkLocation}
                       maxLength={REPORT_WORK_LOCATION_MAX_CHARS}
-                      onChange={(e) =>
-                        setHolidayWorkLocation(
-                          normalizeWorkLocationInput(e.target.value),
-                        )
-                      }
+                      normalize={normalizeWorkLocationInput}
+                      dictionaryEnabled={enableWorkLocationDictionary}
+                      onChange={setHolidayWorkLocation}
                       placeholder="請輸入工作地點"
                     />
                     {weekdayReports.length > 0 && (
@@ -1120,13 +1142,13 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
           >
             列印原始TXT
           </button>
-          <button className="btn-confirm" onClick={handleDownloadExcel}>
+          <button className="btn-confirm" onClick={() => { void handleDownloadExcel(); }}>
             下載 Excel
           </button>
-          <button className="btn-confirm" onClick={handleDownloadPdf}>
+          <button className="btn-confirm" onClick={() => { void handleDownloadPdf(); }}>
             下載 PDF
           </button>
-          <button className="btn-confirm" onClick={handlePrint}>
+          <button className="btn-confirm" onClick={() => { void handlePrint(); }}>
             列印
           </button>
         </div>

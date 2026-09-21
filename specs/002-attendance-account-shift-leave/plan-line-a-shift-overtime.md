@@ -1,6 +1,6 @@
 # 實作計畫：擴充需求 3 - 線 A (計算與預覽/PDF 兩列)
 
-**Branch**: `002-attendance-account-shift-leave` | **Date**: 2026-09-17 | **Spec**: [出勤記錄-擴充需求3_prd.md](./出勤記錄-擴充需求3_prd.md) | **Status**: Completed
+**Spec ID**: `002-attendance-account-shift-leave` | **Git**: 已合入 `main` | **Date**: 2026-09-17 | **Spec**: [出勤記錄-擴充需求3_prd.md](./出勤記錄-擴充需求3_prd.md) | **Status**: Completed
 **Input**: Feature specification from `specs/002-attendance-account-shift-leave/出勤記錄-擴充需求3_prd.md`
 
 ## 摘要

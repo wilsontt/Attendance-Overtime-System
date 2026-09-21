@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 快速指令
 
-所有指令皆需在 `frontend/` 目錄下執行。
+### 前端（`frontend/`）
 
 ```bash
 npm run dev              # 啟動 Vite 開發伺服器於 http://localhost:5173
@@ -12,15 +12,25 @@ npm run build            # TypeScript 檢查 + Vite 建置至 dist/
 npm run lint             # ESLint 檢查（僅報告，不自動修復）
 npm run preview          # 本機預覽已建置的應用
 
-# 測試（使用 vitest，package.json 中無 test script）
-npx vitest run                                             # 執行全部測試（單次）
-npx vitest run tests/services/calculationService.test.ts  # 執行單一測試檔案
-npx vitest                                                 # 監看模式
+npx vitest run           # 執行全部測試（單次）
 ```
+
+### 後端（`backend/`）
+
+```bash
+# 本機開發：SQLite（專案根 data/attendance.db），不需 Docker
+npm run prisma:migrate && npm run prisma:seed
+npm run dev              # Fastify :3000
+npm test
+```
+
+契約：`specs/002-attendance-account-shift-leave/contracts/openapi.yaml`。
+線 B：B1～B5（Auth、班表、匯入、行事曆、詞庫）；加班單主流程公開，身分功能 lazy auth。
+`docker compose build`／`--profile full` 僅供 **ds1／正式部署**（SQLite 掛卷 `/data`），非日常開發流程。
 
 ## 專案概述
 
-**出勤加班單系統**是一個純前端 React 應用，用於自動化企業員工的加班時數計算與報表產生。使用者上傳出勤記錄（CSV 或 TXT 格式），系統自動計算加班時數與誤餐費，並支援匯出至 Excel/PDF 或列印報表。
+**出勤加班單系統**是企業加班時數計算與報表應用（前端 React + 線 B 後端 Fastify/Prisma）。使用者可未登入上傳出勤記錄（CSV／TXT）計算加班與匯出；登入後可正式匯入台帳、查看請假行事曆、使用工作地點共用詞庫，Admin 可維護班表／員工。
 
 **版本號**：從 `frontend/package.json` 的 `version` 欄位於建置時注入，顯示於 UI 標題列。
 
@@ -115,6 +125,10 @@ PreviewModal 在開啟時以 `props.reports` 為初始值，建立自己的 stat
 `frontend/tests/` 使用 vitest + jsdom。`calculationService.test.ts` 涵蓋時間對齊邊界案例，修改計算規則必須通過全部測試。
 
 ## 部署
+
+**ds1／正式**才 `docker compose build`（或企業入口 `deploy/` 流程）。日常開發不建映像、不需 Docker。
+
+資料庫：**SQLite**（對齊教育訓練）。本機為專案根 `data/attendance.db`；容器掛卷 `${ATTENDANCE_DATA:-./data}:/data`，`DATABASE_URL=file:/data/attendance.db`。
 
 `Dockerfile` 多階段建置：Node 22 Alpine 建置器 → Nginx Alpine，於 `/attendance/` 路徑提供靜態 `dist/` 檔案（`vite.config.ts` 的 `base: '/attendance/'`）。
 - Build context 為企業入口網站根目錄；`COPY 0.shared-ui /app/frontend/0.shared-ui`
