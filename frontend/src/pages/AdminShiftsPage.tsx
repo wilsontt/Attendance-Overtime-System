@@ -1,4 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  PaginatedDataTable,
+  type DataTableColumn,
+} from '@shared-ui/data-table';
 import { ApiError } from '../api/client';
 import {
   createAssignment,
@@ -56,6 +60,146 @@ const AdminShiftsPage: React.FC = () => {
     };
   }, []);
 
+  const shiftColumns = useMemo<DataTableColumn<Shift>[]>(
+    () => [
+      {
+        key: 'name',
+        header: '名稱',
+        accessor: (row) => row.name,
+      },
+      {
+        key: 'time',
+        header: '時間',
+        accessor: (row) => `${row.startTime}–${row.endTime}`,
+      },
+      {
+        key: 'status',
+        header: '狀態',
+        accessor: (row) => (row.status === 'active' ? '啟用' : '停用'),
+      },
+      {
+        key: 'actions',
+        header: '操作',
+        render: (row) => (
+          <div
+            className="flex flex-wrap gap-2"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {row.status === 'active' ? (
+              <button
+                type="button"
+                className="underline"
+                onClick={() => {
+                  void (async () => {
+                    try {
+                      await updateShift(row.id, { status: 'disabled' });
+                      await reload();
+                    } catch (err) {
+                      setError(
+                        err instanceof ApiError ? err.body.message : '停用失敗',
+                      );
+                    }
+                  })();
+                }}
+              >
+                停用
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="underline"
+                onClick={() => {
+                  void (async () => {
+                    try {
+                      await updateShift(row.id, { status: 'active' });
+                      await reload();
+                    } catch (err) {
+                      setError(
+                        err instanceof ApiError ? err.body.message : '啟用失敗',
+                      );
+                    }
+                  })();
+                }}
+              >
+                啟用
+              </button>
+            )}
+            <button
+              type="button"
+              className="underline text-red-700"
+              onClick={() => {
+                void (async () => {
+                  try {
+                    await deleteShift(row.id);
+                    await reload();
+                  } catch (err) {
+                    setError(
+                      err instanceof ApiError ? err.body.message : '刪除失敗',
+                    );
+                  }
+                })();
+              }}
+            >
+              刪除
+            </button>
+          </div>
+        ),
+      },
+    ],
+    [reload],
+  );
+
+  const assignmentColumns = useMemo<DataTableColumn<ShiftAssignment>[]>(
+    () => [
+      {
+        key: 'employee',
+        header: '員工',
+        render: (row) => (
+          <span>
+            <span className="font-mono">{row.employeeId}</span> {row.employeeName}
+          </span>
+        ),
+      },
+      {
+        key: 'shiftName',
+        header: '班表',
+        accessor: (row) => row.shiftName,
+      },
+      {
+        key: 'range',
+        header: '起迄',
+        accessor: (row) =>
+          `${row.effectiveFrom} ~ ${row.effectiveTo ?? '開放'}`,
+      },
+      {
+        key: 'actions',
+        header: '操作',
+        render: (row) => (
+          <button
+            type="button"
+            className="underline text-red-700"
+            onClick={(event) => {
+              event.stopPropagation();
+              void (async () => {
+                try {
+                  await deleteAssignment(row.id);
+                  await reload();
+                } catch (err) {
+                  setError(
+                    err instanceof ApiError ? err.body.message : '刪除失敗',
+                  );
+                }
+              })();
+            }}
+          >
+            刪除
+          </button>
+        ),
+      },
+    ],
+    [reload],
+  );
+
   return (
     <div className="space-y-8">
       <h2 className="text-lg font-bold text-slate-800">班表與派班</h2>
@@ -105,80 +249,17 @@ const AdminShiftsPage: React.FC = () => {
             新增班表
           </button>
         </div>
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="bg-slate-100 text-left">
-              <th className="border p-2">名稱</th>
-              <th className="border p-2">時間</th>
-              <th className="border p-2">狀態</th>
-              <th className="border p-2">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shifts.map((s) => (
-              <tr key={s.id}>
-                <td className="border p-2">{s.name}</td>
-                <td className="border p-2">
-                  {s.startTime}–{s.endTime}
-                </td>
-                <td className="border p-2">{s.status}</td>
-                <td className="border p-2 space-x-2">
-                  {s.status === 'active' ? (
-                    <button
-                      type="button"
-                      className="underline"
-                      onClick={async () => {
-                        try {
-                          await updateShift(s.id, { status: 'disabled' });
-                          await reload();
-                        } catch (err) {
-                          setError(
-                            err instanceof ApiError ? err.body.message : '停用失敗',
-                          );
-                        }
-                      }}
-                    >
-                      停用
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="underline"
-                      onClick={async () => {
-                        try {
-                          await updateShift(s.id, { status: 'active' });
-                          await reload();
-                        } catch (err) {
-                          setError(
-                            err instanceof ApiError ? err.body.message : '啟用失敗',
-                          );
-                        }
-                      }}
-                    >
-                      啟用
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="underline text-red-700"
-                    onClick={async () => {
-                      try {
-                        await deleteShift(s.id);
-                        await reload();
-                      } catch (err) {
-                        setError(
-                          err instanceof ApiError ? err.body.message : '刪除失敗',
-                        );
-                      }
-                    }}
-                  >
-                    刪除
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <PaginatedDataTable
+          adapter="tailwind"
+          paginationMode="client"
+          defaultPageSize={10}
+          showPaginationWhenSinglePage
+          columns={shiftColumns}
+          data={shifts}
+          getRowKey={(row) => row.id}
+          emptyState="尚無班表"
+          indexColumnHeader="項次"
+        />
       </section>
 
       <section className="bg-white rounded border p-4 space-y-3">
@@ -250,45 +331,17 @@ const AdminShiftsPage: React.FC = () => {
             新增派班
           </button>
         </div>
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="bg-slate-100 text-left">
-              <th className="border p-2">員工</th>
-              <th className="border p-2">班表</th>
-              <th className="border p-2">起迄</th>
-              <th className="border p-2">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {assignments.map((a) => (
-              <tr key={a.id}>
-                <td className="border p-2">{a.employeeId}</td>
-                <td className="border p-2">{a.shiftName}</td>
-                <td className="border p-2">
-                  {a.effectiveFrom} ~ {a.effectiveTo ?? '開放'}
-                </td>
-                <td className="border p-2">
-                  <button
-                    type="button"
-                    className="underline text-red-700"
-                    onClick={async () => {
-                      try {
-                        await deleteAssignment(a.id);
-                        await reload();
-                      } catch (err) {
-                        setError(
-                          err instanceof ApiError ? err.body.message : '刪除失敗',
-                        );
-                      }
-                    }}
-                  >
-                    刪除
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <PaginatedDataTable
+          adapter="tailwind"
+          paginationMode="client"
+          defaultPageSize={10}
+          showPaginationWhenSinglePage
+          columns={assignmentColumns}
+          data={assignments}
+          getRowKey={(row) => row.id}
+          emptyState="尚無派班"
+          indexColumnHeader="項次"
+        />
       </section>
     </div>
   );

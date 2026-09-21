@@ -3,7 +3,7 @@
 **Spec ID**: `002-attendance-account-shift-leave`（規格目錄名；**不是** git 分支）
 **線 A Git**: 已合入 `main`（含日期欄段別 `d54f706`）
 **線 B Git**: `feature/002-line-b-backend-auth-leave`
-**Last Updated**: 2026-09-20
+**Last Updated**: 2026-09-21
 
 ## 階段進度
 
@@ -30,9 +30,11 @@
   - [x] B4 行事曆 + 政府日曆（入口／登入流 + leave calendar API + gov sync 14718）
   - [x] B5 詞庫 + Compose（SQLite 掛卷）
   - [x] **B6** Admin UI＋圖形驗證碼（員工頁、Admin 殼層、captcha 登入、政府日曆納入 Admin）
-- [ ] **測試與驗證**: 部分（B1～B5 單元測試通過；整合可用本機 SQLite；B6 待做）
+  - [x] **Admin UX 微調**：員工列表當前年假額度、儲存／啟停後關閉編輯區、派班顯示姓名、PaginatedDataTable
+- [ ] **測試與驗證**: 部分（B1～B6 單元測試通過；整合可用本機 SQLite；瀏覽器端對端待確認）
 
 ## 最近更新
+- 2026-09-21: **Admin UX 微調**：員工列表帶 `quotaYear`／`quotaDays`；儲存／啟停後關閉編輯區；派班列表顯示 `employeeName`；員工／班表／派班改用 `@shared-ui/data-table` 的 `PaginatedDataTable`。
 - 2026-09-20: **完成 B6**：圖形驗證碼登入、AdminHub（員工／班表／政府日曆）、員工建帳無 PIN。
 - 2026-09-20: **規格對齊 B6（圖形驗證碼）**：登入比照教育訓練 captcha（非入庫 PIN）；Admin＝員工＋班表＋政府日曆；政府日曆＝14718。下一步實作 B6。
 - 2026-09-20: （已撤銷）先前「建帳隨機 PIN 一次明文」敘述改為登入圖形驗證碼。

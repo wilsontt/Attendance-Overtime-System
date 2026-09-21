@@ -5,6 +5,10 @@ export type Employee = {
   name: string;
   role: 'employee' | 'admin';
   isActive: boolean;
+  /** 當前年（西元） */
+  quotaYear: number;
+  /** 當前年年假額度；無紀錄時為 null */
+  quotaDays: number | null;
 };
 
 export type AnnualLeaveQuota = {

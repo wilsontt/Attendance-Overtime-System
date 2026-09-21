@@ -64,6 +64,16 @@
 - [x] 政府日曆：Admin 殼層內手動 sync＋顯示結果
 - [x] 驗收：建員工（無 PIN）→ 員工以編號＋圖形驗證碼登入 → 正式匯入該編號成功
 
+## Admin UX 微調（2026-09-21）
+
+對齊既有員工／派班 DTO，補強 Admin 列表可用性（非新 PRD 大段）。
+
+- [x] 員工列表顯示當前年假額度（API `quotaYear`／`quotaDays`）
+- [x] 儲存／啟停後關閉編輯區
+- [x] 派班列表顯示 `employeeName`
+- [x] 員工／班表／派班列表改用 `@shared-ui/data-table` 的 `PaginatedDataTable`
+- [x] OpenAPI：`Employee`／`ShiftAssignment` schema 同步
+
 ## 完成定義（線 B）
 
 對照 PLAN「驗收對照（線 B）」全部勾選；B6 完成後線 B 前端 Admin 缺口關閉。

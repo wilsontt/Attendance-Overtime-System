@@ -64,26 +64,61 @@ async function buildQuotas(userId: string) {
   );
 }
 
-function toEmployee(user: {
-  employeeId: string;
-  name: string;
-  role: 'employee' | 'admin';
-  isActive: boolean;
-}) {
+function currentQuotaYear(): number {
+  return new Date().getFullYear();
+}
+
+function toEmployee(
+  user: {
+    employeeId: string;
+    name: string;
+    role: 'employee' | 'admin';
+    isActive: boolean;
+  },
+  quota?: { year: number; quotaDays: number | null },
+) {
+  const quotaYear = quota?.year ?? currentQuotaYear();
   return {
     employeeId: user.employeeId,
     name: user.name,
     role: user.role,
     isActive: user.isActive,
+    quotaYear,
+    quotaDays: quota?.quotaDays ?? null,
+  };
+}
+
+async function currentYearQuotaFields(userId: string) {
+  const year = currentQuotaYear();
+  const row = await prisma.annualLeaveQuota.findUnique({
+    where: { userId_year: { userId, year } },
+  });
+  return {
+    year,
+    quotaDays: row ? Number(row.quotaDays) : null,
   };
 }
 
 export async function listEmployees(activeOnly = false) {
+  const year = currentQuotaYear();
   const users = await prisma.user.findMany({
     where: activeOnly ? { isActive: true } : undefined,
     orderBy: { employeeId: 'asc' },
+    include: {
+      quotas: {
+        where: { year },
+        take: 1,
+      },
+    },
   });
-  return { items: users.map(toEmployee) };
+  return {
+    items: users.map((user) =>
+      toEmployee(user, {
+        year,
+        quotaDays: user.quotas[0] ? Number(user.quotas[0].quotaDays) : null,
+      }),
+    ),
+  };
 }
 
 export async function getEmployee(employeeId: string) {
@@ -92,8 +127,9 @@ export async function getEmployee(employeeId: string) {
   if (!user) {
     throw new AppError(404, 'NOT_FOUND', '找不到員工');
   }
+  const quota = await currentYearQuotaFields(user.id);
   return {
-    ...toEmployee(user),
+    ...toEmployee(user, quota),
     quotas: await buildQuotas(user.id),
   };
 }
@@ -141,8 +177,9 @@ export async function createEmployee(
     actor.id,
   );
 
+  const quota = await currentYearQuotaFields(user.id);
   return {
-    ...toEmployee(user),
+    ...toEmployee(user, quota),
     quotas: await buildQuotas(user.id),
   };
 }
@@ -207,8 +244,9 @@ export async function updateEmployee(
     actor.id,
   );
 
+  const quota = await currentYearQuotaFields(updated.id);
   return {
-    ...toEmployee(updated),
+    ...toEmployee(updated, quota),
     quotas: await buildQuotas(updated.id),
   };
 }

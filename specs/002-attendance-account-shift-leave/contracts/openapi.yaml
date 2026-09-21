@@ -970,7 +970,7 @@ components:
 
     Employee:
       type: object
-      required: [employeeId, name, role, isActive]
+      required: [employeeId, name, role, isActive, quotaYear]
       properties:
         employeeId:
           $ref: '#/components/schemas/EmployeeId'
@@ -980,6 +980,14 @@ components:
           $ref: '#/components/schemas/Role'
         isActive:
           type: boolean
+        quotaYear:
+          type: integer
+          description: 列表／詳情帶出的當前年（西元）
+        quotaDays:
+          type: number
+          format: double
+          nullable: true
+          description: 當前年年假額度天數；無紀錄時為 null
 
     EmployeeDetail:
       allOf:
@@ -1074,13 +1082,16 @@ components:
 
     ShiftAssignment:
       type: object
-      required: [id, employeeId, shiftId, effectiveFrom]
+      required: [id, employeeId, employeeName, shiftId, effectiveFrom]
       properties:
         id:
           type: string
           format: uuid
         employeeId:
           $ref: '#/components/schemas/EmployeeId'
+        employeeName:
+          type: string
+          description: 員工顯示姓名
         shiftId:
           type: string
           format: uuid

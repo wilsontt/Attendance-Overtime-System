@@ -11,6 +11,7 @@ export type Shift = {
 export type ShiftAssignment = {
   id: string;
   employeeId: string;
+  employeeName: string;
   shiftId: string;
   shiftName: string;
   effectiveFrom: string;

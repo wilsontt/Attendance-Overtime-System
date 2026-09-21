@@ -148,12 +148,13 @@ function toAssignmentDto(row: {
   id: string;
   effectiveFrom: Date;
   effectiveTo: Date | null;
-  user: { employeeId: string };
+  user: { employeeId: string; name: string };
   shift: { id: string; name: string };
 }) {
   return {
     id: row.id,
     employeeId: row.user.employeeId,
+    employeeName: row.user.name,
     shiftId: row.shift.id,
     shiftName: row.shift.name,
     effectiveFrom: formatIsoDateOnly(row.effectiveFrom),

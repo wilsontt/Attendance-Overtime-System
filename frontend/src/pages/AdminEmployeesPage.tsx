@@ -1,4 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  PaginatedDataTable,
+  type DataTableColumn,
+} from '@shared-ui/data-table';
 import { ApiError } from '../api/client';
 import {
   createEmployee,
@@ -8,6 +12,13 @@ import {
   type Employee,
   type EmployeeDetail,
 } from '../api/employees';
+
+function formatQuotaLabel(row: Employee): string {
+  if (row.quotaDays == null) {
+    return `未設定（${row.quotaYear}）`;
+  }
+  return `${row.quotaDays}（${row.quotaYear}）`;
+}
 
 const AdminEmployeesPage: React.FC = () => {
   const [items, setItems] = useState<Employee[]>([]);
@@ -36,7 +47,7 @@ const AdminEmployeesPage: React.FC = () => {
     void reload();
   }, [reload]);
 
-  const openDetail = async (id: string) => {
+  const openDetail = useCallback(async (id: string) => {
     setError('');
     setInfo('');
     try {
@@ -49,7 +60,7 @@ const AdminEmployeesPage: React.FC = () => {
     } catch (err) {
       setError(err instanceof ApiError ? err.body.message : '讀取員工失敗');
     }
-  };
+  }, []);
 
   const onCreate = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -78,11 +89,11 @@ const AdminEmployeesPage: React.FC = () => {
     setError('');
     setInfo('');
     try {
-      const updated = await updateEmployee(selected.employeeId, {
+      await updateEmployee(selected.employeeId, {
         name: editName,
         quota: { year: editQuotaYear, quotaDays: editQuotaDays },
       });
-      setSelected(updated);
+      setSelected(null);
       setInfo('已儲存');
       await reload();
     } catch (err) {
@@ -98,7 +109,7 @@ const AdminEmployeesPage: React.FC = () => {
       const updated = await updateEmployee(selected.employeeId, {
         isActive: !selected.isActive,
       });
-      setSelected(updated);
+      setSelected(null);
       setInfo(updated.isActive ? '已啟用' : '已停用');
       await reload();
     } catch (err) {
@@ -106,13 +117,57 @@ const AdminEmployeesPage: React.FC = () => {
     }
   };
 
+  const columns = useMemo<DataTableColumn<Employee>[]>(
+    () => [
+      {
+        key: 'employeeId',
+        header: '編號',
+        accessor: (row) => row.employeeId,
+        cellClassName: 'font-mono',
+      },
+      {
+        key: 'name',
+        header: '姓名',
+        accessor: (row) => row.name,
+      },
+      {
+        key: 'role',
+        header: '角色',
+        accessor: (row) => row.role,
+      },
+      {
+        key: 'isActive',
+        header: '狀態',
+        accessor: (row) => (row.isActive ? '啟用' : '停用'),
+      },
+      {
+        key: 'quota',
+        header: '年假額度',
+        accessor: (row) => formatQuotaLabel(row),
+      },
+      {
+        key: 'actions',
+        header: '操作',
+        render: (row) => (
+          <button
+            type="button"
+            className="underline text-blue-700"
+            onClick={(event) => {
+              event.stopPropagation();
+              void openDetail(row.employeeId);
+            }}
+          >
+            編輯
+          </button>
+        ),
+      },
+    ],
+    [openDetail],
+  );
+
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-bold text-slate-800">員工帳號</h2>
-      <p className="text-sm text-slate-600">
-        登入採圖形驗證碼，建帳不必發放 PIN。伺服器正式匯入前請先建立對應 6
-        碼員工編號。
-      </p>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {info ? <p className="text-sm text-green-700">{info}</p> : null}
@@ -172,41 +227,18 @@ const AdminEmployeesPage: React.FC = () => {
         </div>
       </form>
 
-      <div className="overflow-x-auto rounded border bg-white">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-50 text-left">
-            <tr>
-              <th className="px-3 py-2">編號</th>
-              <th className="px-3 py-2">姓名</th>
-              <th className="px-3 py-2">角色</th>
-              <th className="px-3 py-2">狀態</th>
-              <th className="px-3 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((row) => (
-              <tr key={row.employeeId} className="border-t">
-                <td className="px-3 py-2 font-mono">{row.employeeId}</td>
-                <td className="px-3 py-2">{row.name}</td>
-                <td className="px-3 py-2">{row.role}</td>
-                <td className="px-3 py-2">
-                  {row.isActive ? '啟用' : '停用'}
-                </td>
-                <td className="px-3 py-2">
-                  <button
-                    type="button"
-                    className="underline text-blue-700"
-                    onClick={() => {
-                      void openDetail(row.employeeId);
-                    }}
-                  >
-                    編輯
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="rounded border bg-white p-2">
+        <PaginatedDataTable
+          adapter="tailwind"
+          paginationMode="client"
+          defaultPageSize={10}
+          showPaginationWhenSinglePage
+          columns={columns}
+          data={items}
+          getRowKey={(row) => row.employeeId}
+          emptyState="尚無員工"
+          indexColumnHeader="項次"
+        />
       </div>
 
       {selected ? (
