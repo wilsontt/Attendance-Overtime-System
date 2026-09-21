@@ -653,6 +653,9 @@ paths:
     get:
       tags: [leave-calendar]
       summary: 假勤摘要（年假餘額＋各假別已請）
+      description: |
+        行事曆頁摘要卡片可再以 `GET /api/attendance`（該曆年區間）載入後，
+        前端依假別過濾數量 > 0 之明細（鎖定式 Modal）。
       operationId: getLeaveSummary
       x-phase: B7
       security:

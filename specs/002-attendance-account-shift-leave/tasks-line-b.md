@@ -94,6 +94,16 @@
 - [x] 前端 LeaveCalendarPage：摘要區塊（曆年與日曆共用年；Admin 共用員工選擇）
 - [x] 單元測試：加總、0、未知排除、剩餘可負
 
+## B7 延伸：摘要卡片明細 Modal（2026-09-21）
+
+對齊 PRD §5.5.1 第 7 點／§7.8「假勤摘要・明細 Modal」。不新增 API；沿用 `GET /api/attendance`。
+
+- [x] 8 張摘要卡片可點擊（摘要成功載入後）；開啟鎖定式 Modal（overlay 不關閉；僅取消／×）
+- [x] 標題「{年} 年 · {假別} 請假明細」；年假卡片過濾假別固定「請年休假」
+- [x] 以 `listAttendance`（該曆年 `dateFrom`／`dateTo`；Admin 帶查詢中的 `employeeId`）載入後，前端過濾 `attendanceType`＝該假別且 `leaveQuantity > 0`，依歸屬日期升序顯示：歸屬日期、數量、上班、下班
+- [x] 無資料顯示「本年度無此假別紀錄」
+- [x] PRD／OpenAPI 說明已對齊（無新 endpoint）
+
 ## 完成定義（線 B）
 
-對照 PLAN「驗收對照（線 B）」全部勾選；B7 完成後假勤「狀態可見」缺口關閉。
+對照 PLAN「驗收對照（線 B）」全部勾選；B7（含摘要卡片明細）完成後假勤「狀態可見」缺口關閉。
