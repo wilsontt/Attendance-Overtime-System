@@ -645,6 +645,38 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /api/leave/summary:
+    get:
+      tags: [leave-calendar]
+      summary: 假勤摘要（年假餘額＋各假別已請）
+      operationId: getLeaveSummary
+      x-phase: B7
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: employeeId
+          in: query
+          description: Admin 可指定；員工固定本人
+          schema:
+            $ref: '#/components/schemas/EmployeeId'
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+            example: 2026
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaveSummaryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /api/admin/gov-calendar/sync:
     post:
       tags: [leave-calendar]
@@ -1242,6 +1274,37 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LeaveCalendarDay'
+
+    LeaveSummaryResponse:
+      type: object
+      required: [employeeId, year, annualLeave, leaveTotals]
+      properties:
+        employeeId:
+          $ref: '#/components/schemas/EmployeeId'
+        year:
+          type: integer
+        annualLeave:
+          type: object
+          required: [quotaDays, usedDays, remainingDays]
+          properties:
+            quotaDays:
+              type: number
+            usedDays:
+              type: number
+            remainingDays:
+              type: number
+              description: 可為負
+        leaveTotals:
+          type: array
+          description: §7.6 除請年休假外各假別；未出現者 usedDays 為 0；不含未知假別
+          items:
+            type: object
+            required: [leaveType, usedDays]
+            properties:
+              leaveType:
+                type: string
+              usedDays:
+                type: number
 
     GovCalendarSyncResult:
       type: object

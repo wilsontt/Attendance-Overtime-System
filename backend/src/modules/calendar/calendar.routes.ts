@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { AppError } from '../../lib/errors.js';
 import { requireAdmin, requireAuth } from '../auth/auth.service.js';
 import { syncGovCalendar } from './govCalendar.service.js';
-import { getLeaveCalendar } from './leaveCalendar.service.js';
+import { getLeaveCalendar, getLeaveSummary } from './leaveCalendar.service.js';
 
 export async function calendarRoutes(app: FastifyInstance): Promise<void> {
   app.get<{
@@ -26,6 +26,22 @@ export async function calendarRoutes(app: FastifyInstance): Promise<void> {
         employeeId: request.query.employeeId,
         year,
         month,
+      }),
+    );
+  });
+
+  app.get<{
+    Querystring: { employeeId?: string; year?: string };
+  }>('/api/leave/summary', async (request, reply) => {
+    const actor = await requireAuth(request);
+    const year = Number(request.query.year);
+    if (!request.query.year || Number.isNaN(year)) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'year 必填');
+    }
+    return reply.send(
+      await getLeaveSummary(actor, {
+        employeeId: request.query.employeeId,
+        year,
       }),
     );
   });

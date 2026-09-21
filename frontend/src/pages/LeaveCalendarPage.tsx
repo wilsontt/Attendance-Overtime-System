@@ -12,8 +12,10 @@ import type { MeResponse } from '../api/auth';
 import { ApiError } from '../api/client';
 import {
   fetchLeaveCalendar,
+  fetchLeaveSummary,
   syncGovCalendar,
   type LeaveCalendarDay,
+  type LeaveSummaryResponse,
 } from '../api/leaveCalendar';
 
 type LeaveCalendarPageProps = {
@@ -33,6 +35,7 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [employeeId, setEmployeeId] = useState(user.employeeId);
   const [days, setDays] = useState<LeaveCalendarDay[]>([]);
+  const [summary, setSummary] = useState<LeaveSummaryResponse | null>(null);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,14 +45,24 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
     setLoading(true);
     setError('');
     try {
-      const result = await fetchLeaveCalendar({
-        year,
-        month,
-        employeeId: user.role === 'admin' ? employeeId : undefined,
-      });
-      setDays(result.days);
+      const employeeQuery =
+        user.role === 'admin' ? employeeId : undefined;
+      const [calendar, leaveSummary] = await Promise.all([
+        fetchLeaveCalendar({
+          year,
+          month,
+          employeeId: employeeQuery,
+        }),
+        fetchLeaveSummary({
+          year,
+          employeeId: employeeQuery,
+        }),
+      ]);
+      setDays(calendar.days);
+      setSummary(leaveSummary);
     } catch (err) {
       setDays([]);
+      setSummary(null);
       setError(err instanceof ApiError ? err.body.message : '載入行事曆失敗');
     } finally {
       setLoading(false);
@@ -159,6 +172,38 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
       {info ? <p className="text-sm text-green-700">{info}</p> : null}
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {loading ? <p className="text-sm text-slate-500">載入中…</p> : null}
+
+      {summary ? (
+        <section className="rounded border border-slate-200 bg-white p-4 space-y-3">
+          <h2 className="font-semibold text-slate-800">
+            {summary.year} 年假勤摘要（民國 {summary.year - 1911} 年）
+          </h2>
+          <p className="text-sm text-slate-700">
+            年假：額度 {summary.annualLeave.quotaDays}、已請{' '}
+            {summary.annualLeave.usedDays}、剩餘{' '}
+            <span
+              className={
+                summary.annualLeave.remainingDays < 0
+                  ? 'text-red-700 font-semibold'
+                  : undefined
+              }
+            >
+              {summary.annualLeave.remainingDays}
+            </span>
+          </p>
+          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+            {summary.leaveTotals.map((item) => (
+              <div key={item.leaveType} className="rounded bg-slate-50 px-2 py-1">
+                <dt className="text-slate-500">{item.leaveType}</dt>
+                <dd className="font-medium">{item.usedDays} 天</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="text-xs text-slate-500">
+            僅統計已寫入伺服器的請假；未出現的假別顯示 0。
+          </p>
+        </section>
+      ) : null}
 
       <div className="overflow-x-auto rounded border border-slate-200 bg-white">
         <table className="min-w-full text-sm">

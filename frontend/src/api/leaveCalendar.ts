@@ -21,6 +21,30 @@ export type GovCalendarSyncResult = {
   source: string;
 };
 
+export type LeaveSummaryResponse = {
+  employeeId: string;
+  year: number;
+  annualLeave: {
+    quotaDays: number;
+    usedDays: number;
+    remainingDays: number;
+  };
+  leaveTotals: Array<{
+    leaveType: string;
+    usedDays: number;
+  }>;
+};
+
+export async function fetchLeaveSummary(params: {
+  year: number;
+  employeeId?: string;
+}): Promise<LeaveSummaryResponse> {
+  const qs = new URLSearchParams();
+  qs.set('year', String(params.year));
+  if (params.employeeId) qs.set('employeeId', params.employeeId);
+  return apiFetch<LeaveSummaryResponse>(`/leave/summary?${qs.toString()}`);
+}
+
 export async function fetchLeaveCalendar(params: {
   year: number;
   month?: number;

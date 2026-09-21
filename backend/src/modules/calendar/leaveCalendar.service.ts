@@ -6,9 +6,11 @@ import {
   eachDateInclusive,
   type ApiDayType,
 } from '../computation/computation.service.js';
+import { formatIsoDateOnly } from '../shift/shift.rules.js';
 import {
-  formatIsoDateOnly,
-} from '../shift/shift.rules.js';
+  summarizeLeaveQuantities,
+  type LeaveSummaryTotals,
+} from './leaveSummary.js';
 
 export type LeaveCalendarDayDto = {
   date: string;
@@ -25,31 +27,26 @@ export type LeaveCalendarResponse = {
   days: LeaveCalendarDayDto[];
 };
 
-export async function getLeaveCalendar(
-  actor: AuthUser,
-  query: { employeeId?: string; year: number; month?: number },
-): Promise<LeaveCalendarResponse> {
-  if (!Number.isInteger(query.year) || query.year < 2000 || query.year > 2100) {
+export type LeaveSummaryResponse = LeaveSummaryTotals & {
+  employeeId: string;
+  year: number;
+};
+
+function assertYear(year: number): void {
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) {
     throw new AppError(400, 'VALIDATION_ERROR', 'year 無效');
   }
-  if (
-    query.month != null &&
-    (!Number.isInteger(query.month) || query.month < 1 || query.month > 12)
-  ) {
-    throw new AppError(400, 'VALIDATION_ERROR', 'month 須為 1–12');
-  }
+}
 
+async function resolveCalendarSubject(
+  actor: AuthUser,
+  employeeId: string | undefined,
+): Promise<{ employeeId: string; userId: string }> {
   const targetEmployeeId =
-    actor.role === 'admin' && query.employeeId
-      ? query.employeeId
-      : actor.employeeId;
+    actor.role === 'admin' && employeeId ? employeeId : actor.employeeId;
 
-  if (
-    actor.role !== 'admin' &&
-    query.employeeId &&
-    query.employeeId !== actor.employeeId
-  ) {
-    throw new AppError(403, 'FORBIDDEN', '僅能查看本人行事曆');
+  if (actor.role !== 'admin' && employeeId && employeeId !== actor.employeeId) {
+    throw new AppError(403, 'FORBIDDEN', '僅能查看本人假勤');
   }
 
   const user = await prisma.user.findUnique({
@@ -58,6 +55,23 @@ export async function getLeaveCalendar(
   if (!user) {
     throw new AppError(404, 'NOT_FOUND', '找不到員工');
   }
+
+  return { employeeId: targetEmployeeId, userId: user.id };
+}
+
+export async function getLeaveCalendar(
+  actor: AuthUser,
+  query: { employeeId?: string; year: number; month?: number },
+): Promise<LeaveCalendarResponse> {
+  assertYear(query.year);
+  if (
+    query.month != null &&
+    (!Number.isInteger(query.month) || query.month < 1 || query.month > 12)
+  ) {
+    throw new AppError(400, 'VALIDATION_ERROR', 'month 須為 1–12');
+  }
+
+  const subject = await resolveCalendarSubject(actor, query.employeeId);
 
   const dateFrom =
     query.month != null
@@ -74,15 +88,13 @@ export async function getLeaveCalendar(
     }),
     prisma.attendanceDay.findMany({
       where: {
-        userId: user.id,
+        userId: subject.userId,
         belongDate: { gte: dateFrom, lte: dateTo },
       },
     }),
   ]);
 
-  const govMap = new Map(
-    govDays.map((d) => [formatIsoDateOnly(d.date), d]),
-  );
+  const govMap = new Map(govDays.map((d) => [formatIsoDateOnly(d.date), d]));
   const leaveMap = new Map(
     attendance.map((d) => [formatIsoDateOnly(d.belongDate), d]),
   );
@@ -104,9 +116,55 @@ export async function getLeaveCalendar(
   });
 
   return {
-    employeeId: targetEmployeeId,
+    employeeId: subject.employeeId,
     year: query.year,
     month: query.month ?? null,
     days,
+  };
+}
+
+/** 選定曆年的假勤摘要：年假額度／已請／剩餘＋各非年假假別已請（含 0）。 */
+export async function getLeaveSummary(
+  actor: AuthUser,
+  query: { employeeId?: string; year: number },
+): Promise<LeaveSummaryResponse> {
+  assertYear(query.year);
+  const subject = await resolveCalendarSubject(actor, query.employeeId);
+
+  const dateFrom = new Date(Date.UTC(query.year, 0, 1));
+  const dateTo = new Date(Date.UTC(query.year, 11, 31));
+
+  const [quota, rows] = await Promise.all([
+    prisma.annualLeaveQuota.findUnique({
+      where: {
+        userId_year: { userId: subject.userId, year: query.year },
+      },
+    }),
+    prisma.attendanceDay.findMany({
+      where: {
+        userId: subject.userId,
+        belongDate: { gte: dateFrom, lte: dateTo },
+      },
+      select: {
+        attendanceType: true,
+        leaveQuantity: true,
+        unknownLeaveType: true,
+      },
+    }),
+  ]);
+
+  const totals = summarizeLeaveQuantities(
+    rows.map((row) => ({
+      attendanceType: row.attendanceType,
+      leaveQuantity: Number(row.leaveQuantity),
+      unknownLeaveType: row.unknownLeaveType,
+    })),
+    quota ? Number(quota.quotaDays) : 0,
+  );
+
+  return {
+    employeeId: subject.employeeId,
+    year: query.year,
+    ...totals,
   };
 }

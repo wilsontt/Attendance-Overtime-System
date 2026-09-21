@@ -74,6 +74,15 @@
 - [x] 員工／班表／派班列表改用 `@shared-ui/data-table` 的 `PaginatedDataTable`
 - [x] OpenAPI：`Employee`／`ShiftAssignment` schema 同步
 
+## B7 假勤摘要（2026-09-21）
+
+對齊 PRD §5.5.1／§7.8；凍結來源 E3-4.4～4.5、E3-6。未出現假別顯示 0；未知假別不另列。
+
+- [x] API：`GET /api/leave/summary`（員工本人；Admin 可指定員工）
+- [x] OpenAPI／契約同步
+- [x] 前端 LeaveCalendarPage：摘要區塊（曆年與日曆共用年；Admin 共用員工選擇）
+- [x] 單元測試：加總、0、未知排除、剩餘可負
+
 ## 完成定義（線 B）
 
-對照 PLAN「驗收對照（線 B）」全部勾選；B6 完成後線 B 前端 Admin 缺口關閉。
+對照 PLAN「驗收對照（線 B）」全部勾選；B7 完成後假勤「狀態可見」缺口關閉。
