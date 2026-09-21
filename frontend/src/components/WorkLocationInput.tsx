@@ -33,16 +33,14 @@ export function WorkLocationInput({
   normalize,
 }: WorkLocationInputProps): ReactElement {
   const listId = useId();
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [fetchedSuggestions, setFetchedSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
     if (!dictionaryEnabled) {
-      setSuggestions([]);
       return;
     }
     const q = value.trim();
     if (!q) {
-      setSuggestions([]);
       return;
     }
 
@@ -52,10 +50,10 @@ export function WorkLocationInput({
         try {
           const items = await searchWorkLocations(q, 20);
           if (!cancelled) {
-            setSuggestions(items.map((i) => i.text));
+            setFetchedSuggestions(items.map((i) => i.text));
           }
         } catch {
-          if (!cancelled) setSuggestions([]);
+          if (!cancelled) setFetchedSuggestions([]);
         }
       })();
     }, 200);
@@ -65,6 +63,9 @@ export function WorkLocationInput({
       window.clearTimeout(timer);
     };
   }, [value, dictionaryEnabled]);
+
+  const suggestions =
+    dictionaryEnabled && value.trim() ? fetchedSuggestions : [];
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     onChange(normalize(event.target.value));

@@ -48,8 +48,22 @@ const AdminEmployeesPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await listEmployees(false);
+        if (cancelled) return;
+        setItems(result.items.filter((row) => row.role !== 'admin'));
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof ApiError ? err.body.message : '載入員工失敗');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const openDetail = useCallback(async (id: string) => {
     setError('');
