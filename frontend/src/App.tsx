@@ -25,7 +25,7 @@ function App() {
   const [view, setView] = useState<AppView>('home');
   const [loginIntent, setLoginIntent] = useState<LoginIntent | null>(null);
   const [authNotice, setAuthNotice] = useState('');
-  /** 未登入勾選「同時寫入伺服器」時暫存檔，登入後由 HomePage 自動匯入 */
+  /** 未登入勾選「同時寫入伺服器」時暫存檔，之後登入再由 HomePage 自動匯入（不強制導向登入） */
   const [pendingServerImportFile, setPendingServerImportFile] =
     useState<File | null>(null);
   const userRef = useRef(user);
@@ -161,7 +161,7 @@ function App() {
                 </button>
                 {user ? (
                   <>
-                    <span className="hidden sm:inline text-slate-600 max-w-[10rem] truncate">
+                    <span className="hidden max-w-40 truncate text-slate-600 sm:inline">
                       {user.employeeId} {user.name}
                     </span>
                     <button
@@ -181,19 +181,16 @@ function App() {
         </div>
 
         {authNotice ? (
-          <div
-            className="mb-3 flex items-start justify-between gap-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
-            role="status"
-          >
+          <output className="mb-3 flex items-start justify-between gap-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             <span>{authNotice}</span>
             <button
               type="button"
-              className="underline shrink-0"
+              className="shrink-0 underline"
               onClick={() => setAuthNotice('')}
             >
               關閉
             </button>
-          </div>
+          </output>
         ) : null}
 
         <div
@@ -204,11 +201,8 @@ function App() {
             loggedIn={Boolean(user)}
             pendingServerImportFile={pendingServerImportFile}
             onConsumePendingServerImport={() => setPendingServerImportFile(null)}
-            onRequestLoginForImport={(file) => {
+            onDeferServerImport={(file) => {
               setPendingServerImportFile(file);
-              setLoginIntent(null);
-              setAuthNotice('');
-              setView('login');
             }}
           />
         </div>

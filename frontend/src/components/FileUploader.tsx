@@ -127,7 +127,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
                 name: row[1],
                 date: row[2],
                 attendanceType: attendanceType === '空' ? '' : attendanceType,
-                leaveQuantity: parseFloat(row[4]) || 0,
+                leaveQuantity: Number.parseFloat(row[4]) || 0,
                 clockIn: row[5],
                 clockOut: row[6],
               };
@@ -285,7 +285,9 @@ const FileUploader: React.FC<FileUploaderProps> = ({
             data-testid="also-import-to-server"
             style={{ marginRight: '6px' }}
           />
-          同時寫入伺服器（出勤台帳／年假；未登入會先導向登入）
+          <span>
+            同時寫入伺服器（出勤台帳／年假；未登入時先本機計算，登入後再寫入）
+          </span>
         </label>
       </div>
       {error && <p style={{ color: 'red' }}>{error}</p>}

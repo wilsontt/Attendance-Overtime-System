@@ -488,8 +488,8 @@ function LeaveCalendarPage({
               查詢
             </button>
           </div>
-          <p className="text-lg text-slate-800">僅顯示國定假日／休假日／</p>
-          <p className="text-lg text-slate-800">
+          <p className="text-lg font-bold text-orange-500">僅顯示國定假日／休假日／</p>
+          <p className="text-lg font-bold text-orange-500">
             補班／個人請假列，出勤明細則不顯示。
           </p>
         </div>

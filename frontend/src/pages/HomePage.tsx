@@ -27,12 +27,12 @@ import {
 type HomePageProps = {
   /** 已登入才顯示補單匯入、並可寫入伺服器 */
   loggedIn?: boolean;
-  /** App 保留的待寫入檔（登入頁會卸載 HomePage，故由 App 持有） */
+  /** App 保留的待寫入檔（登入後自動匯入；未登入上傳時只暫存、不強制登入） */
   pendingServerImportFile?: File | null;
   /** 清除 App 上的待寫入檔 */
   onConsumePendingServerImport?: () => void;
-  /** 未登入卻勾選同時寫入時，請求導向登入 */
-  onRequestLoginForImport?: (file: File) => void;
+  /** 未登入卻勾選同時寫入時，暫存檔案供之後登入再寫入（不強制導向登入） */
+  onDeferServerImport?: (file: File) => void;
 };
 
 /**
@@ -43,7 +43,7 @@ const HomePage: React.FC<HomePageProps> = ({
   loggedIn = false,
   pendingServerImportFile = null,
   onConsumePendingServerImport,
-  onRequestLoginForImport,
+  onDeferServerImport,
 }) => {
   /** 原始出勤記錄（從檔案解析而來） */
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
@@ -111,7 +111,7 @@ const HomePage: React.FC<HomePageProps> = ({
         const key = `${report.employeeId}__${report.date}__${report.segment || '全'}`;
         const overrideReason = reasonOverrides[key];
         
-        const finalReason = overrideReason !== undefined ? overrideReason : report.overtimeReason;
+        const finalReason = overrideReason ?? report.overtimeReason;
         // 如果原本是空白，不自動幫忙填寫 "忘記打卡補登"
         // 使用者仍須手動在「加班原因」欄位輸入
         
@@ -136,6 +136,7 @@ const HomePage: React.FC<HomePageProps> = ({
 
   /** 同時寫入伺服器的狀態訊息（成功／失敗皆不影響本機列表） */
   const [serverSyncMessage, setServerSyncMessage] = useState('');
+  const [serverSyncPendingLogin, setServerSyncPendingLogin] = useState(false);
   const [serverSyncError, setServerSyncError] = useState('');
   const [serverSyncResult, setServerSyncResult] =
     useState<AttendanceImportResult | null>(null);
@@ -148,6 +149,7 @@ const HomePage: React.FC<HomePageProps> = ({
     setServerSyncBusy(true);
     setServerSyncError('');
     setServerSyncMessage('');
+    setServerSyncPendingLogin(false);
     setServerSyncResult(null);
     try {
       const result = await importAttendanceFile(file);
@@ -191,6 +193,7 @@ const HomePage: React.FC<HomePageProps> = ({
     setPunchOverrides({});
     setRawTxtContent(fileType === 'txt' ? uploadedRawTxtContent : '');
     setServerSyncMessage('');
+    setServerSyncPendingLogin(false);
     setServerSyncError('');
     setServerSyncResult(null);
 
@@ -200,7 +203,8 @@ const HomePage: React.FC<HomePageProps> = ({
 
     if (!loggedIn) {
       setServerSyncMessage('本機已載入；請登入後將自動寫入伺服器。');
-      onRequestLoginForImport?.(options.file);
+      setServerSyncPendingLogin(true);
+      onDeferServerImport?.(options.file);
       return;
     }
 
@@ -443,9 +447,19 @@ const HomePage: React.FC<HomePageProps> = ({
         onGlobalShiftChange={setGlobalShift}
       />
       {(serverSyncBusy || serverSyncMessage || serverSyncError || serverSyncResult) && (
-        <div className="mb-4 text-sm space-y-1">
+        <div className="mb-4 space-y-1 text-sm">
           {serverSyncBusy ? <p className="text-slate-600">正在寫入伺服器…</p> : null}
-          {serverSyncMessage ? <p className="text-green-700">{serverSyncMessage}</p> : null}
+          {serverSyncMessage ? (
+            <p
+              className={
+                serverSyncPendingLogin
+                  ? 'text-base font-semibold text-red-600'
+                  : 'text-green-700'
+              }
+            >
+              {serverSyncMessage}
+            </p>
+          ) : null}
           {serverSyncError ? <p className="text-red-600">{serverSyncError}</p> : null}
           {serverSyncResult?.unknownLeaveTypes.length ? (
             <p className="text-amber-800">
