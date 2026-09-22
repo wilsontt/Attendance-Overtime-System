@@ -65,93 +65,96 @@ function sessionExpiry(now = new Date()): Date {
   return new Date(now.getTime() + SESSION_TTL_HOURS * 60 * 60 * 1000);
 }
 
-export async function login(
-  body: LoginBody,
-  reply: FastifyReply,
-): Promise<ReturnType<typeof toMe>> {
-  const now = new Date();
-  let user: User | null = null;
-
+function assertLoginBody(body: LoginBody): asserts body is LoginBody {
   if (!body || typeof body !== 'object' || !('mode' in body)) {
     throw new AppError(400, 'VALIDATION_ERROR', '登入欄位不完整');
   }
+}
 
+async function findUserForLogin(body: LoginBody): Promise<User | null> {
   if (body.mode === 'employee') {
     if (!/^\d{6}$/.test(body.employeeId)) {
       throw new AppError(400, 'VALIDATION_ERROR', '員工編號格式錯誤');
     }
     consumeCaptcha(body.captchaId, body.captchaAnswer);
-    user = await prisma.user.findUnique({
+    return prisma.user.findUnique({
       where: { employeeId: body.employeeId },
     });
-  } else if (body.mode === 'admin') {
+  }
+
+  if (body.mode === 'admin') {
     if (!body.username || !body.password) {
       throw new AppError(400, 'VALIDATION_ERROR', 'Admin 登入欄位不完整');
     }
     consumeCaptcha(body.captchaId, body.captchaAnswer);
-    user = await prisma.user.findFirst({
+    return prisma.user.findFirst({
       where: {
         OR: [{ employeeId: body.username }, { name: body.username }],
         role: 'admin',
       },
     });
-  } else {
-    throw new AppError(400, 'VALIDATION_ERROR', '未知登入模式');
   }
 
-  if (
-    !user ||
-    !user.isActive ||
-    (body.mode === 'employee' && !isEmployeeLoginAllowed(user))
-  ) {
-    await writeAudit(prisma, 'login_failed', {
-      mode: body.mode,
-      reason: 'not_found_or_inactive',
-    });
-    throw new AppError(401, 'UNAUTHORIZED', '帳號或驗證碼錯誤');
-  }
+  throw new AppError(400, 'VALIDATION_ERROR', '未知登入模式');
+}
 
-  if (isLoginLocked(user, now)) {
-    const retryAfterSeconds = Math.max(
-      1,
-      Math.ceil(
-        ((user.lockedUntil?.getTime() ?? now.getTime()) - now.getTime()) /
-          1000,
-      ),
-    );
+function isLoginEligible(user: User | null, mode: LoginBody['mode']): user is User {
+  if (!user?.isActive) return false;
+  if (mode === 'employee' && !isEmployeeLoginAllowed(user)) return false;
+  return true;
+}
+
+function throwIfLoginLocked(user: User, now: Date): void {
+  if (!isLoginLocked(user, now)) return;
+
+  const retryAfterSeconds = Math.max(
+    1,
+    Math.ceil(
+      ((user.lockedUntil?.getTime() ?? now.getTime()) - now.getTime()) / 1000,
+    ),
+  );
+  throw new AppError(423, 'LOGIN_LOCKED', '登入嘗試過多，請稍後再試', {
+    retryAfterSeconds,
+  });
+}
+
+async function verifyAdminPassword(
+  body: Extract<LoginBody, { mode: 'admin' }>,
+  user: User,
+): Promise<boolean> {
+  if (!user.passwordHash) return false;
+  return verifySecret(body.password, user.passwordHash);
+}
+
+async function rejectFailedPassword(
+  user: User,
+  mode: LoginBody['mode'],
+  now: Date,
+): Promise<never> {
+  const next = nextFailedLoginState(user.failedLoginCount, now);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: next,
+  });
+  await writeAudit(prisma, 'login_failed', {
+    mode,
+    employeeId: user.employeeId,
+    failedLoginCount: next.failedLoginCount,
+  });
+  if (next.lockedUntil) {
     throw new AppError(423, 'LOGIN_LOCKED', '登入嘗試過多，請稍後再試', {
-      retryAfterSeconds,
+      retryAfterSeconds: LOCK_MINUTES * 60,
     });
   }
+  throw new AppError(401, 'UNAUTHORIZED', '帳號或密碼錯誤');
+}
 
-  let ok = true;
-  if (body.mode === 'admin') {
-    if (!user.passwordHash) {
-      ok = false;
-    } else {
-      ok = await verifySecret(body.password, user.passwordHash);
-    }
-  }
-
-  if (!ok) {
-    const next = nextFailedLoginState(user.failedLoginCount, now);
-    await prisma.user.update({
-      where: { id: user.id },
-      data: next,
-    });
-    await writeAudit(prisma, 'login_failed', {
-      mode: body.mode,
-      employeeId: user.employeeId,
-      failedLoginCount: next.failedLoginCount,
-    });
-    if (next.lockedUntil) {
-      throw new AppError(423, 'LOGIN_LOCKED', '登入嘗試過多，請稍後再試', {
-        retryAfterSeconds: LOCK_MINUTES * 60,
-      });
-    }
-    throw new AppError(401, 'UNAUTHORIZED', '帳號或密碼錯誤');
-  }
-
+async function issueSession(
+  user: User,
+  mode: LoginBody['mode'],
+  reply: FastifyReply,
+  now: Date,
+): Promise<ReturnType<typeof toMe>> {
   await prisma.user.update({
     where: { id: user.id },
     data: { failedLoginCount: 0, lockedUntil: null },
@@ -175,11 +178,39 @@ export async function login(
   await writeAudit(
     prisma,
     'login_success',
-    { mode: body.mode, employeeId: user.employeeId },
+    { mode, employeeId: user.employeeId },
     user.id,
   );
 
   return toMe(user);
+}
+
+export async function login(
+  body: LoginBody,
+  reply: FastifyReply,
+): Promise<ReturnType<typeof toMe>> {
+  const now = new Date();
+  assertLoginBody(body);
+
+  const user = await findUserForLogin(body);
+  if (!isLoginEligible(user, body.mode)) {
+    await writeAudit(prisma, 'login_failed', {
+      mode: body.mode,
+      reason: 'not_found_or_inactive',
+    });
+    throw new AppError(401, 'UNAUTHORIZED', '帳號或驗證碼錯誤');
+  }
+
+  throwIfLoginLocked(user, now);
+
+  if (body.mode === 'admin') {
+    const ok = await verifyAdminPassword(body, user);
+    if (!ok) {
+      await rejectFailedPassword(user, body.mode, now);
+    }
+  }
+
+  return issueSession(user, body.mode, reply, now);
 }
 
 export async function logout(
@@ -246,9 +277,5 @@ export async function requireAdmin(request: FastifyRequest): Promise<AuthUser> {
 }
 
 export function getMePayload(user: AuthUser) {
-  return {
-    employeeId: user.employeeId,
-    name: user.name,
-    role: user.role,
-  };
+  return toMe(user);
 }

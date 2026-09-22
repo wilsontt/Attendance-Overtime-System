@@ -21,6 +21,7 @@ npx vitest run           # 執行全部測試（單次）
 # 本機開發：SQLite（專案根 data/attendance.db），不需 Docker
 npm run prisma:migrate && npm run prisma:seed
 npm run dev              # Fastify :3000
+npm run lint             # ESLint（eslint.config.js；Node／TypeScript，勿直接複製前端設定）
 npm test
 ```
 

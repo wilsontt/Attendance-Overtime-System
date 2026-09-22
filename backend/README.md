@@ -37,10 +37,19 @@ docker compose -f 1.出勤加班單系統/docker-compose.yml --profile full up -
 ## 指令
 
 ```bash
-npm test          # 單元測試（不需 DB）
-npm run build     # TypeScript 建置
+npm test                 # 單元測試（不需 DB）
+npm run lint             # ESLint 檢查（僅報告，不自動修復）
+npm run build            # TypeScript 建置
 npm run prisma:migrate   # 開發用 migrate
 ```
+
+### ESLint
+
+- 設定檔：`eslint.config.js`（ESLint 9+ flat config；針對 Node／Fastify／Vitest）
+- 涵蓋：`src/**/*.ts`、`prisma/**/*.ts`、`tests/**/*.ts`；忽略 `dist`、`node_modules`、`prisma/migrations`
+- **不要**直接複製 `frontend/eslint.config.js`（前端含 React 插件與 `globals.browser`）
+- 必要 devDependencies：`eslint`、`@eslint/js`、`typescript-eslint`、`globals`（套件名為複數 `globals`，不是 `global`）
+- 依賴已列入 `package.json`；`npm install` 後即可 `npm run lint`
 
 ## 契約與實作範圍
 

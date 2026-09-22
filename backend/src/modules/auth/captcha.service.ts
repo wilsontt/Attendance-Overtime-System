@@ -44,8 +44,8 @@ function purgeExpired(now = Date.now()): void {
 }
 
 function digitPaths(digit: string, offsetX: number, fill: string): string {
-  const segs = DIGIT_SEGMENTS[digit] ?? DIGIT_SEGMENTS['0']!;
-  return segs
+  const segments = DIGIT_SEGMENTS[digit] ?? DIGIT_SEGMENTS['0']!;
+  return segments
     .map((name) => {
       const d = SEGMENTS[name]!;
       return `<path transform="translate(${offsetX},20)" d="${d}" fill="${fill}"/>`;
