@@ -37,6 +37,7 @@
 - [ ] **測試與驗證**: 部分（B1～B7 單元／建置；瀏覽器端對端待確認）
 
 ## 最近更新
+- 2026-09-22: **請假行事曆日期顯示星期**：月表日期與假別明細 Modal 歸屬日期改為 `YYYY/MM/DD 星期X`（`formatDateWithFullWeekday`）。PRD §7.8 已註記。
 - 2026-09-21: **請假行事曆版面**：假勤摘要 8 卡片移至大標題＋年／月查詢右側，左右並排（`lg` 以上；窄螢幕上下堆疊）。PRD §7.8 已註記。
 - 2026-09-21: **Code review 修復**：員工模式拒登 Admin；captcha 改七段 path（無明文數字）；全天請假時數 0；民國年日期篩選；PreviewModal 切假日保留輸入／部分請假可編原因／選取後才驗工作地點；登入 rate limit；受保護 Admin 密碼僅本人可改；前端 401 清 session。
 - 2026-09-21: **請假行事曆月表／明細改用共用 DataTable**：假勤摘要維持 8 卡片；月表與假別明細 Modal 用 `PaginatedDataTable`（`@shared-ui/data-table`）。

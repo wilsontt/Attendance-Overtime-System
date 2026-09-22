@@ -28,6 +28,7 @@ import {
   type LeaveCalendarDay,
   type LeaveSummaryResponse,
 } from '../api/leaveCalendar';
+import { formatDateWithFullWeekday } from '../utils/dateFormatter';
 
 type LeaveCalendarPageProps = {
   user: MeResponse;
@@ -52,7 +53,237 @@ const DAY_TYPE_LABEL: Record<LeaveCalendarDay['dayType'], string> = {
 const EMPLOYEE_ID_PATTERN = /^\d{6}$/;
 const ANNUAL_LEAVE_TYPE = '請年休假';
 
-function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
+const CALENDAR_EMPTY_DEFAULT =
+  '本月尚無請假或國定／補班標示。若政府日曆未同步，Admin 可按上方同步；失敗時加班單仍可手勾「加到平日加班」。';
+
+function apiErrorMessage(err: unknown, fallback: string): string {
+  return err instanceof ApiError ? err.body.message : fallback;
+}
+
+function syncGovCalendarErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    return `${err.body.message}（仍可於加班單手勾「加到平日加班」）`;
+  }
+  return '同步失敗（仍可手勾補班）';
+}
+
+function isNotableCalendarDay(day: LeaveCalendarDay): boolean {
+  return Boolean(
+    day.leaveType ||
+      day.dayType === 'holiday' ||
+      day.dayType === 'make_up' ||
+      day.govName,
+  );
+}
+
+function calendarEmptyStateText(
+  isAdmin: boolean,
+  employeeId: string,
+  error: string,
+): string {
+  if (!isAdmin || EMPLOYEE_ID_PATTERN.test(employeeId)) {
+    return CALENDAR_EMPTY_DEFAULT;
+  }
+  if (error) {
+    return '—';
+  }
+  return '請輸入員工編號後按查詢。';
+}
+
+const CALENDAR_COLUMNS: DataTableColumn<LeaveCalendarDay>[] = [
+  {
+    key: 'date',
+    header: '日期',
+    cellClassName: 'font-mono',
+    accessor: (row) => formatDateWithFullWeekday(row.date),
+  },
+  {
+    key: 'dayType',
+    header: '日類型',
+    accessor: (row) => DAY_TYPE_LABEL[row.dayType],
+  },
+  {
+    key: 'leaveType',
+    header: '假別',
+    accessor: (row) => row.leaveType ?? '—',
+  },
+  {
+    key: 'leaveQuantity',
+    header: '天數/小時',
+    accessor: (row) =>
+      row.leaveQuantity != null ? String(row.leaveQuantity) : '—',
+  },
+  {
+    key: 'govName',
+    header: '備註／國定名稱',
+    accessor: (row) => row.govName ?? '—',
+  },
+];
+
+const DETAIL_COLUMNS: DataTableColumn<AttendanceDay>[] = [
+  {
+    key: 'belongDate',
+    header: '歸屬日期',
+    cellClassName: 'font-mono',
+    accessor: (row) => formatDateWithFullWeekday(row.belongDate),
+  },
+  {
+    key: 'leaveQuantity',
+    header: '天數/小時',
+    accessor: (row) => String(row.leaveQuantity),
+  },
+  {
+    key: 'clockIn',
+    header: '上班',
+    cellClassName: 'font-mono',
+    accessor: (row) => row.clockIn ?? '—',
+  },
+  {
+    key: 'clockOut',
+    header: '下班',
+    cellClassName: 'font-mono',
+    accessor: (row) => row.clockOut ?? '—',
+  },
+];
+
+type LeaveSummarySectionProps = {
+  summary: LeaveSummaryResponse;
+  onOpenDetail: (target: LeaveDetailTarget) => void;
+};
+
+function LeaveSummarySection({
+  summary,
+  onOpenDetail,
+}: Readonly<LeaveSummarySectionProps>): ReactElement {
+  const remainingClass =
+    summary.annualLeave.remainingDays < 0
+      ? 'font-semibold text-red-700'
+      : undefined;
+
+  return (
+    <section className="min-w-0 flex-1 space-y-2 rounded border border-slate-200 bg-white p-3">
+      <h2 className="text-sm font-semibold text-slate-800">
+        {summary.year} 年假勤摘要（民國 {summary.year - 1911} 年）
+      </h2>
+      <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+        <button
+          type="button"
+          className="rounded bg-slate-50 px-2 py-1 text-left hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+          onClick={() => {
+            onOpenDetail({
+              displayName: '年假',
+              attendanceType: ANNUAL_LEAVE_TYPE,
+              year: summary.year,
+              employeeId: summary.employeeId,
+            });
+          }}
+        >
+          <span className="block text-slate-500">年假</span>
+          <span className="block font-medium">
+            額度 {summary.annualLeave.quotaDays}／已請{' '}
+            {summary.annualLeave.usedDays}／剩餘{' '}
+            <span className={remainingClass}>
+              {summary.annualLeave.remainingDays}
+            </span>
+          </span>
+        </button>
+        {summary.leaveTotals.map((item) => (
+          <button
+            key={item.leaveType}
+            type="button"
+            className="rounded bg-slate-50 px-2 py-1 text-left hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            onClick={() => {
+              onOpenDetail({
+                displayName: item.leaveType,
+                attendanceType: item.leaveType,
+                year: summary.year,
+                employeeId: summary.employeeId,
+              });
+            }}
+          >
+            <span className="block text-slate-500">{item.leaveType}</span>
+            <span className="block font-medium">{item.usedDays} 天</span>
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-slate-500">
+        僅統計已寫入伺服器的請假；未出現的假別顯示 0。點擊卡片可查看該假別明細。
+      </p>
+    </section>
+  );
+}
+
+type LeaveDetailModalProps = {
+  target: LeaveDetailTarget;
+  items: AttendanceDay[];
+  loading: boolean;
+  error: string;
+  onClose: () => void;
+};
+
+function LeaveDetailModal({
+  target,
+  items,
+  loading,
+  error,
+  onClose,
+}: Readonly<LeaveDetailModalProps>): ReactElement {
+  return (
+    <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/50">
+      <dialog
+        open
+        aria-labelledby="leave-detail-title"
+        className="m-0 mx-4 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border-0 bg-white p-0 shadow-lg"
+      >
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4">
+          <h3
+            id="leave-detail-title"
+            className="text-lg font-semibold text-slate-800"
+          >
+            {target.year} 年 · {target.displayName} 請假明細
+          </h3>
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center text-3xl leading-none text-slate-500 hover:text-slate-800"
+            aria-label="關閉"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
+        <div className="space-y-3 overflow-y-auto px-5 py-4">
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          <PaginatedDataTable
+            adapter="tailwind"
+            paginationMode="client"
+            defaultPageSize={10}
+            showPaginationWhenSinglePage
+            columns={DETAIL_COLUMNS}
+            data={items}
+            loading={loading}
+            getRowKey={(row, index) => `${row.belongDate}-${index}`}
+            emptyState="本年度無此假別紀錄"
+            indexColumnHeader="項次"
+            stripedEvenRows
+          />
+          <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+            <button
+              type="button"
+              className="rounded border border-slate-400 px-3 py-2 text-sm"
+              onClick={onClose}
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      </dialog>
+    </div>
+  );
+}
+
+function LeaveCalendarPage({
+  user,
+}: Readonly<LeaveCalendarPageProps>): ReactElement {
   const now = new Date();
   const isAdmin = user.role === 'admin';
   const [year, setYear] = useState(now.getFullYear());
@@ -96,7 +327,7 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
     } catch (err) {
       setDays([]);
       setSummary(null);
-      setError(err instanceof ApiError ? err.body.message : '載入行事曆失敗');
+      setError(apiErrorMessage(err, '載入行事曆失敗'));
     } finally {
       setLoading(false);
     }
@@ -132,25 +363,14 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
         await reload();
       }
     } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? `${err.body.message}（仍可於加班單手勾「加到平日加班」）`
-          : '同步失敗（仍可手勾補班）',
-      );
+      setError(syncGovCalendarErrorMessage(err));
     } finally {
       setSyncing(false);
     }
   };
 
   const notableDays = useMemo(
-    () =>
-      days.filter(
-        (d) =>
-          d.leaveType ||
-          d.dayType === 'holiday' ||
-          d.dayType === 'make_up' ||
-          Boolean(d.govName),
-      ),
+    () => days.filter(isNotableCalendarDay),
     [days],
   );
 
@@ -190,9 +410,7 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
       if (requestId !== detailRequestIdRef.current) {
         return;
       }
-      setDetailError(
-        err instanceof ApiError ? err.body.message : '載入請假明細失敗',
-      );
+      setDetailError(apiErrorMessage(err, '載入請假明細失敗'));
     } finally {
       if (requestId === detailRequestIdRef.current) {
         setDetailLoading(false);
@@ -200,74 +418,9 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
     }
   };
 
-  const calendarColumns = useMemo<DataTableColumn<LeaveCalendarDay>[]>(
-    () => [
-      {
-        key: 'date',
-        header: '日期',
-        cellClassName: 'font-mono',
-        accessor: (row) => row.date,
-      },
-      {
-        key: 'dayType',
-        header: '日類型',
-        accessor: (row) => DAY_TYPE_LABEL[row.dayType],
-      },
-      {
-        key: 'leaveType',
-        header: '假別',
-        accessor: (row) => row.leaveType ?? '—',
-      },
-      {
-        key: 'leaveQuantity',
-        header: '數量',
-        accessor: (row) =>
-          row.leaveQuantity != null ? String(row.leaveQuantity) : '—',
-      },
-      {
-        key: 'govName',
-        header: '備註／國定名稱',
-        accessor: (row) => row.govName ?? '—',
-      },
-    ],
-    [],
-  );
-
-  const detailColumns = useMemo<DataTableColumn<AttendanceDay>[]>(
-    () => [
-      {
-        key: 'belongDate',
-        header: '歸屬日期',
-        cellClassName: 'font-mono',
-        accessor: (row) => row.belongDate,
-      },
-      {
-        key: 'leaveQuantity',
-        header: '數量',
-        accessor: (row) => String(row.leaveQuantity),
-      },
-      {
-        key: 'clockIn',
-        header: '上班',
-        cellClassName: 'font-mono',
-        accessor: (row) => row.clockIn ?? '—',
-      },
-      {
-        key: 'clockOut',
-        header: '下班',
-        cellClassName: 'font-mono',
-        accessor: (row) => row.clockOut ?? '—',
-      },
-    ],
-    [],
-  );
-
-  const calendarEmptyState =
-    isAdmin && !EMPLOYEE_ID_PATTERN.test(employeeId)
-      ? error
-        ? '—'
-        : '請輸入員工編號後按查詢。'
-      : '本月尚無請假或國定／補班標示。若政府日曆未同步，Admin 可按上方同步；失敗時加班單仍可手勾「加到平日加班」。';
+  const openLeaveDetailFromSummary = (target: LeaveDetailTarget) => {
+    void openLeaveDetail(target);
+  };
 
   return (
     <div className="space-y-4">
@@ -296,31 +449,31 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
           </div>
 
           <div className="flex flex-wrap items-end gap-3">
-            <label className="text-sm">
-              年
+            <label className="flex items-center gap-1 text-sm">
+              <span>年</span>
               <input
                 type="number"
-                className="ml-1 w-24 rounded border px-2 py-1"
+                className="w-24 rounded border px-2 py-1"
                 value={year}
                 onChange={(e) => setYear(Number(e.target.value))}
               />
             </label>
-            <label className="text-sm">
-              月
+            <label className="flex items-center gap-1 text-sm">
+              <span>月</span>
               <input
                 type="number"
                 min={1}
                 max={12}
-                className="ml-1 w-16 rounded border px-2 py-1"
+                className="w-16 rounded border px-2 py-1"
                 value={month}
                 onChange={(e) => setMonth(Number(e.target.value))}
               />
             </label>
             {isAdmin ? (
-              <label className="text-sm">
-                員工編號
+              <label className="flex items-center gap-1 text-sm">
+                <span>員工編號</span>
                 <input
-                  className="ml-1 w-28 rounded border px-2 py-1"
+                  className="w-28 rounded border px-2 py-1"
                   value={employeeId}
                   maxLength={6}
                   onChange={(e) => setEmployeeId(e.target.value)}
@@ -335,64 +488,16 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
               查詢
             </button>
           </div>
+          <p className="text-lg text-slate-800">僅顯示國定假日／休假日／</p>
+          <p className="text-lg text-slate-800">
+            補班／個人請假列，出勤明細則不顯示。
+          </p>
         </div>
-
         {summary ? (
-          <section className="min-w-0 flex-1 space-y-2 rounded border border-slate-200 bg-white p-3">
-            <h2 className="text-sm font-semibold text-slate-800">
-              {summary.year} 年假勤摘要（民國 {summary.year - 1911} 年）
-            </h2>
-            <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-              <button
-                type="button"
-                className="rounded bg-slate-50 px-2 py-1 text-left hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
-                onClick={() => {
-                  void openLeaveDetail({
-                    displayName: '年假',
-                    attendanceType: ANNUAL_LEAVE_TYPE,
-                    year: summary.year,
-                    employeeId: summary.employeeId,
-                  });
-                }}
-              >
-                <span className="block text-slate-500">年假</span>
-                <span className="block font-medium">
-                  額度 {summary.annualLeave.quotaDays}／已請{' '}
-                  {summary.annualLeave.usedDays}／剩餘{' '}
-                  <span
-                    className={
-                      summary.annualLeave.remainingDays < 0
-                        ? 'font-semibold text-red-700'
-                        : undefined
-                    }
-                  >
-                    {summary.annualLeave.remainingDays}
-                  </span>
-                </span>
-              </button>
-              {summary.leaveTotals.map((item) => (
-                <button
-                  key={item.leaveType}
-                  type="button"
-                  className="rounded bg-slate-50 px-2 py-1 text-left hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
-                  onClick={() => {
-                    void openLeaveDetail({
-                      displayName: item.leaveType,
-                      attendanceType: item.leaveType,
-                      year: summary.year,
-                      employeeId: summary.employeeId,
-                    });
-                  }}
-                >
-                  <span className="block text-slate-500">{item.leaveType}</span>
-                  <span className="block font-medium">{item.usedDays} 天</span>
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-slate-500">
-              僅統計已寫入伺服器的請假；未出現的假別顯示 0。點擊卡片可查看該假別明細。
-            </p>
-          </section>
+          <LeaveSummarySection
+            summary={summary}
+            onOpenDetail={openLeaveDetailFromSummary}
+          />
         ) : null}
       </div>
 
@@ -406,69 +511,24 @@ function LeaveCalendarPage({ user }: LeaveCalendarPageProps): ReactElement {
           paginationMode="client"
           defaultPageSize={15}
           showPaginationWhenSinglePage
-          columns={calendarColumns}
+          columns={CALENDAR_COLUMNS}
           data={notableDays}
           loading={loading}
           getRowKey={(row) => row.date}
-          emptyState={calendarEmptyState}
+          emptyState={calendarEmptyStateText(isAdmin, employeeId, error)}
           indexColumnHeader="項次"
           stripedEvenRows
         />
       </div>
 
       {detailTarget ? (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="leave-detail-title"
-            className="mx-4 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-lg"
-          >
-            <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4">
-              <h3
-                id="leave-detail-title"
-                className="text-lg font-semibold text-slate-800"
-              >
-                {detailTarget.year} 年 · {detailTarget.displayName} 請假明細
-              </h3>
-              <button
-                type="button"
-                className="flex h-8 w-8 items-center justify-center text-3xl leading-none text-slate-500 hover:text-slate-800"
-                aria-label="關閉"
-                onClick={closeLeaveDetail}
-              >
-                ×
-              </button>
-            </div>
-            <div className="space-y-3 overflow-y-auto px-5 py-4">
-              {detailError ? (
-                <p className="text-sm text-red-600">{detailError}</p>
-              ) : null}
-              <PaginatedDataTable
-                adapter="tailwind"
-                paginationMode="client"
-                defaultPageSize={10}
-                showPaginationWhenSinglePage
-                columns={detailColumns}
-                data={detailItems}
-                loading={detailLoading}
-                getRowKey={(row, index) => `${row.belongDate}-${index}`}
-                emptyState="本年度無此假別紀錄"
-                indexColumnHeader="項次"
-                stripedEvenRows
-              />
-              <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">
-                <button
-                  type="button"
-                  className="rounded border border-slate-400 px-3 py-2 text-sm"
-                  onClick={closeLeaveDetail}
-                >
-                  取消
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <LeaveDetailModal
+          target={detailTarget}
+          items={detailItems}
+          loading={detailLoading}
+          error={detailError}
+          onClose={closeLeaveDetail}
+        />
       ) : null}
     </div>
   );
