@@ -299,7 +299,7 @@
 | 政府日曆 CSV 本機上傳備援 | 未做；僅 HTTP 拉取 14718＋手勾補班 |
 | `users.pin_hash` 欄位移除 | 相容期保留佔位雜湊；登入已不使用 |
 
-持久化：**SQLite**（本機 `data/attendance.db`；ds1／正式掛卷 `/data`），對齊教育訓練；本機開發不需 Docker。
+持久化：**SQLite**（本機 `data/attendance.db`；ds1／正式掛卷主機 `${DATA_ROOT}/attendance/` → 容器 `/data`，對齊教育訓練 `${DATA_ROOT}/training/`）；本機開發不需 Docker。ds1 併入企業入口 `deploy/` 之步驟見 `plan-ds1-deploy-line-b.md`。
 
 ---
 

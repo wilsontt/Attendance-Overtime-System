@@ -12,9 +12,12 @@ RUN npx prisma generate && npm run build
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/package.json ./
-COPY --from=build /app/prisma ./prisma
+# 官方 node 映像內建 node 使用者（非 root）；掛卷 /data 須對該 UID 可寫（常見為 1000）
+COPY --chown=node:node --from=build /app/dist ./dist
+COPY --chown=node:node --from=build /app/node_modules ./node_modules
+COPY --chown=node:node --from=build /app/package.json ./
+COPY --chown=node:node --from=build /app/prisma ./prisma
+USER node
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx prisma/seed.ts && node dist/server.js"]
+# seed 用編譯後的 dist（勿 tsx 跑 prisma/seed.ts：正式映像無 /app/src）
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js && node dist/src/server.js"]

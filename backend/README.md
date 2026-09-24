@@ -25,6 +25,7 @@
 ```bash
 # 於 1.出勤加班單系統/
 # 預設掛 ./data → 容器 /data；ds1 設 ATTENDANCE_DATA=${DATA_ROOT}/attendance
+# DATA_ROOT 預設 /opt/apps/enterprise-portal/data → 主機 …/data/attendance/attendance.db
 docker compose up -d --build api
 
 # 含前端 Nginx 反代（需在企業入口網站根目錄，且有 0.shared-ui）
@@ -33,6 +34,11 @@ docker compose -f 1.出勤加班單系統/docker-compose.yml --profile full up -
 ```
 
 容器環境：`DATABASE_URL=file:/data/attendance.db`。
+
+**容器啟動**：以非 root 的 `node` 使用者執行；`migrate deploy` → **`node dist/prisma/seed.js`** → **`node dist/src/server.js`**。掛卷 `/data` 須對該 UID（官方映像多為 1000）可寫。本機開發仍用 `npm run prisma:seed`（`tsx prisma/seed.ts`）。
+
+**企業入口 `deploy/`（ds1）**：**D2 已完成**（`attendance-api`＋Nginx `/attendance/api/`）。上機步驟（建 `${DATA_ROOT}/attendance`、快照 DB、build／up）見  
+`specs/002-attendance-account-shift-leave/plan-ds1-deploy-line-b.md`。
 
 ## 指令
 

@@ -52,6 +52,12 @@
 - [x] Docker Compose（api＋SQLite 掛卷；`--profile full` 含 web＋`/attendance/api/` 反代）；本機開發零 Docker
 - [x] README／CLAUDE／backend README 補線 B 依賴與契約路徑
 
+## B-LINE 本機結案與 ds1 部署（2026-09-23）
+
+- [x] 本機實作與測試確認完成（見 STATUS）
+- [x] ds1 部署 D2：`deploy/` 新增 `attendance-api`、Nginx `/attendance/api/`（見 [plan-ds1-deploy-line-b.md](./plan-ds1-deploy-line-b.md)）
+- [ ] ds1 上機 D1／D3～D5（建目錄、快照 DB、build／up、煙測）
+
 ## B6 Admin UI＋圖形驗證碼（下一步｜2026-09-20 規格已定）
 
 對齊教育訓練：登入用**圖形驗證碼**，不發放入庫 PIN。

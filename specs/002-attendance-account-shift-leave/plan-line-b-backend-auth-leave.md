@@ -212,10 +212,12 @@ data/attendance.db              # 本機 SQLite（gitignore；僅 .gitkeep 進�
 
 ## 部署與遷移
 
-1. 新增 `backend/Dockerfile`、根目錄 `docker-compose.yml`（api + SQLite 掛卷；本機開發零 Docker）。
-2. 調整企業入口 `deploy/` 與 Nginx：`/attendance/api/` → api:3000；ds1 掛 `${DATA_ROOT}/attendance:/data`。
-3. 首次啟動：`prisma migrate deploy` + `seed`（Admin、兩班）→ `data/attendance.db`。
-4. README／`frontend/README.md`／`CLAUDE.md` 補「線 B 需 API＋SQLite」說明。
+1. 子專案：`backend/Dockerfile`、根目錄 `docker-compose.yml`（api + SQLite 掛卷；本機開發零 Docker）— **已有**。
+2. 企業入口 `deploy/` 與 Nginx：
+   - **D2 已完成**：`attendance-api` 服務；`/attendance/api/` 反代；掛 `${DATA_ROOT}/attendance:/data`。
+   - **ds1 上機**：見 [plan-ds1-deploy-line-b.md](./plan-ds1-deploy-line-b.md)（策略 B 快照；`ATTENDANCE_COOKIE_SECURE=false`）。
+3. 首次啟動：映像 CMD 含 `migrate deploy`＋`seed`（**seed update 會覆寫 Admin password_hash**）→ 注意與快照密碼對齊。
+4. README／`backend/README.md`／`CLAUDE.md` 補「線 B 需 API＋SQLite」說明 — 本機段已齊；ds1 細節以部署計畫為準。
 
 ## 風險與緩解
 
@@ -258,4 +260,6 @@ data/attendance.db              # 本機 SQLite（gitignore；僅 .gitkeep 進�
 - [ ] 停用班規則；歷史依派班起迄重算。
 - [ ] 政府日曆自 data.gov.tw/14718 自動＋手動同步標國定／補班；失敗可手勾。
 - [ ] 工作地點共用詞庫，跨登入仍在。
-- [ ] 部署：Compose 起 api（＋可選 web）；SQLite 掛卷；本機開發零 Docker。
+- [ ] 部署：Compose 起 api（＋可選 web）；SQLite 掛卷；本機開發零 Docker。  
+  - 本機／子專案 compose：**已具備**。  
+  - 企業入口 ds1 併入：`plan-ds1-deploy-line-b.md`（待核准執行）。

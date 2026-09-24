@@ -2,8 +2,8 @@
 
 **Spec ID**: `002-attendance-account-shift-leave`（規格目錄名；**不是** git 分支）
 **線 A Git**: 已合入 `main`（含日期欄段別 `d54f706`）
-**線 B Git**: `feature/002-line-b-backend-auth-leave`
-**Last Updated**: 2026-09-21
+**線 B Git**: 已合入 `main`（本機實作與測試完成；ds1 部署見下方）
+**Last Updated**: 2026-09-24
 
 ## 階段進度
 
@@ -22,7 +22,7 @@
   - [x] B0-2 `data-model.md`
   - [x] B0-3 `research.md`
 - [x] **Tasks 拆解**: 完成 (`tasks-line-b.md`)
-- [ ] **實作**: 進行中
+- [x] **實作**: 完成（B1～B7 及後續 UX；本機開發環境驗證通過）
   - [x] B1 Auth + 員工主檔（backend API；**員工 UI／圖形驗證碼 → B6**）
   - [x] B2 班表 + 派班 + computation-context
   - [x] B3 匯入 + 年假回沖（本機公開上傳維持；伺服器正式匯入需登入）
@@ -34,9 +34,17 @@
   - [x] **Admin／行事曆 UX**：列表排除 Admin、不可對 Admin 派班、員工編輯鎖定 Modal、行事曆不預設 000000、年假卡片置頂
   - [x] **B7** 假勤摘要（PRD §5.5.1：年假餘額＋各假別已請含 0；行事曆同入口）
   - [x] **B7 延伸**：假勤摘要 8 卡片點開該假別曆年明細（鎖定 Modal；沿用 `listAttendance`；年假＝請年休假；僅 `leaveQuantity>0`）
-- [ ] **測試與驗證**: 部分（B1～B7 單元／建置；瀏覽器端對端待確認）
+  - [x] **UX／品質後續（2026-09-22）**：行事曆左右版面、日期「星期X」、未登入上傳不強制登入、lint／複雜度整理
+- [x] **測試與驗證（本機）**: 完成（單元／建置／本機瀏覽器流程；負責人確認 B-LINE 本機無問題）
+- [ ] **ds1／測試環境部署**: D2（compose／nginx）已完成；D1／D3～D5 上機待維運（[plan-ds1-deploy-line-b.md](./plan-ds1-deploy-line-b.md)；操作清單 [checklist-ds1-deploy-line-b.md](./checklist-ds1-deploy-line-b.md)；策略 B 快照；`COOKIE_SECURE=false`）
 
 ## 最近更新
+- 2026-09-24: **前端 Nginx 非 root**：`Dockerfile`／`Dockerfile.compose` 改 `USER nginx`、聽 **8080**（`<1024` 需 root）。ds1 入口 `upstream attendance` 須為 `attendance:8080`。
+- 2026-09-24: **Docker 入口路徑**：`start`／Dockerfile CMD 改 `node dist/src/server.js`（`tsc` 產出在 `dist/src/`，非 `dist/server.js`）。
+- 2026-09-24: **Docker seed 改方案 B**：`attendance-api` 啟動改跑 `node dist/prisma/seed.js`（不再 `tsx prisma/seed.ts`），避免正式映像無 `/app/src` 導致 `password.js` 找不到、容器 Restarting。本機仍 `npm run prisma:seed`。
+- 2026-09-24: **ds1 上機檢查清單**：新增 [checklist-ds1-deploy-line-b.md](./checklist-ds1-deploy-line-b.md)（D1→D3→D4→D5 可勾選指令、煙測、回滾）；計畫頂部已加連結。**尚未 ds1 上機。**
+- 2026-09-23: **ds1 部署 D2**：`deploy/` 新增 `attendance-api`、Nginx `/attendance/api/`、`.env.example`／`update.sh`。對齊決議：DB 策略 B、HTTPS 暫緩、seed 密碼須與快照對齊（容器啟動會 seed update）。**尚未 ds1 上機。**
+- 2026-09-23: **線 B 本機結案**：實作與本機測試確認完成。ds1 部署另立計畫 `plan-ds1-deploy-line-b.md`（現況：`deploy/` 僅有靜態 `attendance`，缺 API 服務、Nginx `/attendance/api/`、主機 `${DATA_ROOT}/attendance/`）。**尚未執行 ds1 變更。**
 - 2026-09-22: **未登入上傳不強制登入**：勾選「同時寫入伺服器」時先本機載入加班明細，暫存檔待員工自行登入後再寫入；提示「本機已載入；請登入後將自動寫入伺服器。」改大紅字。PRD §5.6.1／PLAN／tasks 已對齊。
 - 2026-09-22: **請假行事曆日期顯示星期**：月表日期與假別明細 Modal 歸屬日期改為 `YYYY/MM/DD 星期X`（`formatDateWithFullWeekday`）。PRD §7.8 已註記。
 - 2026-09-21: **請假行事曆版面**：假勤摘要 8 卡片移至大標題＋年／月查詢右側，左右並排（`lg` 以上；窄螢幕上下堆疊）。PRD §7.8 已註記。

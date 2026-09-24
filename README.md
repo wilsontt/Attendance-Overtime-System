@@ -102,11 +102,12 @@
 - 建置指令範例（在 `deploy/`）：`docker compose build --no-cache attendance`。
 - 若 `npm ci` 出現 `Exit handler never called` 或不明失敗，先確認 `package-lock.json` 有進 context；同一 Dockerfile 昨日能建、今日不能時，優先**重啟 Docker daemon 再 build**，不一定是 Dockerfile 錯誤。
 
-### 線 B 後端（B0～B5）
+### 線 B 後端（B0～B7）
 
 - 契約：`specs/002-attendance-account-shift-leave/contracts/openapi.yaml`
 - 規格目錄：`specs/002-attendance-account-shift-leave/`（PRD §5.3.1：**加班單主流程公開**；行事曆／Admin／寫入伺服器／詞庫需登入）
-- 後端目錄：`backend/`（Fastify + Prisma + PostgreSQL）
+- 後端目錄：`backend/`（Fastify + Prisma + **SQLite**）
+- 狀態：本機實作與測試已完成；**ds1 部署計畫**見 `specs/002-attendance-account-shift-leave/plan-ds1-deploy-line-b.md`（待對齊後執行）
 
 **本機開發（不需 Docker）**
 
@@ -114,7 +115,10 @@
 2. `npm run prisma:migrate && npm run prisma:seed && npm run dev`（`:3000`）
 3. `frontend/`：`npm run dev`（Vite；proxy `/attendance/api` → `http://localhost:3000/api`）
 
-**部署（ds1／正式）**：`docker compose build`／`--build`；API 掛 SQLite 目錄（`ATTENDANCE_DATA` 或 `./data` → 容器 `/data`）。詳見 `backend/README.md`。
+**部署（ds1／正式）**
+
+- 資料目錄（對齊教育訓練）：主機 `${DATA_ROOT}/attendance/attendance.db`（預設 `DATA_ROOT=/opt/apps/enterprise-portal/data`）→ 容器 `/data/attendance.db`
+- 企業入口現況僅靜態前端；需依部署計畫新增 API 服務與 Nginx `/attendance/api/`。詳見 `backend/README.md` 與 `plan-ds1-deploy-line-b.md`。
 
 - 未登入仍可上傳 TXT／CSV 並以檔內員工編號＋本機班表／手選計算；上傳可勾選「同時寫入伺服器」（預設勾選）；行事曆（含假勤摘要；摘要卡片可點開該假別曆年明細）、補單匯入、工作地點詞庫需 session
 - Admin 員工列表顯示當前年假額度；員工／班表／派班列表使用 `@shared-ui/data-table` 的 `PaginatedDataTable`；派班列含員工姓名；員工／派班列表不含 Admin，且不可對 Admin 派班；行事曆 Admin 不預設查 000000

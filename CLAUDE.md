@@ -28,6 +28,8 @@ npm test
 契約：`specs/002-attendance-account-shift-leave/contracts/openapi.yaml`。
 線 B：B1～B5（Auth、班表、匯入、行事曆、詞庫）；加班單主流程公開，身分功能 lazy auth。
 `docker compose build`／`--profile full` 僅供 **ds1／正式部署**（SQLite 掛卷 `/data`），非日常開發流程。
+企業入口 `deploy/` 現況僅靜態前端；線 B API＋`${DATA_ROOT}/attendance` 併入步驟見
+`specs/002-attendance-account-shift-leave/plan-ds1-deploy-line-b.md`。
 
 ## 專案概述
 
