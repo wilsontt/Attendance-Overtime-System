@@ -3,7 +3,7 @@
 **Spec ID**: `002-attendance-account-shift-leave`（規格目錄名；**不是** git 分支）
 **線 A Git**: 已合入 `main`（含日期欄段別 `d54f706`）
 **線 B Git**: 已合入 `main`（本機實作與測試完成；ds1 部署見下方）
-**Last Updated**: 2026-09-24
+**Last Updated**: 2026-09-26
 
 ## 階段進度
 
@@ -39,6 +39,12 @@
 - [ ] **ds1／測試環境部署**: D2（compose／nginx）已完成；D1／D3～D5 上機待維運（[plan-ds1-deploy-line-b.md](./plan-ds1-deploy-line-b.md)；操作清單 [checklist-ds1-deploy-line-b.md](./checklist-ds1-deploy-line-b.md)；策略 B 快照；`COOKIE_SECURE=false`）
 
 ## 最近更新
+- 2026-09-26: **請假列 highlight 對齊卡片色**：月表有請假列改依假別使用與摘要 8 卡片同色系（請年休假＝emerald 等；不再一律 amber）。
+- 2026-09-26: **假勤摘要 8 卡片分色**（年假＋§7.6 各假別固定 Tailwind 底色／邊框／hover；缺 key fallback）。
+- 2026-09-26: **請假列 highlight**：行事曆月表有請假的列整列 `!bg-amber-100`（`rowClassName`；壓過 striped）。
+- 2026-09-26: **年假額度／已請／剩餘分色**（行事曆年假卡片內文：藍／琥珀／綠；剩餘負數仍紅）。
+- 2026-09-26: **入口 Nginx stale upstream DNS**：`deploy/nginx/nginx.conf` 改 `resolver 127.0.0.11`＋變數 `proxy_pass`（含 attendance／training／aetim／finereport）；修復 recreate attendance 後 `/attendance/` 502。前端 Dockerfile pid → `/tmp/nginx.pid`。
+- 2026-09-26: **入口 Nginx conf 修正**（`deploy/nginx/nginx.conf`）：`proxy_pass http://attendance-api/api/`（勿再加 `:3000`）；`upstream attendance` → `attendance:8080`。修復入口容器 Restarting／整站連線拒絕。
 - 2026-09-24: **前端 Nginx 非 root**：`Dockerfile`／`Dockerfile.compose` 改 `USER nginx`、聽 **8080**（`<1024` 需 root）。ds1 入口 `upstream attendance` 須為 `attendance:8080`。
 - 2026-09-24: **Docker 入口路徑**：`start`／Dockerfile CMD 改 `node dist/src/server.js`（`tsc` 產出在 `dist/src/`，非 `dist/server.js`）。
 - 2026-09-24: **Docker seed 改方案 B**：`attendance-api` 啟動改跑 `node dist/prisma/seed.js`（不再 `tsx prisma/seed.ts`），避免正式映像無 `/app/src` 導致 `password.js` 找不到、容器 Restarting。本機仍 `npm run prisma:seed`。

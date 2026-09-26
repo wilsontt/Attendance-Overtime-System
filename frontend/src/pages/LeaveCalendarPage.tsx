@@ -53,6 +53,59 @@ const DAY_TYPE_LABEL: Record<LeaveCalendarDay['dayType'], string> = {
 const EMPLOYEE_ID_PATTERN = /^\d{6}$/;
 const ANNUAL_LEAVE_TYPE = '請年休假';
 
+/** 假勤摘要卡片底色／邊框／hover（年假顯示名 + §7.6 leaveType）；缺 key 用 fallback。 */
+const LEAVE_SUMMARY_CARD_COLORS: Record<string, string> = {
+  年假: 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100',
+  病假: 'border-rose-200 bg-rose-50 hover:bg-rose-100',
+  婚假: 'border-pink-200 bg-pink-50 hover:bg-pink-100',
+  產假: 'border-violet-200 bg-violet-50 hover:bg-violet-100',
+  育嬰假: 'border-sky-200 bg-sky-50 hover:bg-sky-100',
+  事假: 'border-amber-200 bg-amber-50 hover:bg-amber-100',
+  公假: 'border-cyan-200 bg-cyan-50 hover:bg-cyan-100',
+  喪假: 'border-stone-300 bg-stone-100 hover:bg-stone-200',
+};
+
+/** 月表請假列 highlight（與上方卡片同色系；! 壓過 striped）。台帳年假＝請年休假。 */
+const LEAVE_ROW_HIGHLIGHT_COLORS: Record<string, string> = {
+  年假: '!bg-emerald-100',
+  請年休假: '!bg-emerald-100',
+  病假: '!bg-rose-100',
+  婚假: '!bg-pink-100',
+  產假: '!bg-violet-100',
+  育嬰假: '!bg-sky-100',
+  事假: '!bg-amber-100',
+  公假: '!bg-cyan-100',
+  喪假: '!bg-stone-200',
+};
+
+const LEAVE_ROW_HIGHLIGHT_FALLBACK = '!bg-slate-100';
+
+const LEAVE_SUMMARY_CARD_FALLBACK =
+  'border-slate-200 bg-slate-50 hover:bg-slate-100';
+
+const LEAVE_SUMMARY_CARD_BASE =
+  'rounded border px-2 py-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600';
+
+function leaveSummaryCardClassName(key: string): string {
+  return `${LEAVE_SUMMARY_CARD_BASE} ${LEAVE_SUMMARY_CARD_COLORS[key] ?? LEAVE_SUMMARY_CARD_FALLBACK}`;
+}
+
+/** 該列有請假：假別有值，或請假數量 > 0。 */
+function hasLeaveOnDay(day: LeaveCalendarDay): boolean {
+  return Boolean(day.leaveType) || (day.leaveQuantity ?? 0) > 0;
+}
+
+/** 依假別回傳月表列底色；與摘要卡片同色系。 */
+function leaveRowHighlightClassName(
+  day: LeaveCalendarDay,
+): string | undefined {
+  if (!hasLeaveOnDay(day)) {
+    return undefined;
+  }
+  const key = day.leaveType ?? '';
+  return LEAVE_ROW_HIGHLIGHT_COLORS[key] ?? LEAVE_ROW_HIGHLIGHT_FALLBACK;
+}
+
 const CALENDAR_EMPTY_DEFAULT =
   '本月尚無請假或國定／補班標示。若政府日曆未同步，Admin 可按上方同步；失敗時加班單仍可手勾「加到平日加班」。';
 
@@ -158,7 +211,7 @@ function LeaveSummarySection({
   const remainingClass =
     summary.annualLeave.remainingDays < 0
       ? 'font-semibold text-red-700'
-      : undefined;
+      : 'text-emerald-700';
 
   return (
     <section className="min-w-0 flex-1 space-y-2 rounded border border-slate-200 bg-white p-3">
@@ -168,7 +221,7 @@ function LeaveSummarySection({
       <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
         <button
           type="button"
-          className="rounded bg-slate-50 px-2 py-1 text-left hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+          className={leaveSummaryCardClassName('年假')}
           onClick={() => {
             onOpenDetail({
               displayName: '年假',
@@ -180,10 +233,16 @@ function LeaveSummarySection({
         >
           <span className="block text-slate-500">年假</span>
           <span className="block font-medium">
-            額度 {summary.annualLeave.quotaDays}／已請{' '}
-            {summary.annualLeave.usedDays}／剩餘{' '}
+            <span className="text-blue-700">
+              額度 {summary.annualLeave.quotaDays}
+            </span>
+            {'／'}
+            <span className="text-amber-700">
+              已請 {summary.annualLeave.usedDays}
+            </span>
+            {'／'}
             <span className={remainingClass}>
-              {summary.annualLeave.remainingDays}
+              剩餘 {summary.annualLeave.remainingDays}
             </span>
           </span>
         </button>
@@ -191,7 +250,7 @@ function LeaveSummarySection({
           <button
             key={item.leaveType}
             type="button"
-            className="rounded bg-slate-50 px-2 py-1 text-left hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className={leaveSummaryCardClassName(item.leaveType)}
             onClick={() => {
               onOpenDetail({
                 displayName: item.leaveType,
@@ -518,6 +577,8 @@ function LeaveCalendarPage({
           emptyState={calendarEmptyStateText(isAdmin, employeeId, error)}
           indexColumnHeader="項次"
           stripedEvenRows
+          // 請假列底色與上方摘要卡片同色系；! 壓過 striped
+          rowClassName={(row) => leaveRowHighlightClassName(row)}
         />
       </div>
 

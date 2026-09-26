@@ -29,8 +29,7 @@ COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 COPY 1.出勤加班單系統/nginx/default.conf /etc/nginx/conf.d/default.conf
 RUN chown -R nginx:nginx /usr/share/nginx/html \
   && chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx/conf.d \
-  && touch /var/run/nginx.pid \
-  && chown nginx:nginx /var/run/nginx.pid \
+  && sed -i 's|^pid .*|pid /tmp/nginx.pid;|' /etc/nginx/nginx.conf \
   && sed -i '/^user /d' /etc/nginx/nginx.conf
 
 USER nginx

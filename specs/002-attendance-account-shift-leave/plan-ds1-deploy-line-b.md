@@ -144,6 +144,7 @@
 | 啟動 seed 覆寫快照 Admin 密碼 | `.env` 密碼與快照對齊，或接受新密碼並更新密碼庫 |
 | 正式映像 seed 缺 `src/` | CMD 使用 `node dist/prisma/seed.js`（方案 B；勿 `tsx prisma/seed.ts`） |
 | `/attendance/` 吃掉 api | 已用更長前綴 `/attendance/api/` |
+| `proxy_pass` 重複寫埠 | 有 `upstream attendance-api` 時用 `http://attendance-api/api/`，勿再加 `:3000` |
 | Cookie Secure | 現階段 false；HTTPS 階段再 true |
 | 僅更新前端 | D4 強制 api＋nginx |
 

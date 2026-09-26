@@ -125,7 +125,10 @@ docker compose build attendance-api attendance
 
 **期望**：build 成功，無錯誤結束。
 
-> **埠口**：前端 `attendance` 容器改非 root、聽 **8080**。入口 `deploy/nginx/nginx.conf` 的 `upstream attendance` 須為 `server attendance:8080;`（舊 `：80` 會 502）。
+> **埠口**：前端 `attendance` 容器改非 root、聽 **8080**。入口須反代至 `attendance:8080`（舊 `:80` 會 502）。現改變數型 `set $attendance http://attendance:8080;`（見 DNS 說明）。
+>
+> **API proxy_pass**：`set $attendance_api http://attendance-api:3000;`＋`rewrite` 至 `/api/…`。  
+> **禁止**寫成 `proxy_pass http://attendance-api:3000/...` 同時又宣告同名 `upstream`（nginx `[emerg] upstream "attendance-api" may not have port 3000` → 入口容器 Restarting → 整站連線拒絕）。
 
 - [ ] 再次確認 DB 就位（禁止未備份覆寫）
 
@@ -159,6 +162,10 @@ docker compose up -d --build --force-recreate nginx
 docker compose up -d --build attendance
 ```
 
+> **Upstream DNS（502 常見原因）**：固定 `upstream { server attendance:8080; }` 只在入口 nginx **啟動時**解析一次。若先啟動 nginx、之後才 `force-recreate` attendance，入口仍連舊 IP → `curl /attendance/` **502**，但容器內 `wget http://attendance:8080/` 仍 200、`/attendance/api/health` 也可能正常。  
+> **耐久修復**（已合入 `deploy/nginx/nginx.conf`）：`resolver 127.0.0.11 valid=10s;`＋變數型 `proxy_pass`（`rewrite` 剝前綴）。套用後 recreate attendance **不必**再 recreate nginx。  
+> **舊 conf 暫解**：`docker compose up -d --force-recreate nginx`（或 `nginx -s reload` 無效於已快取的 upstream IP，須 recreate）。
+
 **方式 B（update.sh）**
 
 - [ ] 亦可依序：
@@ -172,13 +179,14 @@ docker compose up -d --build attendance
 
 **健康檢查**
 
-- [ ] 靜態前端
+- [ ] 靜態前端（**必須**驗證；502＝upstream DNS／埠口問題）
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost/attendance/
+# 或對外：curl -s -o /dev/null -w "%{http_code}\n" http://10.211.55.11/attendance/
 ```
 
-**期望**：`200`
+**期望**：`200`（不是 502）
 
 - [ ] API health
 
@@ -285,4 +293,5 @@ docker compose start attendance-api
 
 | 版本 | 日期 | 說明 |
 |------|------|------|
+| v1.1.0 | 2026-09-26 | 補：attendance recreate 後入口 502（stale upstream DNS）；resolver 修復與驗證 curl `/attendance/`→200 |
 | v1.0.0 | 2026-09-24 | 初稿：對齊 plan-ds1-deploy-line-b D1～D5 可勾選操作 |
