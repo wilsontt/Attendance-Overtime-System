@@ -62,7 +62,7 @@
 ## 🚀 快速開始
 
 ### 前置需求
-- [Node.js](https://nodejs.org/) (建議 v18 以上)
+- [Node.js](https://nodejs.org/) (建議 Node.js >= 22.23.4（本機可用 nvm 鎖定 24.22.1；見根目錄 .nvmrc）)
 - npm 或 yarn
 
 ### 安裝步驟
@@ -96,7 +96,7 @@
 
 ### Docker 部署
 
-映像由企業入口網站根目錄當 build context，使用本子專案 `Dockerfile`（Node 22 Alpine → Nginx Alpine，靜態檔掛在 `/attendance/`）。
+映像由企業入口網站根目錄當 build context，使用本子專案 `Dockerfile`（Node 22.23.4 Alpine → Nginx Alpine，靜態檔掛在 `/attendance/`）。
 
 - `COPY 0.shared-ui /app/frontend/0.shared-ui`，與 Vite／TypeScript 的 `@shared-ui` 候選路徑（含 `frontend/0.shared-ui`）對齊，否則 `tsc` 會找不到模組。
 - 建置指令範例（在 `deploy/`）：`docker compose build --no-cache attendance`。

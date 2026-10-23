@@ -2,7 +2,7 @@
 # Vite 7 需 Node ^20.19 或 >=22.12（見 frontend/package.json）
 # 建置 context＝企業入口網站根目錄
 
-FROM node:22-alpine AS builder
+FROM node:22.23.4-alpine AS builder
 
 # 設定 npm 參數
 ENV NPM_CONFIG_UPDATE_NOTIFIER=false \
