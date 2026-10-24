@@ -2,7 +2,7 @@
 # 開發請用 frontend/ npm run dev，不要建此映像
 # docker compose --profile full build web
 
-FROM node:22.23.4-alpine AS builder
+FROM node:24.22.1-alpine AS builder
 
 ENV NPM_CONFIG_UPDATE_NOTIFIER=false \
   NPM_CONFIG_FUND=false \
