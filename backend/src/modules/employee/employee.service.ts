@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { AppError } from '../../lib/errors.js';
 import { writeAudit } from '../../lib/audit.js';
 import { hashSecret } from '../../lib/password.js';
+import { validatePasswordStrength } from '../../lib/passwordPolicy.js';
 import { prisma } from '../../lib/prisma.js';
 import type { AuthUser } from '../auth/auth.service.js';
 
@@ -230,8 +231,12 @@ export async function updateEmployee(
         '受保護的 Admin 不可由他人變更密碼',
       );
     }
-    if (typeof body.password !== 'string' || body.password.length < 8) {
-      throw new AppError(400, 'VALIDATION_ERROR', '密碼至少 8 字元');
+    if (typeof body.password !== 'string') {
+      throw new AppError(400, 'VALIDATION_ERROR', '密碼格式錯誤');
+    }
+    const violations = validatePasswordStrength(body.password);
+    if (violations.length > 0) {
+      throw new AppError(400, 'VALIDATION_ERROR', violations.join('；'));
     }
     data.passwordHash = await hashSecret(body.password);
   }

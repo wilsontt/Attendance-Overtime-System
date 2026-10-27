@@ -1,35 +1,44 @@
 import { PrismaClient } from '@prisma/client';
 import { hashSecret } from '../src/lib/password.js';
 import { ADMIN_EMPLOYEE_ID } from '../src/config.js';
+import { resolveAdminSeedCredentials } from '../src/lib/adminSeedCredentials.js';
 
 const prisma = new PrismaClient();
 
-async function main(): Promise<void> {
-  const adminPassword = process.env.ADMIN_SEED_PASSWORD ?? 'ChangeMeAdmin!';
-  const adminPin = process.env.ADMIN_SEED_PIN ?? '0000';
-
-  const pinHash = await hashSecret(adminPin);
-  const passwordHash = await hashSecret(adminPassword);
-
-  await prisma.user.upsert({
+/**
+ * 確保 Admin 存在。
+ * - 不存在：以 ADMIN_SEED_PASSWORD 建立（必填、須符合強度規則、無預設值）。
+ * - 已存在：只維持保護屬性，絕不覆寫 passwordHash / pinHash（改密碼請用 reset-admin-password）。
+ */
+async function ensureAdmin(): Promise<void> {
+  const existing = await prisma.user.findUnique({
     where: { employeeId: ADMIN_EMPLOYEE_ID },
-    create: {
-      employeeId: ADMIN_EMPLOYEE_ID,
-      name: '系統管理員',
-      role: 'admin',
-      pinHash,
-      passwordHash,
-      isActive: true,
-      isProtected: true,
-    },
-    update: {
-      pinHash,
-      passwordHash,
-      isProtected: true,
-      isActive: true,
-      role: 'admin',
-    },
   });
+
+  if (!existing) {
+    const { password, pin } = resolveAdminSeedCredentials(process.env);
+    await prisma.user.create({
+      data: {
+        employeeId: ADMIN_EMPLOYEE_ID,
+        name: '系統管理員',
+        role: 'admin',
+        pinHash: await hashSecret(pin),
+        passwordHash: await hashSecret(password),
+        isActive: true,
+        isProtected: true,
+      },
+    });
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: existing.id },
+    data: { isProtected: true, isActive: true, role: 'admin' },
+  });
+}
+
+async function main(): Promise<void> {
+  await ensureAdmin();
 
   await prisma.shift.upsert({
     where: { name: '公司班' },

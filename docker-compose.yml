@@ -8,10 +8,12 @@ services:
       # 容器內掛卷路徑（對齊教育訓練：/data/*.db）
       DATABASE_URL: file:/data/attendance.db
       PORT: '3000'
-      # 正式 HTTPS 請改 COOKIE_SECURE=true，並覆寫 ADMIN_SEED_PASSWORD
+      # 正式 HTTPS 請改 COOKIE_SECURE=true
       COOKIE_SECURE: 'false'
-      ADMIN_SEED_PASSWORD: ${ADMIN_SEED_PASSWORD:-ChangeMeAdmin!}
-      ADMIN_SEED_PIN: ${ADMIN_SEED_PIN:-0000}
+      # 僅「首次建立 Admin」時一次性提供 ADMIN_SEED_PASSWORD（≥12 碼，含大小寫、數字、符號）；
+      # 建立後請從 .env 移除。之後改密碼：docker compose exec -it api node dist/prisma/reset-admin-password.js
+      ADMIN_SEED_PASSWORD: ${ADMIN_SEED_PASSWORD:-}
+      ADMIN_SEED_PIN: ${ADMIN_SEED_PIN:-}
     ports:
       - '3000:3000'
     volumes:

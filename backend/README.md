@@ -16,7 +16,24 @@
    ```
 3. 開發伺服器：`npm run dev` → `http://localhost:3000`
 
-預設 Admin：`employeeId=000000`，密碼見 `.env`（`ADMIN_SEED_PASSWORD`）。登入另需**圖形驗證碼**（B6；對齊教育訓練）。`ADMIN_SEED_PIN` 僅舊 seed 相容，不作登入因子。
+預設 Admin：`employeeId=000000`。**首次建立**時密碼取自一次性環境變數 `ADMIN_SEED_PASSWORD`（≥12 字元，含大寫、小寫、數字、符號；無預設值，未設或不合規則 seed 中止；**不要寫入 `.env`**）。Admin 已存在時，seed 不會覆寫密碼，修改環境變數不會改變既有密碼。登入另需**圖形驗證碼**（B6；對齊教育訓練）。`ADMIN_SEED_PIN` 僅舊 seed 相容，不作登入因子（未設會自動產生隨機值）。
+
+### 忘記 Admin 密碼／重設密碼
+
+```bash
+# 本機開發
+npm run admin:reset-password
+# ds1／正式（互動輸入，建議；需 -it）
+docker compose exec -it api node dist/prisma/reset-admin-password.js
+# 或以一次性環境變數提供（勿寫入 .env）
+export NEW_ADMIN_PASSWORD='…'
+docker compose exec -e NEW_ADMIN_PASSWORD api node dist/prisma/reset-admin-password.js
+```
+
+- 腳本開頭會顯示 `目標資料庫：…`，請確認路徑是你要重設的資料庫。若曾以 `export DATABASE_URL=...` 指向測試用資料庫，請先 `unset DATABASE_URL`（或換新終端機）。
+- 新密碼須符合強度規則（≥12 字元，含大小寫、數字、符號，且 ≤72 位元組）。
+- 重設會登出 Admin 所有既有登入、清除登入鎖定，並在 `audit_logs` 寫入 `admin_password_reset`（含 OS 使用者，不含密碼）。
+- 退出碼：0 成功；1 輸入或前置條件不符；2 未預期錯誤。
 
 ## Docker Compose（僅 ds1／正式）
 
