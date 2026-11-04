@@ -114,7 +114,7 @@
 1. `backend/`：確認 `.env` 的 `DATABASE_URL="file:../../data/attendance.db"`（專案根 `data/attendance.db`）
 2. `npm run prisma:migrate && npm run prisma:seed && npm run dev`（`:3000`）
    - 首次建立 Admin 需一次性提供 `ADMIN_SEED_PASSWORD`（≥12 碼，含大小寫、數字、符號；不要寫入 `.env`）；既有 Admin 不會被 seed 覆寫。
-   - 忘記或需更換 Admin 密碼：`npm run admin:reset-password`（ds1 見 `backend/README.md`「忘記 Admin 密碼」）。
+   - 忘記或需更換 Admin 密碼：`npm run admin:reset-password`（ds1 見 `backend/README.md`「忘記 Admin 密碼」；完整步驟見 `1.docs/Admin密碼重設操作手冊.md`）。
 3. `frontend/`：`npm run dev`（Vite；proxy `/attendance/api` → `http://localhost:3000/api`）
 
 **部署（ds1／正式）**

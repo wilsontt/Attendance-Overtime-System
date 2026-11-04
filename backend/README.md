@@ -23,12 +23,17 @@
 ```bash
 # 本機開發
 npm run admin:reset-password
-# ds1／正式（互動輸入，建議；需 -it）
-docker compose exec -it api node dist/prisma/reset-admin-password.js
+# ds1／正式：在「企業入口網站/deploy/」目錄執行，服務名為 attendance-api（互動輸入，建議；需 -it）
+docker compose exec -it attendance-api node dist/prisma/reset-admin-password.js
 # 或以一次性環境變數提供（勿寫入 .env）
 export NEW_ADMIN_PASSWORD='…'
-docker compose exec -e NEW_ADMIN_PASSWORD api node dist/prisma/reset-admin-password.js
+docker compose exec -e NEW_ADMIN_PASSWORD attendance-api node dist/prisma/reset-admin-password.js
+unset NEW_ADMIN_PASSWORD
+# 本專案自帶的 docker-compose.yml（僅本機驗證映像用）服務名則為 api：
+#   docker compose exec -it api node dist/prisma/reset-admin-password.js
 ```
+
+完整步驟、前置確認、驗證與疑難排解見 `1.docs/Admin密碼重設操作手冊.md`。
 
 - 腳本開頭會顯示 `目標資料庫：…`，請確認路徑是你要重設的資料庫。若曾以 `export DATABASE_URL=...` 指向測試用資料庫，請先 `unset DATABASE_URL`（或換新終端機）。
 - 新密碼須符合強度規則（≥12 字元，含大小寫、數字、符號，且 ≤72 位元組）。

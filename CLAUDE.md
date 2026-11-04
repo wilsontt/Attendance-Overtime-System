@@ -20,7 +20,7 @@ npx vitest run           # 執行全部測試（單次）
 ```bash
 # 本機開發：SQLite（專案根 data/attendance.db），不需 Docker
 npm run prisma:migrate && npm run prisma:seed   # 首次建立 Admin 需一次性提供 ADMIN_SEED_PASSWORD（≥12 碼；不寫入 .env）
-npm run admin:reset-password   # 重設 Admin 密碼（seed 不會覆寫既有 Admin 密碼）
+npm run admin:reset-password   # 重設 Admin 密碼（seed 不會覆寫既有 Admin 密碼；步驟見 1.docs/Admin密碼重設操作手冊.md）
 npm run dev              # Fastify :3000
 npm run lint             # ESLint（eslint.config.js；Node／TypeScript，勿直接複製前端設定）
 npm test
