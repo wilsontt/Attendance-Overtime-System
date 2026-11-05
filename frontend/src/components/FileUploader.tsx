@@ -12,6 +12,7 @@
 
 import React, { useId, useState } from 'react';
 import Papa from 'papaparse';
+import { isUnknownLeaveType } from '../constants/leaveTypes';
 import { parseTxtContent } from '../services/txtParser';
 import type { AttendanceRecord } from '../types';
 
@@ -97,14 +98,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
             return;
           }
 
-          const allowedAttendanceTypes = [
-            '事假',
-            '病假',
-            '請年休假',
-            '公假',
-            '空',
-            '',
-          ];
+          const unknownLeaveNames = new Set<string>();
 
           const parsedRecords = (results.data as string[][])
             .slice(1)
@@ -114,19 +108,18 @@ const FileUploader: React.FC<FileUploaderProps> = ({
                 row.some((cell) => cell.trim() !== '')
             )
             .map((row: string[]): AttendanceRecord | null => {
-              const attendanceType = row[3] || '空';
-
-              if (!allowedAttendanceTypes.includes(attendanceType)) {
-                throw new Error(
-                  `CSV 檔案中包含不合法的考勤別: ${attendanceType}。請確認考勤別為 ${allowedAttendanceTypes.filter((t) => t !== '').join(', ')} 之一。`,
-                );
+              const rawType = (row[3] || '').trim();
+              const attendanceType =
+                rawType === '' || rawType === '空' ? '' : rawType;
+              if (isUnknownLeaveType(attendanceType)) {
+                unknownLeaveNames.add(attendanceType);
               }
 
               return {
                 employeeId: row[0],
                 name: row[1],
                 date: row[2],
-                attendanceType: attendanceType === '空' ? '' : attendanceType,
+                attendanceType,
                 leaveQuantity: Number.parseFloat(row[4]) || 0,
                 clockIn: row[5],
                 clockOut: row[6],
@@ -136,6 +129,12 @@ const FileUploader: React.FC<FileUploaderProps> = ({
           const records = parsedRecords.filter(
             (record): record is AttendanceRecord => record !== null
           );
+
+          if (unknownLeaveNames.size > 0) {
+            alert(
+              `CSV 含清單外考勤別（將列入「其他假別」）：${[...unknownLeaveNames].join('、')}`,
+            );
+          }
 
           onFileProcessed(records, '', 'csv', {
             alsoImportToServer,

@@ -1,6 +1,6 @@
 /**
- * 假勤摘要加總（純函式，對齊 PRD §5.5.1）。
- * 未出現的清單假別回 0；未知假別不計入。
+ * 假勤摘要加總（純函式，對齊 PRD §5.5.1／design-other-leave-summary）。
+ * 未出現的清單假別回 0；未知假別加總至 otherLeave.usedDays。
  */
 
 import {
@@ -28,6 +28,9 @@ export type LeaveSummaryTotals = {
     leaveType: (typeof NON_ANNUAL_LEAVE_TYPES)[number];
     usedDays: number;
   }>;
+  otherLeave: {
+    usedDays: number;
+  };
 };
 
 export function summarizeLeaveQuantities(
@@ -35,8 +38,14 @@ export function summarizeLeaveQuantities(
   quotaDays: number,
 ): LeaveSummaryTotals {
   const sums = new Map<string, number>();
+  let otherUsedDays = 0;
+
   for (const row of rows) {
-    if (row.unknownLeaveType || !row.attendanceType) continue;
+    if (row.unknownLeaveType) {
+      otherUsedDays += row.leaveQuantity;
+      continue;
+    }
+    if (!row.attendanceType) continue;
     if (!KNOWN_LEAVE_TYPES.includes(row.attendanceType as (typeof KNOWN_LEAVE_TYPES)[number])) {
       continue;
     }
@@ -56,5 +65,8 @@ export function summarizeLeaveQuantities(
       leaveType,
       usedDays: sums.get(leaveType) ?? 0,
     })),
+    otherLeave: {
+      usedDays: otherUsedDays,
+    },
   };
 }

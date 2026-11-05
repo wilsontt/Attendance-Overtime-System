@@ -15,7 +15,13 @@
  * - 民國年日期格式（例如：1141001）
  */
 
+import { KNOWN_LEAVE_TYPE_PATTERN } from '../constants/leaveTypes';
 import type { AttendanceRecord } from '../types';
+
+const KNOWN_LEAVE_REGEX = new RegExp(
+  `(${KNOWN_LEAVE_TYPE_PATTERN})\\/(\\d+(?:\\.\\d+)?)日`,
+);
+const UNKNOWN_LEAVE_REGEX = /([\u4e00-\u9fa5]{1,10})\/(\d+(?:\.\d+)?)日/;
 
 /**
  * 解析後的記錄介面（內部使用）
@@ -27,7 +33,7 @@ interface ParsedRecord {
   name: string;
   /** 歸屬日期（民國年格式） */
   date: string;
-  /** 考勤別（事假、病假、請年休假、公假或空白） */
+  /** 考勤別（§7.6 清單、未知假別如颱風假、或空白） */
   attendanceType: string;
   /** 請假數量（天數） */
   leaveQuantity: number;
@@ -71,11 +77,18 @@ function parseRecord(lines: string[]): ParsedRecord | null {
     result.date = dateMatch[1];
   }
 
-  // 提取考勤別和數量（格式：病假/1日//1141103  - 1141103）
-  const leaveMatch = firstLine.match(/(事假|病假|請年休假|公假)\/(\d+(?:\.\d+)?)日/);
+  // 提取考勤別和數量（格式：病假/1日//… 或 颱風假/1日//…）
+  const leaveMatch = firstLine.match(KNOWN_LEAVE_REGEX);
   if (leaveMatch) {
-    result.attendanceType = leaveMatch[1];
-    result.leaveQuantity = parseFloat(leaveMatch[2]);
+    result.attendanceType = leaveMatch[1] ?? '';
+    result.leaveQuantity = parseFloat(leaveMatch[2] ?? '0');
+  } else {
+    const unknownLeave = firstLine.match(UNKNOWN_LEAVE_REGEX);
+    const unknownName = unknownLeave?.[1];
+    if (unknownName && !['上班', '下班'].includes(unknownName)) {
+      result.attendanceType = unknownName;
+      result.leaveQuantity = parseFloat(unknownLeave?.[2] ?? '0');
+    }
   }
 
   // 提取刷卡時間

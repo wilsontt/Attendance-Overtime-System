@@ -653,10 +653,11 @@ paths:
   /api/leave/summary:
     get:
       tags: [leave-calendar]
-      summary: 假勤摘要（年假餘額＋各假別已請）
+      summary: 假勤摘要（年假餘額＋正式假別已請＋其他假別）
       description: |
+        回傳年假、`leaveTotals`（§7.6 非年假，未出現為 0）與 `otherLeave.usedDays`（未知假別加總）。
         行事曆頁摘要卡片可再以 `GET /api/attendance`（該曆年區間）載入後，
-        前端依假別過濾數量 > 0 之明細（鎖定式 Modal）。
+        前端依假別或未知假別過濾數量 > 0 之明細（鎖定式 Modal；其他假別明細含假別欄）。
       operationId: getLeaveSummary
       x-phase: B7
       security:
@@ -1285,7 +1286,7 @@ components:
 
     LeaveSummaryResponse:
       type: object
-      required: [employeeId, year, annualLeave, leaveTotals]
+      required: [employeeId, year, annualLeave, leaveTotals, otherLeave]
       properties:
         employeeId:
           $ref: '#/components/schemas/EmployeeId'
@@ -1313,6 +1314,13 @@ components:
                 type: string
               usedDays:
                 type: number
+        otherLeave:
+          type: object
+          required: [usedDays]
+          description: 該曆年所有未知假別（非 §7.6）leaveQuantity 加總；未出現為 0
+          properties:
+            usedDays:
+              type: number
 
     GovCalendarSyncResult:
       type: object

@@ -33,4 +33,20 @@ describe('parseTxtContent', () => {
     expect(records[0].clockIn).toBe('');
     expect(records[0].clockOut).toBe('19:08');
   });
+
+  it('parses 颱風假/1日 with empty punches as leave without clocks', () => {
+    const content = `
+員工姓名               歸屬日期/班別      考勤別/數量/備註/日期時間起迄                             標準時間             刷卡日期 時間  主管核定
+================================================================================================================================================
+100057 鄒東良          1151023/1          颱風假/1日//1151023  - 1151023                            上班/1023 09:00                       異常
+                                                                                                    下班/1023 18:00                       異常
+                        -------------------------------------------------------------------------------------------------------------------------
+`;
+    const records = parseTxtContent(content);
+    expect(records).toHaveLength(1);
+    expect(records[0].attendanceType).toBe('颱風假');
+    expect(records[0].leaveQuantity).toBe(1);
+    expect(records[0].clockIn).toBe('');
+    expect(records[0].clockOut).toBe('');
+  });
 });

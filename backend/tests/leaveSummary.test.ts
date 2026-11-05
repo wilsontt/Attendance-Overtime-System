@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { summarizeLeaveQuantities } from '../src/modules/calendar/leaveSummary.js';
 
 describe('summarizeLeaveQuantities', () => {
-  it('sums annual leave and shows 0 for unused types; ignores unknown', () => {
+  it('sums annual leave and shows 0 for unused types; otherLeave sums unknown', () => {
     const result = summarizeLeaveQuantities(
       [
         { attendanceType: '請年休假', leaveQuantity: 1, unknownLeaveType: false },
@@ -29,6 +29,24 @@ describe('summarizeLeaveQuantities', () => {
       { leaveType: '公假', usedDays: 0 },
       { leaveType: '喪假', usedDays: 0 },
     ]);
+    expect(result.otherLeave).toEqual({ usedDays: 2 });
+  });
+
+  it('sums unknown leave into otherLeave and keeps leaveTotals free of unknown', () => {
+    const result = summarizeLeaveQuantities(
+      [
+        { attendanceType: '請年休假', leaveQuantity: 1, unknownLeaveType: false },
+        { attendanceType: '事假', leaveQuantity: 1, unknownLeaveType: false },
+        { attendanceType: '特休', leaveQuantity: 2, unknownLeaveType: true },
+        { attendanceType: '颱風假', leaveQuantity: 1, unknownLeaveType: true },
+        { attendanceType: '颱風假', leaveQuantity: 0.5, unknownLeaveType: true },
+        { attendanceType: null, leaveQuantity: 0, unknownLeaveType: false },
+      ],
+      14,
+    );
+    expect(result.otherLeave).toEqual({ usedDays: 3.5 });
+    expect(result.leaveTotals.find((t) => t.leaveType === '公假')?.usedDays).toBe(0);
+    expect(result.leaveTotals.find((t) => t.leaveType === '事假')?.usedDays).toBe(1);
   });
 
   it('allows negative remaining when over quota', () => {
@@ -37,5 +55,6 @@ describe('summarizeLeaveQuantities', () => {
       1,
     );
     expect(result.annualLeave.remainingDays).toBe(-2);
+    expect(result.otherLeave).toEqual({ usedDays: 0 });
   });
 });

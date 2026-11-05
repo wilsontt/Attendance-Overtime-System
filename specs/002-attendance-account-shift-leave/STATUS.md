@@ -3,7 +3,7 @@
 **Spec ID**: `002-attendance-account-shift-leave`（規格目錄名；**不是** git 分支）
 **線 A Git**: 已合入 `main`（含日期欄段別 `d54f706`）
 **線 B Git**: 已合入 `main`（本機實作與測試完成；ds1 部署見下方）
-**Last Updated**: 2026-09-26
+**Last Updated**: 2026-11-04
 
 ## 階段進度
 
@@ -34,6 +34,7 @@
   - [x] **Admin／行事曆 UX**：列表排除 Admin、不可對 Admin 派班、員工編輯鎖定 Modal、行事曆不預設 000000、年假卡片置頂
   - [x] **B7** 假勤摘要（PRD §5.5.1：年假餘額＋各假別已請含 0；行事曆同入口）
   - [x] **B7 延伸**：假勤摘要 8 卡片點開該假別曆年明細（鎖定 Modal；沿用 `listAttendance`；年假＝請年休假；僅 `leaveQuantity>0`）
+  - [x] **其他假別卡（2026-11-04）**：`otherLeave.usedDays`；固定「其他假別」摘要卡＋明細含假別欄；TXT／CSV 可解析颱風假等未知考勤（見 `design-other-leave-summary.md`／`plan-other-leave-summary.md`）
   - [x] **UX／品質後續（2026-09-22）**：行事曆左右版面、日期「星期X」、未登入上傳不強制登入、lint／複雜度整理
 - [x] **測試與驗證（本機）**: 完成（單元／建置／本機瀏覽器流程；負責人確認 B-LINE 本機無問題）
 - [ ] **ds1／測試環境部署**: D2（compose／nginx）已完成；D1／D3～D5 上機待維運（[plan-ds1-deploy-line-b.md](./plan-ds1-deploy-line-b.md)；操作清單 [checklist-ds1-deploy-line-b.md](./checklist-ds1-deploy-line-b.md)；策略 B 快照；`COOKIE_SECURE=false`）
@@ -46,6 +47,7 @@
 - 2026-09-26: **入口 Nginx stale upstream DNS**：`deploy/nginx/nginx.conf` 改 `resolver 127.0.0.11`＋變數 `proxy_pass`（含 attendance／training／aetim／finereport）；修復 recreate attendance 後 `/attendance/` 502。前端 Dockerfile pid → `/tmp/nginx.pid`。
 - 2026-09-26: **入口 Nginx conf 修正**（`deploy/nginx/nginx.conf`）：`proxy_pass http://attendance-api/api/`（勿再加 `:3000`）；`upstream attendance` → `attendance:8080`。修復入口容器 Restarting／整站連線拒絕。
 - 2026-09-24: **前端 Nginx 非 root**：`Dockerfile`／`Dockerfile.compose` 改 `USER nginx`、聽 **8080**（`<1024` 需 root）。ds1 入口 `upstream attendance` 須為 `attendance:8080`。
+- 2026-11-04: **其他假別卡**：`GET /api/leave/summary` 新增 `otherLeave.usedDays`；行事曆固定「其他假別」卡與明細（含假別欄）；前端 TXT／CSV 可解析颱風假等未知考勤；不併入公假。設計／計劃：`design-other-leave-summary.md`、`plan-other-leave-summary.md`。
 - 2026-09-24: **Docker 入口路徑**：`start`／Dockerfile CMD 改 `node dist/src/server.js`（`tsc` 產出在 `dist/src/`，非 `dist/server.js`）。
 - 2026-09-24: **Docker seed 改方案 B**：`attendance-api` 啟動改跑 `node dist/prisma/seed.js`（不再 `tsx prisma/seed.ts`），避免正式映像無 `/app/src` 導致 `password.js` 找不到、容器 Restarting。本機仍 `npm run prisma:seed`。
 - 2026-09-24: **ds1 上機檢查清單**：新增 [checklist-ds1-deploy-line-b.md](./checklist-ds1-deploy-line-b.md)（D1→D3→D4→D5 可勾選指令、煙測、回滾）；計畫頂部已加連結。**尚未 ds1 上機。**

@@ -33,6 +33,10 @@ export type LeaveSummaryResponse = {
     leaveType: string;
     usedDays: number;
   }>;
+  /** 清單外考勤別（如颱風假）數量加總；未出現為 0 */
+  otherLeave: {
+    usedDays: number;
+  };
 };
 
 export async function fetchLeaveSummary(params: {

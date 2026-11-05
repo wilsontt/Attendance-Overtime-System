@@ -1,6 +1,6 @@
 /**
  * 請假行事曆：顯示國定／補班與個人請假（GET /api/leave/calendar）。
- * 月表與假別明細 Modal 使用 @shared-ui/data-table；假勤摘要 8 卡片，點卡片開明細。
+ * 月表與假別明細 Modal 使用 @shared-ui/data-table；假勤摘要含正式假別＋固定「其他假別」卡。
  */
 
 import {
@@ -28,19 +28,22 @@ import {
   type LeaveCalendarDay,
   type LeaveSummaryResponse,
 } from '../api/leaveCalendar';
+import { isUnknownLeaveType } from '../constants/leaveTypes';
 import { formatDateWithFullWeekday } from '../utils/dateFormatter';
 
 type LeaveCalendarPageProps = {
   user: MeResponse;
 };
 
-/** 明細 Modal 開啟目標：顯示名稱與台帳假別過濾值可分開（年假卡片）。 */
+/** 明細 Modal 開啟目標：typed＝單一正式假別；other＝清單外加總。 */
 type LeaveDetailTarget = {
   displayName: string;
-  attendanceType: string;
   year: number;
   /** 與當次摘要查詢綁定的員工編號（Admin 不可用輸入框即時值，避免漂移）。 */
   employeeId: string;
+  kind: 'typed' | 'other';
+  /** kind==='typed' 時必填 */
+  attendanceType?: string;
 };
 
 const DAY_TYPE_LABEL: Record<LeaveCalendarDay['dayType'], string> = {
@@ -53,41 +56,74 @@ const DAY_TYPE_LABEL: Record<LeaveCalendarDay['dayType'], string> = {
 const EMPLOYEE_ID_PATTERN = /^\d{6}$/;
 const ANNUAL_LEAVE_TYPE = '請年休假';
 
-/** 假勤摘要卡片底色／邊框／hover（年假顯示名 + §7.6 leaveType）；缺 key 用 fallback。 */
-const LEAVE_SUMMARY_CARD_COLORS: Record<string, string> = {
-  年假: 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100',
-  病假: 'border-rose-200 bg-rose-50 hover:bg-rose-100',
-  婚假: 'border-pink-200 bg-pink-50 hover:bg-pink-100',
-  產假: 'border-violet-200 bg-violet-50 hover:bg-violet-100',
-  育嬰假: 'border-sky-200 bg-sky-50 hover:bg-sky-100',
-  事假: 'border-amber-200 bg-amber-50 hover:bg-amber-100',
-  公假: 'border-cyan-200 bg-cyan-50 hover:bg-cyan-100',
-  喪假: 'border-stone-300 bg-stone-100 hover:bg-stone-200',
+/**
+ * 假勤摘要卡與月表列共用色票（改一處兩邊一起變）。
+ * 未知考勤（颱風假等）月表列對齊「其他假別」。
+ */
+type LeaveTone = { card: string; row: string };
+
+const LEAVE_TONES: Record<string, LeaveTone> = {
+  年假: {
+    card: 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100',
+    row: '!bg-emerald-100',
+  },
+  病假: {
+    card: 'border-rose-200 bg-rose-50 hover:bg-rose-100',
+    row: '!bg-rose-100',
+  },
+  婚假: {
+    card: 'border-indigo-200 bg-indigo-50 hover:bg-indigo-100',
+    row: '!bg-indigo-100',
+  },
+  產假: {
+    card: 'border-violet-200 bg-violet-50 hover:bg-violet-100',
+    row: '!bg-violet-100',
+  },
+  育嬰假: {
+    card: 'border-sky-200 bg-sky-50 hover:bg-sky-100',
+    row: '!bg-sky-100',
+  },
+  事假: {
+    card: 'border-amber-200 bg-amber-50 hover:bg-amber-100',
+    row: '!bg-amber-100',
+  },
+  公假: {
+    card: 'border-cyan-200 bg-cyan-50 hover:bg-cyan-100',
+    row: '!bg-cyan-100',
+  },
+  喪假: {
+    card: 'border-stone-300 bg-stone-100 hover:bg-stone-200',
+    row: '!bg-stone-200',
+  },
+  其他假別: {
+    card: 'border-pink-200 bg-pink-50 hover:bg-pink-100',
+    row: '!bg-pink-100',
+  },
 };
 
-/** 月表請假列 highlight（與上方卡片同色系；! 壓過 striped）。台帳年假＝請年休假。 */
-const LEAVE_ROW_HIGHLIGHT_COLORS: Record<string, string> = {
-  年假: '!bg-emerald-100',
-  請年休假: '!bg-emerald-100',
-  病假: '!bg-rose-100',
-  婚假: '!bg-pink-100',
-  產假: '!bg-violet-100',
-  育嬰假: '!bg-sky-100',
-  事假: '!bg-amber-100',
-  公假: '!bg-cyan-100',
-  喪假: '!bg-stone-200',
+const LEAVE_TONE_FALLBACK: LeaveTone = {
+  card: 'border-slate-200 bg-slate-50 hover:bg-slate-100',
+  row: '!bg-slate-100',
 };
-
-const LEAVE_ROW_HIGHLIGHT_FALLBACK = '!bg-slate-100';
-
-const LEAVE_SUMMARY_CARD_FALLBACK =
-  'border-slate-200 bg-slate-50 hover:bg-slate-100';
 
 const LEAVE_SUMMARY_CARD_BASE =
   'rounded border px-2 py-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600';
 
+function leaveToneForKey(key: string): LeaveTone {
+  if (key === '請年休假') {
+    return LEAVE_TONES['年假'] ?? LEAVE_TONE_FALLBACK;
+  }
+  if (LEAVE_TONES[key]) {
+    return LEAVE_TONES[key] ?? LEAVE_TONE_FALLBACK;
+  }
+  if (isUnknownLeaveType(key)) {
+    return LEAVE_TONES['其他假別'] ?? LEAVE_TONE_FALLBACK;
+  }
+  return LEAVE_TONE_FALLBACK;
+}
+
 function leaveSummaryCardClassName(key: string): string {
-  return `${LEAVE_SUMMARY_CARD_BASE} ${LEAVE_SUMMARY_CARD_COLORS[key] ?? LEAVE_SUMMARY_CARD_FALLBACK}`;
+  return `${LEAVE_SUMMARY_CARD_BASE} ${leaveToneForKey(key).card}`;
 }
 
 /** 該列有請假：假別有值，或請假數量 > 0。 */
@@ -95,15 +131,14 @@ function hasLeaveOnDay(day: LeaveCalendarDay): boolean {
   return Boolean(day.leaveType) || (day.leaveQuantity ?? 0) > 0;
 }
 
-/** 依假別回傳月表列底色；與摘要卡片同色系。 */
+/** 依假別回傳月表列底色；與摘要卡片同色系（未知→其他假別）。 */
 function leaveRowHighlightClassName(
   day: LeaveCalendarDay,
 ): string | undefined {
   if (!hasLeaveOnDay(day)) {
     return undefined;
   }
-  const key = day.leaveType ?? '';
-  return LEAVE_ROW_HIGHLIGHT_COLORS[key] ?? LEAVE_ROW_HIGHLIGHT_FALLBACK;
+  return leaveToneForKey(day.leaveType ?? '').row;
 }
 
 const CALENDAR_EMPTY_DEFAULT =
@@ -173,12 +208,44 @@ const CALENDAR_COLUMNS: DataTableColumn<LeaveCalendarDay>[] = [
   },
 ];
 
-const DETAIL_COLUMNS: DataTableColumn<AttendanceDay>[] = [
+const DETAIL_COLUMNS_TYPED: DataTableColumn<AttendanceDay>[] = [
   {
     key: 'belongDate',
     header: '歸屬日期',
     cellClassName: 'font-mono',
     accessor: (row) => formatDateWithFullWeekday(row.belongDate),
+  },
+  {
+    key: 'leaveQuantity',
+    header: '天數/小時',
+    accessor: (row) => String(row.leaveQuantity),
+  },
+  {
+    key: 'clockIn',
+    header: '上班',
+    cellClassName: 'font-mono',
+    accessor: (row) => row.clockIn ?? '—',
+  },
+  {
+    key: 'clockOut',
+    header: '下班',
+    cellClassName: 'font-mono',
+    accessor: (row) => row.clockOut ?? '—',
+  },
+];
+
+/** 「其他假別」明細多「假別」欄，以區分颱風假等。 */
+const DETAIL_COLUMNS_OTHER: DataTableColumn<AttendanceDay>[] = [
+  {
+    key: 'belongDate',
+    header: '歸屬日期',
+    cellClassName: 'font-mono',
+    accessor: (row) => formatDateWithFullWeekday(row.belongDate),
+  },
+  {
+    key: 'attendanceType',
+    header: '假別',
+    accessor: (row) => row.attendanceType ?? '—',
   },
   {
     key: 'leaveQuantity',
@@ -225,6 +292,7 @@ function LeaveSummarySection({
           onClick={() => {
             onOpenDetail({
               displayName: '年假',
+              kind: 'typed',
               attendanceType: ANNUAL_LEAVE_TYPE,
               year: summary.year,
               employeeId: summary.employeeId,
@@ -254,6 +322,7 @@ function LeaveSummarySection({
             onClick={() => {
               onOpenDetail({
                 displayName: item.leaveType,
+                kind: 'typed',
                 attendanceType: item.leaveType,
                 year: summary.year,
                 employeeId: summary.employeeId,
@@ -264,9 +333,26 @@ function LeaveSummarySection({
             <span className="block font-medium">{item.usedDays} 天</span>
           </button>
         ))}
+        <button
+          type="button"
+          className={leaveSummaryCardClassName('其他假別')}
+          onClick={() => {
+            onOpenDetail({
+              displayName: '其他假別',
+              kind: 'other',
+              year: summary.year,
+              employeeId: summary.employeeId,
+            });
+          }}
+        >
+          <span className="block text-slate-500">其他假別</span>
+          <span className="block font-medium">
+            {summary.otherLeave.usedDays} 天
+          </span>
+        </button>
       </div>
       <p className="text-xs text-slate-500">
-        僅統計已寫入伺服器的請假；未出現的假別顯示 0。點擊卡片可查看該假別明細。
+        僅統計已寫入伺服器的請假；正式假別未出現顯示 0。「其他假別」為清單外考勤加總。點擊卡片可查看明細。
       </p>
     </section>
   );
@@ -317,11 +403,21 @@ function LeaveDetailModal({
             paginationMode="client"
             defaultPageSize={10}
             showPaginationWhenSinglePage
-            columns={DETAIL_COLUMNS}
+            columns={
+              target.kind === 'other'
+                ? DETAIL_COLUMNS_OTHER
+                : DETAIL_COLUMNS_TYPED
+            }
             data={items}
             loading={loading}
-            getRowKey={(row, index) => `${row.belongDate}-${index}`}
-            emptyState="本年度無此假別紀錄"
+            getRowKey={(row, index) =>
+              `${row.belongDate}-${row.attendanceType ?? ''}-${index}`
+            }
+            emptyState={
+              target.kind === 'other'
+                ? '本年度無其他假別紀錄'
+                : '本年度無此假別紀錄'
+            }
             indexColumnHeader="項次"
             stripedEvenRows
           />
@@ -458,11 +554,16 @@ function LeaveCalendarPage({
         return;
       }
       const filtered = result.items
-        .filter(
-          (item) =>
-            item.attendanceType === target.attendanceType &&
-            item.leaveQuantity > 0,
-        )
+        .filter((item) => {
+          if (item.leaveQuantity <= 0) return false;
+          if (target.kind === 'other') {
+            return (
+              item.unknownLeaveType ||
+              isUnknownLeaveType(item.attendanceType)
+            );
+          }
+          return item.attendanceType === target.attendanceType;
+        })
         .sort((a, b) => a.belongDate.localeCompare(b.belongDate));
       setDetailItems(filtered);
     } catch (err) {
